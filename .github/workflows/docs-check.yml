@@ -1,0 +1,34 @@
+name: Documentation checks
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  mintlify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Validate docs.json syntax
+        run: python -m json.tool docs.json > /dev/null
+
+      - name: Install Mintlify CLI
+        run: npm install --global mint
+
+      - name: Validate Mintlify configuration and content
+        run: mint validate
+
+      - name: Check internal links
+        run: mint broken-links
