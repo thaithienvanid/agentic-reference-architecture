@@ -1,0 +1,164 @@
+---
+title: API specification
+description: Inbound management, run, approval, evaluation, marketplace, event, and administration API conventions.
+---
+
+# API specification
+
+The API is command/query separated. Commands are idempotent and usually asynchronous; queries do not mutate state.
+
+## Core APIs
+
+| API | Responsibility |
+|---|---|
+| Agent Management | Create, version, publish, deprecate, promote agents |
+| Workflow Management | Create, validate, publish, and inspect workflows |
+| Run Command | Start, pause, resume, cancel, signal, replay |
+| Run Query | State, timeline, artifacts, lineage, stream cursor |
+| Approval | Submit action-bound decisions |
+| Evaluation | Start jobs, inspect results, manage baselines |
+| Marketplace | Publish, install, upgrade, rollback, revoke |
+| Administration | Tenants, workspaces, quotas, policy, model routes, billing |
+
+## Start a run
+
+```http
+POST /v1/runs
+Authorization: Bearer <token>
+Idempotency-Key: request-4f882
+Content-Type: application/json
+```
+
+```json
+{
+  "agent": "procurement-order-agent@5.2.0",
+  "environment": "production",
+  "task": {
+    "type": "create_purchase_order",
+    "contractId": "C-882",
+    "quoteId": "Q-19"
+  },
+  "budgetOverride": {
+    "maximumCost": { "amount": "8.00", "currency": "USD" }
+  }
+}
+```
+
+The trusted tenant/workspace comes from identity context, not the request body.
+
+```http
+HTTP/1.1 202 Accepted
+Location: /v1/runs/run_01K2A
+```
+
+```json
+{
+  "runId": "run_01K2A",
+  "status": "admitted",
+  "deploymentSnapshot": "sha256:394e...",
+  "eventStream": "/v1/runs/run_01K2A/events"
+}
+```
+
+## Event stream
+
+```http
+GET /v1/runs/run_01K2A/events?after=140
+Accept: text/event-stream
+```
+
+The durable semantic stream uses per-run sequence numbers and stable event IDs. Token deltas may use a separate ephemeral channel.
+
+## Approval
+
+```http
+POST /v1/approvals/approval_01K2C:approve
+Authorization: Bearer <approver-token>
+Idempotency-Key: approval-decision-c92e
+Content-Type: application/json
+```
+
+```json
+{
+  "expectedRunVersion": 27,
+  "actionDigest": "sha256:778c...",
+  "comment": "Contract, vendor, and budget verified"
+}
+```
+
+The service validates approver authority, expiry, exact action digest, and current run state before recording the decision.
+
+## Cancel
+
+```http
+POST /v1/runs/run_01K2A:cancel
+Idempotency-Key: cancel-019
+```
+
+```json
+{
+  "reason": "User withdrew request",
+  "expectedRunVersion": 31
+}
+```
+
+Cancellation prevents new effects and attempts to cancel supported in-flight work. It does not erase completed external effects.
+
+## Replay
+
+```http
+POST /v1/runs/run_01K2A:replay
+Content-Type: application/json
+```
+
+```json
+{
+  "mode": "counterfactual",
+  "overrides": {
+    "agentVersion": "procurement-order-agent@5.3.0",
+    "modelRoutingProfile": "eu-enterprise-models@4"
+  },
+  "effectPolicy": {
+    "models": "reinvoke",
+    "readOnlyTools": "reinvoke",
+    "mutatingTools": "use_recorded_results"
+  }
+}
+```
+
+## External event ingestion
+
+```http
+POST /v1/run-events
+Authorization: Bearer <workload-token>
+Idempotency-Key: provider-event-778
+```
+
+```json
+{
+  "targetRunId": "run_01K2A",
+  "correlationKey": "invoice-104/payment",
+  "eventType": "payment.settled",
+  "schemaVersion": "1.0.0",
+  "payload": { "paymentId": "P-77" }
+}
+```
+
+The API authenticates the sender, validates tenant and schema, persists an inbox record, deduplicates the event, and signals the durable run.
+
+## Error envelope
+
+```json
+{
+  "error": {
+    "category": "conflict",
+    "code": "RUN_VERSION_MISMATCH",
+    "message": "The run changed since the command was prepared.",
+    "retryable": true,
+    "safeToRetry": true,
+    "correlationId": "corr_5501"
+  }
+}
+```
+
+Do not expose raw provider errors, secrets, internal stack traces, or cross-tenant identifiers.

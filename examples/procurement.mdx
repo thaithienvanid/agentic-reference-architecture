@@ -1,0 +1,106 @@
+---
+title: Worked example — procurement agent
+description: End-to-end durable, multi-agent, approval-bound purchase-order execution with recovery, evaluation, and billing.
+---
+
+# Worked example — procurement agent
+
+## Scenario
+
+Acme EU asks the production agent to create a €180,000 purchase order from contract `C-882` and quote `Q-19`.
+
+Requirements:
+
+- Read contract and vendor data in the EU region.
+- Reconcile line items with model reasoning.
+- Run independent research and compliance checks.
+- Require procurement-manager and finance-controller approval.
+- Create exactly one order despite an injected network timeout.
+- Evaluate correctness and policy compliance.
+- Attribute all cost and package usage.
+
+## Architecture trace
+
+```mermaid
+sequenceDiagram
+  participant User
+  participant API
+  participant Runtime
+  participant Journal
+  participant Research
+  participant Compliance
+  participant Model
+  participant Policy
+  participant Approvers
+  participant ERP
+  participant Eval
+  participant Meter
+
+  User->>API: Start procurement run
+  API->>Journal: RunStarted with signed deployment snapshot
+  Runtime->>Research: Child/read-only research task
+  Runtime->>Compliance: Child/policy-read task
+  Research-->>Runtime: Research artifact
+  Compliance-->>Runtime: Compliance artifact
+  Runtime->>Model: Propose normalized order arguments
+  Runtime->>Policy: Authorize €180,000 create action
+  Policy-->>Runtime: Require dual approval
+  Runtime->>Journal: ApprovalRequested + checkpoint
+  Approvers->>API: Approve exact action digest
+  API->>Runtime: Resume
+  Runtime->>Policy: Revalidate
+  Runtime->>Journal: EffectPlanned + idempotency key
+  Runtime->>ERP: Create order
+  ERP--xRuntime: Response connection fails after commit
+  Runtime->>Journal: EffectOutcomeUnknown
+  Runtime->>ERP: Reconcile by idempotency key
+  ERP-->>Runtime: PO-2026-8841 exists
+  Runtime->>Journal: EffectReconciled + RunCompleted
+  Journal-->>Eval: Events and artifacts
+  Journal-->>Meter: Usage facts
+```
+
+## Ownership
+
+| Step | Owner | Evidence |
+|---|---|---|
+| Authenticate and route tenant | Application/identity | Auth audit and EU cell decision |
+| Resolve behavior | Control plane | Deployment digest |
+| Create and progress run | Execution context/runtime | Canonical run events |
+| Compile context | Runtime | Source refs and digest |
+| Delegate checks | Runtime/policy | Child run IDs and grants |
+| Propose order | Model gateway | Normalized request/result and usage |
+| Validate totals | Domain/task activity | Deterministic validation event |
+| Approve | Approval service | Signed decisions bound to action digest |
+| Create and reconcile | Tool gateway/runtime | Effect ledger and provider operation evidence |
+| Complete | Run aggregate | Terminal result and artifacts |
+| Evaluate | Evaluation plane | Versioned evaluation result |
+| Bill | Metering plane | Immutable usage records |
+
+## Deterministic assertions
+
+```text
+vendor matches contract
+total equals €180,000 and currency is EUR
+every line item traces to contract or quote
+both approvals precede tool dispatch
+action digest equals executed argument digest
+exactly one ERP order exists for the idempotency key
+no cross-tenant or cross-region access occurred
+hard run budget was not exceeded
+```
+
+## Semantic assertions
+
+- The explanation accurately describes discrepancies.
+- Claims cite the supporting contract/quote evidence.
+- Material constraints are not omitted.
+- Escalations are clear to approvers.
+
+## Failure recovery
+
+The timeout is classified `effectMayHaveOccurred=true` and `safeToRetry=false`. The runtime reconciles by idempotency key rather than sending another create request.
+
+## Cost attribution
+
+Usage is attributed to tenant, workspace, deployment, agent version, workflow version, model route, tool version, child runs, evaluation suite, region, and marketplace package release.

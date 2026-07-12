@@ -1,0 +1,231 @@
+---
+title: Mermaid diagram pack
+description: Standalone diagrams for terminology, system boundaries, execution, security, tenancy, evaluation, marketplace, failure, and lineage.
+---
+
+# Mermaid diagram pack
+
+## 1. Terminology map
+
+```mermaid
+flowchart LR
+  LLM["LLM application"] --> Assistant
+  LLM --> Deterministic["Deterministic workflow"]
+  Assistant --> ToolAgent["Tool-using agent"]
+  ToolAgent --> Agentic["Agentic workflow"]
+  Agentic --> Autonomous
+  Agentic --> Multi["Multi-agent system"]
+  Runtime["Agent runtime"] -. executes .-> Agentic
+  Environment["Operating environment"] --> Runtime
+  Agentic --> App["Agentic application"]
+  App --> Platform["Agentic platform"]
+  Marketplace --> Platform
+```
+
+## 2. System context
+
+```mermaid
+flowchart TB
+  People["Users, developers, operators, approvers"] --> Platform["Agentic Platform"]
+  Platform --> Models["Model providers"]
+  Platform --> Tools["Enterprise tools, MCP, external agents"]
+  Platform --> Identity["Identity, secrets, policy"]
+  Platform --> Data["State, event, artifact, memory stores"]
+```
+
+## 3. Container architecture
+
+```mermaid
+flowchart TB
+  API --> Control["Control-plane application"]
+  API --> RunAPI["Runtime API"]
+  Control --> Compiler["Deployment compiler"]
+  Compiler -. snapshot .-> Workers
+  RunAPI --> Workers
+  Workers --> Kernel
+  Kernel <--> Journal
+  Kernel --> Gate
+  Gate --> Model
+  Gate --> Tool
+  Gate --> Memory
+  Journal --> Eval
+  Workers --> OTel
+  Journal --> Audit
+```
+
+## 4. Dependency boundary
+
+```mermaid
+flowchart TB
+  Infra["Providers and infrastructure"] --> Adapters
+  Adapters -. implement .-> Ports
+  Driving["Controllers and consumers"] --> Application
+  Application --> Domain
+  Application --> Ports
+  Kernel --> Domain
+  Kernel --> Ports
+```
+
+## 5. Ports and adapters
+
+```mermaid
+flowchart LR
+  Kernel --> ModelPort --> Providers
+  Kernel --> ToolPort --> MCP
+  Kernel --> WorkflowPort --> Temporal
+  Kernel --> MemoryPort --> Stores
+  Kernel --> PolicyPort --> OPA
+  Kernel --> SandboxPort --> MicroVM
+  Kernel --> TelemetryPort --> OTLP
+```
+
+## 6. Control and execution planes
+
+```mermaid
+flowchart LR
+  Control["Catalogs, policy, deployment"] -->|signed snapshot| Execution["Live runs and effects"]
+  Execution --> Evaluation
+  Execution --> Evidence["Observability, audit, usage"]
+  Evaluation -. gates .-> Control
+  Evidence -. health/cost .-> Control
+```
+
+## 7. Complete run sequence
+
+```mermaid
+sequenceDiagram
+  participant Client
+  participant App
+  participant Runtime
+  participant Journal
+  participant Model
+  participant Policy
+  participant Human
+  participant Tool
+  Client->>App: StartRun
+  App->>Journal: RunStarted
+  Runtime->>Model: Invoke
+  Model-->>Runtime: Action proposal
+  Runtime->>Policy: Evaluate
+  Policy-->>Runtime: Require approval
+  Runtime->>Journal: ApprovalRequested + checkpoint
+  Human->>App: Approve action digest
+  App->>Runtime: Resume signal
+  Runtime->>Policy: Revalidate
+  Runtime->>Tool: Invoke with idempotency key
+  Tool-->>Runtime: Result
+  Runtime->>Journal: ToolCompleted + RunCompleted
+  Runtime-->>Client: Result
+```
+
+## 8. Long-running state machine
+
+```mermaid
+stateDiagram-v2
+  [*] --> Created
+  Created --> Admitted
+  Admitted --> Queued
+  Queued --> Running
+  Running --> WaitingForModel
+  Running --> WaitingForTool
+  Running --> WaitingForApproval
+  Running --> WaitingForEvent
+  Running --> RetryBackoff
+  WaitingForTool --> Reconciling
+  WaitingForApproval --> Running
+  WaitingForEvent --> Running
+  RetryBackoff --> Queued
+  Running --> Completed
+  Running --> Failed
+  Running --> Cancelled
+  Running --> BudgetStopped
+  Running --> PolicyStopped
+```
+
+## 9. Tool-call policy enforcement
+
+```mermaid
+flowchart LR
+  Proposal --> Validate --> Policy
+  Policy -->|deny| Record
+  Policy -->|approval| Human
+  Human --> Budget
+  Policy -->|allow| Budget
+  Budget --> Intent["Persist effect intent"]
+  Intent --> Gateway --> Tool
+  Tool --> Result --> Commit
+```
+
+## 10. Human pause and resume
+
+```mermaid
+sequenceDiagram
+  participant Kernel
+  participant Journal
+  participant Runtime
+  participant Human
+  Kernel->>Journal: ApprovalRequested(actionDigest)
+  Runtime->>Journal: Checkpoint
+  Note over Runtime: Release worker
+  Human->>Runtime: Signed decision
+  Runtime->>Journal: ApprovalGranted
+  Runtime->>Kernel: Resume and revalidate
+```
+
+## 11. Evaluation feedback loop
+
+```mermaid
+flowchart LR
+  Change --> Unit --> Offline --> Environment --> Gate
+  Gate --> Canary --> Production --> Feedback
+  Feedback --> Dataset --> Offline
+```
+
+## 12. Multi-tenant cells
+
+```mermaid
+flowchart TB
+  Control["Shared control plane"] --> EU["EU shared cell"]
+  Control --> US["US shared cell"]
+  Control --> Dedicated["Dedicated tenant cell"]
+  EU --> EUData["EU state/artifacts/models"]
+  US --> USData["US state/artifacts/models"]
+  Dedicated --> Private["Tenant DB, keys, network, sandbox"]
+```
+
+## 13. Marketplace lifecycle
+
+```mermaid
+flowchart LR
+  Build --> Sign --> Scan --> Evaluate --> Review --> Publish --> Install --> Grant --> Verify --> Activate --> Monitor --> Upgrade
+  Monitor --> Revoke
+```
+
+## 14. Failure and recovery
+
+```mermaid
+flowchart LR
+  Plan["Persist EffectPlanned"] --> Dispatch
+  Dispatch --> Outcome{"Known outcome?"}
+  Outcome -->|success| Commit
+  Outcome -->|definite failure| RetryPolicy
+  Outcome -->|unknown| Reconcile
+  Reconcile -->|occurred| Commit
+  Reconcile -->|absent| Retry
+  Reconcile -->|unknowable| Human
+```
+
+## 15. Event and data lineage
+
+```mermaid
+flowchart LR
+  Command --> Decision --> Journal --> Projection
+  Journal --> Outbox --> Bus
+  Bus --> Eval
+  Bus --> Audit
+  Bus --> Meter
+  Journal -. payload ref .-> PayloadStore
+  Journal -. artifact lineage .-> ArtifactStore
+  EngineHistory -. operational ref .-> Journal
+  Trace -. correlation .-> Journal
+```

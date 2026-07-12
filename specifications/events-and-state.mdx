@@ -1,0 +1,138 @@
+---
+title: State and event schemas
+description: Canonical run state, activity result, effect, event envelope, approval, and usage schemas.
+---
+
+# State and event schemas
+
+## Run state
+
+```json
+{
+  "runId": "run_01K2A",
+  "tenant": {
+    "tenantId": "tenant_acme_eu",
+    "workspaceId": "workspace_procurement",
+    "homeRegion": "eu-west"
+  },
+  "deploymentSnapshot": "sha256:394e...",
+  "status": "waiting_for_approval",
+  "stateVersion": 27,
+  "eventSequence": 141,
+  "currentActivity": "create-purchase-order",
+  "budgets": {
+    "money": {
+      "limit": { "amount": "12.00", "currency": "USD" },
+      "reserved": { "amount": "0.10", "currency": "USD" },
+      "consumed": { "amount": "3.82", "currency": "USD" }
+    },
+    "activities": { "limit": 60, "consumed": 12 },
+    "modelCalls": { "limit": 18, "consumed": 5 },
+    "toolCalls": { "limit": 25, "consumed": 6 }
+  },
+  "pendingEffects": [
+    {
+      "effectId": "effect_01K2B",
+      "type": "tool.invoke",
+      "tool": "purchase-order.create@4.2.1",
+      "sideEffectClass": "irreversible_write",
+      "argumentsDigest": "sha256:8ea7...",
+      "idempotencyKey": "tenant_acme_eu/run_01K2A/create-po/1/8ea7"
+    }
+  ],
+  "pendingApproval": {
+    "approvalId": "approval_01K2C",
+    "actionDigest": "sha256:778c...",
+    "policyVersion": "high-value-approval@5.0.0",
+    "expiresAt": "2026-07-14T10:00:00Z"
+  },
+  "checkpointRef": "artifact://sha256/a82f...",
+  "childRunRefs": ["run_research", "run_compliance"]
+}
+```
+
+Large histories and provider payloads are references, not embedded collections.
+
+## Activity result
+
+```json
+{
+  "activityResultId": "result_01K2R",
+  "activityRunId": "activity_run_12",
+  "schemaRef": "ProcurementResearchResult@3",
+  "inlineValue": {
+    "vendorId": "V-77",
+    "riskScore": 0.42
+  },
+  "artifactRefs": ["artifact://sha256/abc123"],
+  "digest": "sha256:919d...",
+  "completedAt": "2026-07-12T08:04:01Z"
+}
+```
+
+## Canonical event envelope
+
+```json
+{
+  "eventId": "evt_01K2D",
+  "eventType": "tool.invocation.planned",
+  "schemaVersion": "3.1.0",
+  "occurredAt": "2026-07-12T08:04:11.483Z",
+  "recordedAt": "2026-07-12T08:04:11.491Z",
+  "tenantId": "tenant_acme_eu",
+  "workspaceId": "workspace_procurement",
+  "region": "eu-west",
+  "aggregateType": "Run",
+  "aggregateId": "run_01K2A",
+  "aggregateVersion": 27,
+  "runSequence": 141,
+  "activityRunId": "activity_run_12",
+  "attemptId": "attempt_1",
+  "effectId": "effect_01K2B",
+  "actor": {
+    "type": "service",
+    "id": "runtime-worker",
+    "onBehalfOf": "user_887"
+  },
+  "correlationId": "corr_5501",
+  "causationId": "evt_01K2C",
+  "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "dataClassification": "confidential",
+  "payloadDigest": "sha256:65fe...",
+  "payloadRef": "payload://encrypted/sha256/65fe...",
+  "payload": {
+    "tool": "purchase-order.create@4.2.1",
+    "sideEffectClass": "irreversible_write",
+    "argumentsDigest": "sha256:8ea7...",
+    "policyDecisionRef": "policy-decision_991",
+    "budgetReservationRef": "reservation_822"
+  },
+  "retentionClass": "regulated-execution-7y"
+}
+```
+
+## Event categories
+
+- Domain events carry business meaning.
+- Execution events describe run lifecycle.
+- Integration events cross bounded contexts through the outbox.
+- Audit events carry authoritative security/governance evidence.
+- Telemetry signals support operations and may be sampled.
+
+Do not force them into one retention or access model.
+
+## State transaction
+
+```text
+BEGIN
+  verify expected run version
+  append canonical events
+  update run-state projection
+  update effect and budget ledgers
+  write integration outbox
+COMMIT
+```
+
+## Schema evolution
+
+Events carry explicit semantic versions. Use readers/upcasters for compatible evolution. Never rewrite old events to pretend that historical executions used newer semantics.
