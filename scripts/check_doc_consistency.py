@@ -29,6 +29,34 @@ GATE_FILES = [
     "cheatsheets/evaluation.mdx",
 ]
 
+# Historical audit records may quote retired terms. Normative and guidance pages may not.
+VOCABULARY_EXCLUDED_PREFIXES = ("audits/",)
+RETIRED_TERMS = {
+    r"\bAgentDefinition\b": "use Agent for stable identity and AgentVersion for immutable behavior",
+    r"\bWorkflowDefinition\b": "use Workflow for stable identity and WorkflowVersion for immutable behavior",
+    r"\bActivityDefinition\b": "use Activity inside a WorkflowVersion and ActivityRun at runtime",
+    r"\bTrialRun\b": "use ExperimentTrial in the experiment/evaluation bounded context",
+    r"\bIterationRun\b": "use Iteration for an intentional subordinate execution cycle",
+    r"\bInvocationAttempt\b": "use Invocation for one concrete adapter/provider call",
+    r"\bEffectRecord\b": "use Effect for the logical external or nondeterministic operation",
+    r"\bAttemptRun\b": "use the qualified ActivityAttempt or Invocation",
+    r"\bExecutionEpisode\b": "use WorkerLease for temporary runtime ownership",
+    r"\bWorkflowEnginePort\b": "use DurableExecutionPort for a backend-neutral durability boundary",
+}
+
+CANONICAL_EXECUTION_TERMS = [
+    "AgentVersion",
+    "WorkflowVersion",
+    "ActivityRun",
+    "ExecutionBranch",
+    "Iteration",
+    "ActivityAttempt",
+    "Effect",
+    "Invocation",
+    "WorkerLease",
+    "ExperimentTrial",
+]
+
 
 def collect_pages(value: Any) -> list[str]:
     pages: list[str] = []
@@ -48,6 +76,15 @@ def fail(message: str, failures: list[str]) -> None:
     failures.append(message)
 
 
+def public_mdx_files() -> list[Path]:
+    return sorted(
+        path
+        for path in ROOT.rglob("*.mdx")
+        if ".git" not in path.parts
+        and not path.relative_to(ROOT).as_posix().startswith(VOCABULARY_EXCLUDED_PREFIXES)
+    )
+
+
 def main() -> int:
     failures: list[str] = []
     docs = json.loads((ROOT / "docs.json").read_text(encoding="utf-8"))
@@ -61,20 +98,25 @@ def main() -> int:
         if not ((ROOT / f"{page}.mdx").exists() or (ROOT / f"{page}.md").exists()):
             fail(f"navigation target missing: {page}", failures)
 
-    corpus = "\n".join(
-        path.read_text(encoding="utf-8")
-        for path in ROOT.rglob("*.mdx")
-        if ".git" not in path.parts
-    )
+    files = public_mdx_files()
+    corpus = "\n".join(path.read_text(encoding="utf-8") for path in files)
 
-    forbidden = {
+    forbidden_literals = {
         "high-value-approval@5.0.0": "deprecated policy reference",
         "site.bundle.tar.gz": "obsolete bootstrap archive",
         "Kernel --> WorkflowPort": "non-canonical WorkflowPort name",
     }
-    for token, reason in forbidden.items():
+    for token, reason in forbidden_literals.items():
         if token in corpus:
             fail(f"{reason}: {token}", failures)
+
+    for pattern, guidance in RETIRED_TERMS.items():
+        regex = re.compile(pattern)
+        for path in files:
+            rel = path.relative_to(ROOT).as_posix()
+            for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                if regex.search(line):
+                    fail(f"{rel}:{line_number}: retired term {regex.pattern!r}; {guidance}", failures)
 
     manifests = (ROOT / "specifications/manifests.mdx").read_text(encoding="utf-8")
     if re.search(r"\bamount:\s+[0-9]+(?:\.[0-9]+)?\b", manifests):
@@ -92,15 +134,8 @@ def main() -> int:
             if transition not in text:
                 fail(f"{rel} missing state transition: {transition}", failures)
 
-    required_terms = [
-        "EffectRecord",
-        "InvocationAttempt",
-        "TrialRun",
-        "IterationRun",
-        "ExecutionBranch",
-    ]
     ontology = (ROOT / "handbook/execution-ontology.mdx").read_text(encoding="utf-8")
-    for term in required_terms:
+    for term in CANONICAL_EXECUTION_TERMS:
         if term not in ontology:
             fail(f"execution ontology missing {term}", failures)
 
