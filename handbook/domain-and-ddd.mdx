@@ -1,0 +1,94 @@
+---
+title: Domain model and DDD guide
+description: Bounded contexts, aggregates, value objects, and domain-extension guidance.
+---
+
+# Domain model and DDD guide
+
+## Use a small shared kernel
+
+The shared kernel should contain only concepts whose semantics truly need to be common:
+
+```text
+Typed identifiers
+TenantScope and ActorIdentity
+VersionRef and ContentDigest
+Money, TokenCount, Duration, Instant
+CapabilityScope and DataClassification
+Correlation and causation metadata
+Stable error categories
+```
+
+Do not create one universal aggregate containing every agent, run, message, tool, memory, tenant, and package concept.
+
+## Recommended bounded contexts
+
+| Context | Owns |
+|---|---|
+| Agent Catalog | `AgentDefinition`, immutable `AgentVersion` |
+| Workflow Catalog | Workflow definitions, activity definitions, compatibility |
+| Deployment | Environment promotion and signed deployment snapshots |
+| Execution Management | Tasks, runs, lifecycle, budgets, approvals, terminal result |
+| Capability Catalog | Tools, skills, connectors, compatibility, scopes |
+| Conversation | Conversations, messages, participants, channels |
+| Context and Memory | Context recipes, memory records, provenance, retention |
+| Policy and Governance | Policy versions, decisions, obligations, risk classes |
+| Evaluation | Datasets, evaluators, jobs, results, promotion gates |
+| Tenant and Entitlements | Tenants, workspaces, quotas, plans, isolation tier |
+| Marketplace | Packages, releases, dependencies, installations, revocation |
+| Artifacts and Lineage | Immutable artifacts and derivation graph |
+| Metering and Billing | Usage records, rating, chargeback, revenue share |
+
+These are logical boundaries, not an instruction to deploy one microservice per context.
+
+## Aggregate placement
+
+| Concept | Placement | Modeling guidance |
+|---|---|---|
+| `AgentDefinition` | Agent Catalog | Stable identity and ownership |
+| `AgentVersion` | Agent Catalog | Immutable published behavior |
+| `WorkflowDefinition` | Workflow Catalog | Immutable executable specification |
+| `Run` | Execution Management | Aggregate root for legal lifecycle |
+| `ActivityRun` | Execution journal/projection | Do not embed unbounded history in `Run` |
+| `ApprovalRequest` | Execution Management | Bound to exact action digest |
+| `MemoryRecord` | Context and Memory | Scoped, provenanced, revocable |
+| `Artifact` | Artifacts and Lineage | Metadata aggregate; bytes external |
+| `PackageInstallation` | Marketplace | Tenant-scoped exact dependency lock |
+
+## Domain extension rule
+
+A domain concept should enter the shared core only when it is reusable across materially different applications.
+
+Example: synthetic research.
+
+```text
+Study
+Cohort
+SyntheticParticipant
+ParticipantStateVersion
+ParticipantSession
+Contribution
+Deliberation
+```
+
+These belong to a research bounded context. They map to core mechanisms:
+
+| Research concept | Core mechanism |
+|---|---|
+| Study run | `ExecutionPlanRun` |
+| Participant session | `ActivityRun` or child `AgentRun` |
+| Contribution | `Artifact` |
+| Participant memory | Scoped `MemoryRecord` |
+| Deliberation | `WorkflowDefinition` |
+| Study quality | `EvaluationResult` |
+
+## Business state versus run state
+
+A business object may remain active after a workflow finishes.
+
+```text
+ProcurementCase status: awaiting financial approval
+WorkflowRun status: completed
+```
+
+Keep the domain lifecycle above ephemeral workflow executions. A `Case`, `Project`, `Experiment`, or other domain object is optional, but useful when several runs collectively pursue one durable outcome.

@@ -1,0 +1,31 @@
+---
+title: Architecture handbook
+description: The normative Agentic Reference Architecture handbook.
+---
+
+# Architecture handbook
+
+The handbook defines the stable architecture. Supporting sections provide evaluation guidance, reusable patterns, implementation contracts, diagrams, worked examples, and research evidence.
+
+## Reading order
+
+1. **Executive summary** — decisions and overall shape.
+2. **Terminology** — shared language and boundaries.
+3. **Principles** — invariants that govern every design.
+4. **Reference architecture** — layers, planes, and dependencies.
+5. **Domain and DDD** — bounded contexts, aggregates, and ownership.
+6. **Workflows and execution plans** — process composition and cross-run orchestration.
+7. **Agents and multi-agent systems** — when agent autonomy is justified.
+8. **State, context, memory, and artifacts** — information boundaries.
+9. **Runtime, ports, platform, security, and operations** — production mechanics.
+
+## Normative language
+
+- **Must** describes a required invariant.
+- **Should** describes the recommended default.
+- **May** describes an optional extension.
+- Product-specific entities belong in domain extensions unless the concept is reusable across agentic systems.
+
+## Architecture status
+
+The current baseline is **ARA v2**. Published definitions and deployment snapshots are immutable; documentation changes should update affected diagrams, contracts, and ADRs together.

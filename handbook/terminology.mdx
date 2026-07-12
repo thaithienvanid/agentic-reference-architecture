@@ -1,0 +1,73 @@
+---
+title: Terminology and mental model
+description: Precise boundaries for applications, assistants, agents, workflows, runtimes, platforms, and packages.
+---
+
+# Terminology and mental model
+
+## Product and execution concepts
+
+| Concept | Boundary |
+|---|---|
+| **LLM-powered application** | A model contributes to an output; the application still owns control flow. |
+| **Assistant** | A user-facing help relationship. It may be deterministic, agentic, or tool-using. |
+| **Agent** | An immutable versioned specification that may observe state and propose actions from an authorized capability set. |
+| **Agent run** | One execution of an agent version. It owns runtime identity, state, budget, and result. |
+| **Deterministic workflow** | Code or rules select every legal transition. A model may still be a bounded activity. |
+| **Agentic workflow** | At least one transition, plan, delegation, or tool choice is proposed by a model. |
+| **Autonomous agent** | A bounded agent allowed to continue for multiple steps without turn-by-turn human direction. |
+| **Multi-agent system** | Multiple independently governed agent runs with explicit tasks, state, permissions, budgets, and contracts. |
+| **Agent runtime** | State machines, scheduling, persistence, retries, waits, budgets, effects, and recovery. |
+| **Operating environment** | The sandbox, network, identity, secrets, compute, and endpoints available to a run. |
+| **Agentic service** | A callable capability exposing one or more workflows through APIs or events. |
+| **Agentic application** | A domain product with use cases, state, UX, policies, and workflows. |
+| **Agentic platform** | Shared control, execution, governance, evaluation, tenancy, and operations. |
+| **Marketplace** | Governed publication, installation, permissioning, metering, upgrade, and revocation of packages. |
+
+## Definition versus execution
+
+| Definition | Runtime execution |
+|---|---|
+| `ExecutionPlanDefinition` | `ExecutionPlanRun` |
+| `WorkflowDefinition` | `WorkflowRun` |
+| `ActivityDefinition` | `ActivityRun` |
+| `AgentVersion` | `AgentRun` |
+| `PromptVersion` | `CompiledPromptSnapshot` |
+| `ToolVersion` | `ToolInvocation` |
+| `EvaluationSuite` | `EvaluationJob` |
+
+> A definition describes immutable behavior. A run records one durable execution of that behavior.
+
+## Node, activity, step, and attempt
+
+Use **activity** for a workflow-definition element and **activity run** for its logical execution.
+
+```text
+WorkflowDefinition contains ActivityDefinitions
+WorkflowRun contains ActivityRuns
+ActivityRun contains AttemptRuns
+```
+
+A retry creates another `AttemptRun` under the same logical activity. An intentional cycle creates an `IterationRun`, not a retry.
+
+## Nested versus child
+
+- **Nested** means structurally contained and normally shares the parent lifecycle, budget, and state boundary.
+- **Child** means a separately executable run with its own run ID, state, budget, result, and failure status.
+- Avoid vague `SubAgent` and `SubWorkflow` types in the core model. Use `AgentActivity`, `WorkflowActivity`, or explicit child runs.
+
+## Bundle, service, application, platform
+
+```text
+WorkflowPackage
+  -> AgenticBundle
+    -> AgenticService
+      -> AgenticApplication
+        -> AgenticPlatform
+```
+
+- A **package** ships one primary executable and its assets.
+- A **bundle** ships related workflows, agents, prompts, policies, and evaluators.
+- A **service** runs behavior behind a contract.
+- An **application** delivers a domain outcome and user experience.
+- A **platform** supports many services, applications, teams, or tenants.

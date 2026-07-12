@@ -1,0 +1,147 @@
+---
+title: Architecture cheatsheet
+description: The complete Agentic Reference Architecture on one compact page.
+---
+
+# Agentic Reference Architecture cheatsheet
+
+> **Models propose. Deterministic code and policy authorize. The runtime executes, persists, and audits.**
+
+## Canonical hierarchy
+
+```text
+Agentic application or service
+  -> ExecutionPlanRun
+    -> WorkflowRun
+      -> ActivityRun
+        -> AttemptRun
+          -> Effect
+```
+
+## Definition versus execution
+
+| Definition | Execution |
+|---|---|
+| Workflow | Workflow run |
+| Activity | Activity run |
+| Agent version | Agent run |
+| Prompt version | Compiled prompt snapshot |
+| Tool version | Tool invocation |
+| Evaluation suite | Evaluation job |
+
+## Layers
+
+| Layer | Owns |
+|---|---|
+| Domain | Business language and invariants |
+| Application | Commands, queries, and use cases |
+| Execution kernel | Legal state transitions and effect planning |
+| Runtime | Scheduling, waits, retries, recovery, streaming |
+| Ports | Stable provider-independent contracts |
+| Adapters | Models, tools, engines, stores, sandboxes |
+| Control plane | Versions, deployment, tenants, marketplace |
+| Execution plane | Live runs and effects |
+| Evidence planes | Evaluation, observability, audit, metering |
+
+## Workflow concepts
+
+```text
+WorkflowDefinition
+  input/output/state contracts
+  activities and dependencies
+  explicit input bindings
+  policies and budgets
+  completion and evaluation contract
+```
+
+```text
+ActivityDefinition -> ActivityRun -> AttemptRun
+```
+
+- Retry = same logical activity, new attempt after failure.
+- Iteration = intentional new cycle with changed state or evidence.
+- Nested = contained in parent lifecycle.
+- Child = independent run, state, budget, and result.
+- Execution plan = orchestration across multiple workflow runs.
+
+## Activity selection
+
+| Need | Use |
+|---|---|
+| Deterministic calculation | Task activity |
+| One bounded model response | Model activity |
+| Multi-step reasoning inside parent | Agent activity |
+| Independent lifecycle or permissions | Child agent run |
+| Explicit external capability | Tool activity |
+| Approval or review | Human activity |
+| Repeated multi-step cycle | Iteration activity |
+
+## State boundaries
+
+```text
+Domain state      business truth
+Workflow state    next legal transition
+Activity result   typed immutable output
+Artifact          large immutable content
+Conversation      messages
+Working context   exact model input
+Memory            reusable governed information
+Checkpoint        resume optimization
+Trace             operational diagnosis
+Audit             authoritative control evidence
+```
+
+## Effect flow
+
+```text
+propose -> validate -> authorize -> reserve budget -> approve
+-> persist intent -> execute -> record result -> reconcile -> advance state
+```
+
+A timeout does not prove that an irreversible effect failed.
+
+## Essential ports
+
+```text
+ModelPort          model invocation and streaming
+ToolPort           invoke, poll, reconcile, cancel
+PolicyPort         allow, deny, require approval
+MemoryPort         search, write, revoke
+RunJournalPort     append canonical run events
+StateStorePort     versioned state update
+WorkflowEnginePort durable timers, signals, recovery
+ArtifactStorePort  immutable content
+SandboxPort        constrained code execution
+TelemetryPort      traces, metrics, logs
+MeteringPort       immutable usage records
+```
+
+## Multi-agent rule
+
+Use child agents only when independent state, lifecycle, budget, permissions, cancellation, or evaluation is required. Otherwise prefer model or agent activities. Child authority must be an explicit subset of delegated parent authority.
+
+## Deployment default
+
+```text
+Modular control-plane application
++ runtime API and workers
++ durable workflow backend
++ relational state and run journal
++ object storage and event bus
++ model/tool/policy gateways
++ evaluation workers
++ OpenTelemetry
+```
+
+## Non-negotiable rules
+
+1. Published definitions are immutable.
+2. Every run pins an exact deployment snapshot.
+3. Models never directly commit business state.
+4. Every external effect has idempotency and reconciliation semantics.
+5. Inputs and outputs are typed and explicitly bound.
+6. Tenant identity exists at every boundary.
+7. Prompts guide behavior; policies enforce authority.
+8. Framework-native types stop at adapters.
+9. Traces are not the canonical journal or audit ledger.
+10. Deterministic software is the default when sufficient.

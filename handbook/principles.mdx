@@ -1,0 +1,70 @@
+---
+title: Principles and invariants
+description: Non-negotiable design rules for production agentic systems.
+---
+
+# Principles and invariants
+
+## Deterministic shell, nondeterministic leaves
+
+Model invocations, retrieval, and external tools are effects. They may produce uncertain results. The lifecycle surrounding them should be explicit and deterministic.
+
+```typescript
+interface RunMachine {
+  evolve(state: RunState, event: RunEvent): RunState;
+  decide(state: RunState): readonly EffectIntent[];
+}
+```
+
+For a fixed state and event sequence, `evolve` must return the same state.
+
+## Core invariants
+
+1. Published definitions are immutable.
+2. Every run pins exact versions and content digests in a deployment snapshot.
+3. A model result cannot directly mutate authoritative domain state.
+4. Every external effect has a stable identity and side-effect classification.
+5. Irreversible effects require idempotency or reconciliation.
+6. Human approval binds to the exact action, arguments digest, tool version, policy version, approver, and expiry.
+7. Tenant identity is present at every state, cache, event, artifact, trace, credential, and usage boundary.
+8. Child agents receive an explicit capability subset; authority does not expand implicitly.
+9. Workflow state, conversation, working context, memory, checkpoints, traces, and artifacts remain separate.
+10. Activity outputs are validated and committed before they become downstream inputs.
+11. Cross-run chaining uses immutable artifacts and explicit decisions, never hidden shared memory.
+12. Framework and provider types stop at adapters.
+13. Evaluation contracts are part of deployable behavior.
+14. Audit and billing do not depend solely on sampled telemetry.
+15. Deterministic software is preferred whenever it is sufficient.
+
+## Side-effect discipline
+
+```text
+propose
+  -> validate
+    -> authorize
+      -> reserve budget
+        -> obtain approval if required
+          -> persist intent
+            -> execute
+              -> record result
+                -> reconcile usage
+                  -> advance state
+```
+
+A timeout is not proof that an external mutation failed. The runtime must distinguish definite success, definite failure, and an ambiguous outcome.
+
+## Explicit contracts over agent magic
+
+Every activity should declare:
+
+- Input and output schemas.
+- Required capabilities.
+- Policies and budgets.
+- Timeout and retry behavior.
+- Side-effect classification.
+- Evaluation expectations.
+- Completion and failure semantics.
+
+## Small core, strong guidance
+
+The platform core should define reusable execution concepts. Domain-specific concepts such as `Study`, `Participant`, `Claim`, or `ProcurementCase` belong in bounded contexts that map onto core primitives.

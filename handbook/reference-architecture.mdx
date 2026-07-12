@@ -1,0 +1,95 @@
+---
+title: Reference architecture
+description: The complete system decomposition and dependency boundaries.
+---
+
+# Reference architecture
+
+## System decomposition
+
+```mermaid
+flowchart TB
+    User["Users, applications, developers, operators"]
+
+    subgraph Inbound["Driving adapters"]
+      UI["UI"]
+      API["REST / gRPC"]
+      SDK["SDK / CLI"]
+      Ingest["Events / webhooks"]
+    end
+
+    subgraph Product["Agentic application or service"]
+      App["Application use cases"]
+      Domain["Domain bounded contexts"]
+      Plans["Execution plans"]
+    end
+
+    subgraph Control["Control plane"]
+      Catalogs["Catalogs and versions"]
+      Compiler["Deployment compiler"]
+      Tenant["Tenant and governance configuration"]
+    end
+
+    subgraph Runtime["Execution plane"]
+      RunAPI["Run command, query, stream API"]
+      Host["Runtime host and scheduler"]
+      Kernel["Execution kernel"]
+      Journal["State, journal, effect ledger"]
+      Gate["Policy, budget, approval"]
+    end
+
+    subgraph Ports["Outbound ports"]
+      Model["ModelPort"]
+      Tool["ToolPort"]
+      Memory["MemoryPort"]
+      Engine["WorkflowEnginePort"]
+      Sandbox["SandboxPort"]
+    end
+
+    subgraph Evidence["Evidence planes"]
+      Eval["Evaluation"]
+      OTel["Observability"]
+      Audit["Audit and lineage"]
+      Meter["Metering and billing"]
+    end
+
+    User --> Inbound
+    Inbound --> App
+    App --> Domain
+    App --> Plans
+    Plans --> RunAPI
+    Catalogs --> Compiler
+    Tenant --> Compiler
+    Compiler -. "signed snapshot" .-> Host
+    RunAPI --> Host
+    Host --> Kernel
+    Kernel <--> Journal
+    Kernel --> Gate
+    Gate --> Ports
+    Journal --> Eval
+    Host --> OTel
+    Journal --> Audit
+    Journal --> Meter
+```
+
+## Layer ownership
+
+| Layer | Owns | Must not own |
+|---|---|---|
+| Domain | Business language, identities, invariants | SDKs, workers, retries, databases |
+| Application | User-facing commands, queries, and transactions | Agent loops, provider streams, worker recovery |
+| Execution kernel | Legal run transitions and effect planning | Provider clients, queues, secrets |
+| Runtime host | Scheduling, leases, waits, streaming, recovery | Business truth and publication lifecycle |
+| Control plane | Catalogs, versions, promotion, tenant config, packages | Live run state |
+| Ports | Stable capability contracts | Vendor-specific request types |
+| Adapters | Technology integration and normalization | Domain semantics |
+| Evaluation | Quality and safety judgments | Authoritative run state |
+| Observability | Operational causality and performance | Audit truth |
+
+## Source dependency rule
+
+Source-code dependencies point inward. Adapters implement interfaces owned by the application or execution core. Runtime calls travel outward through those interfaces, but the domain never imports provider or infrastructure libraries.
+
+## Plane separation
+
+The control plane publishes signed deployment snapshots. Execution cells cache and verify them. An authoring outage should not automatically stop admitted runs. Emergency revocation and bounded policy staleness are explicit operational concerns.
