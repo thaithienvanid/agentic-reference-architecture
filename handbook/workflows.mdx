@@ -1,71 +1,64 @@
 ---
 title: Workflows and execution plans
-description: Workflow composition, activities, control flow, iterations, state binding, and cross-run orchestration.
+description: Informative workflow composition, activities, data bindings, iterations, and cross-run orchestration guidance.
 ---
 
 # Workflows and execution plans
 
-## Workflow definition
+> **Status: Informative guide.** Canonical terminology is defined in [RFC — Execution model](/rfc/execution-model).
 
-A workflow is a reusable executable process definition.
+## Workflow version
+
+A `WorkflowVersion` is an immutable executable process specification:
 
 ```text
-WorkflowDefinition
-  Metadata
-  Input and output contracts
-  State schema
-  Activity definitions
-  Dependencies and input bindings
-  Control flow
-  Policies and budgets
-  Completion policy
-  Evaluation contract
+metadata and compatibility
+input/output/state contracts
+activities and dependencies
+explicit input bindings
+control flow
+policies and budgets
+completion and evaluation contracts
 ```
 
 ## Activity taxonomy
 
 ```text
 TaskActivity        deterministic code
-ModelActivity       one bounded model call
-AgentActivity       bounded multi-step agent behavior
-ToolActivity        one explicit external capability
+ModelActivity       one bounded model effect
+AgentActivity       bounded multi-effect agent behavior
+ToolActivity        one explicit capability effect
 HumanActivity       approval, review, or data entry
-WorkflowActivity    composition with another workflow
-DecisionActivity    branch selection and guards
-ParallelActivity    fork with explicit join policy
-IterationActivity   repeated multi-step cycle
-EventActivity       wait for correlated event
-TimerActivity       durable wait
-EvaluationActivity  quality or safety assessment
+WorkflowActivity    reference to another WorkflowVersion
+DecisionActivity    guarded branch selection
+ParallelActivity    fork with explicit join
+IterationActivity   repeated body with completion policy
+EventActivity       correlated external wait
+TimerActivity       durable time wait
+EvaluationActivity  explicit quality/safety assessment
 ```
 
-A workflow contains activities, not runtime steps. At execution time:
+An activity is atomic where independent contracts, policy, budget, retry, evaluation, or observability matter. Meaningful internal dependencies belong in a referenced workflow.
 
-```text
-ActivityDefinition -> ActivityRun -> AttemptRun -> Effect
-```
-
-## Control flow versus orchestration
+## Control flow and orchestration
 
 | Concern | Question | Owner |
 |---|---|---|
-| Control flow | What happens next? | Execution kernel |
+| Control flow | What happens next? | Execution Kernel |
 | Execution strategy | How should one activity produce a result? | Activity strategy |
-| Scheduling | When and on which worker? | Runtime scheduler |
-| Orchestration | How are waits, retries, children, and signals coordinated? | Runtime and durable engine |
+| Scheduling | When and where should runnable work execute? | Scheduler |
+| Distributed orchestration | How are waits, retries, children, and signals coordinated? | Runtime Service and durable adapter |
 | Application orchestration | Which process should start? | Application layer |
-| Cross-run orchestration | How are several workflow runs chained? | Execution plan |
+| Cross-run orchestration | How are workflow runs chained? | Execution plan |
 
 ## Explicit data binding
-
-Activity output does not flow implicitly into shared mutable state.
 
 ```mermaid
 flowchart LR
     A["Activity A"] --> Validate["Validate output"]
-    Validate --> Commit["Commit result and event"]
+    Validate --> Commit["Commit result/events"]
     Commit --> State["Evolve workflow state"]
-    State --> Bind["Resolve B input bindings"]
+    State --> Bind["Resolve B bindings"]
     Bind --> Snapshot["Immutable input snapshot"]
     Snapshot --> B["Activity B"]
 ```
@@ -77,45 +70,33 @@ input:
     from: activities.research-vendor.output.vendorId
   evidence:
     from: activities.research-vendor.output.evidenceArtifact
-  policyVersion:
-    from: deployment.policies.compliance
 ```
 
-Retries reuse the same input snapshot unless the workflow creates a new logical activity run.
+A whole-activity retry reuses the same input snapshot. A new `Iteration` or semantic `Effect` may use a new snapshot.
 
-## Iteration versus retry
+## Retry versus iteration
 
 | Retry | Iteration |
 |---|---|
-| Repeats after operational failure | Repeats intentionally with updated state or evidence |
-| Same `ActivityRun` | New `IterationRun` |
-| New `AttemptRun` | New body-workflow execution |
+| Recover operational failure | Continue intentionally |
+| Same logical input | Updated state, evidence, or objective |
+| New `ActivityAttempt` or `Invocation` | New `Iteration` |
 | Runtime retry policy | Workflow completion policy |
 
-A deliberation “round” is a domain-friendly name for an iteration. It may contain many dependent activities such as independent survey, normalization, challenge, verification, synthesis, and evaluation.
+A `DeliberationRound` is a domain-facing iteration and may execute a multi-activity body.
 
-## Workflow composition
+## Composition
 
-Do not require a separate `SubWorkflow` type. A `WorkflowActivity` references another workflow definition. At runtime it may execute nested in the parent lifecycle or as a child workflow run when independent state, budget, failure, cancellation, or evaluation is required.
+A `WorkflowActivity` references a `WorkflowVersion`.
+
+- Inline mode compiles work into the parent `WorkflowRun`.
+- Child mode starts a separate `WorkflowRun` when independent state, budget, deadline, cancellation, failure, or evaluation is required.
 
 ## Execution plans
 
-An execution plan coordinates multiple workflow runs across time or ownership boundaries.
+An `ExecutionPlanVersion` coordinates separate workflow runs across time, ownership, deployment, or evaluation boundaries. Dependencies use exact artifact references and explicit decisions, never mutable “latest output.”
 
-```mermaid
-flowchart LR
-    A["Run A"] --> EA["Artifact A"]
-    B["Run B"] --> EB["Artifact B"]
-    EA --> Eval["Evaluate and select"]
-    EB --> Eval
-    Eval --> Decision["Selection decision"]
-    Decision --> C["Run C"]
-    EA --> C
-```
-
-Use exact artifact digests and explicit decisions. Do not bind to a mutable “latest output.”
-
-## Join and completion policies
+## Join policies
 
 ```text
 all_successful
@@ -128,4 +109,4 @@ manual_selection
 quality_threshold
 ```
 
-Parallel branches return immutable results and merge through deterministic logic rather than directly mutating shared state.
+Parallel branches return immutable results and merge deterministically.
