@@ -1,6 +1,6 @@
 ---
 title: Deployment and operations
-description: Repository-to-production topology, persistence, versioning, migration, SLOs, and evolution.
+description: Repository-to-production topology, persistence, versioning, model lifecycle, migration, SLOs, and resilience.
 ---
 
 # Deployment and operations
@@ -50,7 +50,7 @@ Start with logical modules and separately scalable runtime, sandbox, and evaluat
 
 ```text
 BEGIN
-  verify expected state version
+  verify expected stateVersion/runSequence
   append run events
   update state projection
   update effect/budget ledgers
@@ -58,29 +58,31 @@ BEGIN
 COMMIT
 ```
 
-## Versioning
+## Versioning and migration
 
-Version every behaviorally relevant asset: workflow, agent, prompt, tool, skill, policy, context recipe, memory schema, model route, evaluator, dataset, package release, runtime contract, and event schema.
+Version every behaviorally relevant asset. Use SemVer for compatibility and a digest for exact identity. Published versions remain immutable, event changes use schema versions/upcasters, database changes use expand–migrate–contract, workflow upgrades replay historical histories, and package upgrades preserve rollback.
 
-Use semantic version for compatibility and a content digest for exact identity.
+Historical runs never appear to have used a newer version.
 
-## Migration
+## Model lifecycle
 
-- Published versions remain immutable.
-- Running workflows remain pinned to replay-compatible code.
-- Event changes use explicit schema versions and upcasters.
-- Database changes use expand–migrate–contract.
-- Workflow upgrades run replay tests against historical histories.
-- Package upgrades create a new installation revision and preserve rollback.
-- Historical runs never appear to have used a newer version.
+Model routes are qualified, approved, monitored, deprecated, blocked, and retired independently of agents. A provider removal never causes silent substitution. See [Model lifecycle and provider change](/handbook/model-lifecycle).
+
+## Cost and capacity
+
+Budget reservation, provider concurrency/token limits, context/caching policy, and cost-per-successful-outcome metrics are part of operations. See [Cost governance and optimization](/handbook/cost-governance).
 
 ## SLOs
 
-Separate platform availability from provider quality and availability. Important objectives include no acknowledged command loss, no repeated completed effect after worker loss, per-run event ordering, hard-budget enforcement before dispatch, approval-action integrity, resume after worker loss, audit completeness, and usage reconciliation.
+Separate platform availability from provider quality/availability. Objectives include command durability, event ordering, no repeated completed effect after worker loss, hard-budget enforcement, approval-action integrity, resume latency, audit/usage completeness, data-right completion, and dedicated-cell recovery.
 
 ## Disaster recovery
 
-Fence the failed region, restore state/journal/engine history, restore approvals and timers, reconcile planned-but-unfinished effects, and resume only after ensuring a second active writer cannot commit. Irreversible effects require provider reconciliation after failover.
+Fence the failed region, restore state/journal/engine history, restore approvals, timers, deletion tombstones and legal holds, reconcile planned-but-unfinished effects, and resume only after preventing a second active writer. Irreversible effects require provider reconciliation after failover.
+
+## Testing and game days
+
+Load, soak, chaos, security, sandbox, model-deprecation, backup/restore, and regional-failover tests are release and operational requirements, not optional evaluation extras. See [Testing and resilience program](/implementation/testing-and-resilience).
 
 ## Operational evolution
 
@@ -90,4 +92,4 @@ Variant A: modular agentic application and one cell
 -> Variant C: enterprise SaaS with isolation tiers, billing, and marketplace
 ```
 
-Do not begin with fully distributed microservices or a public marketplace before the execution journal, policy boundary, and evaluation system are reliable.
+Do not begin with fully distributed microservices or a public marketplace before the execution journal, policy boundary, evaluation system, and recovery program are reliable.

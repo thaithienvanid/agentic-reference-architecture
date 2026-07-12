@@ -16,16 +16,24 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          node-version: "20"
+          python-version: "3.12"
+
+      - name: Run architecture consistency checks
+        run: python scripts/check_doc_consistency.py
 
       - name: Validate docs.json syntax
         run: python -m json.tool docs.json > /dev/null
 
-      - name: Install Mintlify CLI
-        run: npm install --global mint
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.17.0"
+
+      - name: Install pinned Mintlify CLI
+        run: npm install --global mint@4.0.1125
 
       - name: Validate Mintlify configuration and content
         run: mint validate

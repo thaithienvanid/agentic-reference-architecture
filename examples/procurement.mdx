@@ -7,7 +7,7 @@ description: End-to-end durable, multi-agent, approval-bound purchase-order exec
 
 ## Scenario
 
-Acme EU asks the production agent to create a €180,000 purchase order from contract `C-882` and quote `Q-19`.
+Acme EU asks the production agent to create a €180,000 purchase order from contract `C-882` and quote `Q-19` with an effective per-run cost limit of USD 8.00 under a USD 12.00 deployment ceiling.
 
 Requirements:
 
@@ -36,8 +36,8 @@ sequenceDiagram
   participant Eval
   participant Meter
 
-  User->>API: Start procurement run
-  API->>Journal: RunStarted with signed deployment snapshot
+  User->>API: Start procurement run with USD 8 limit
+  API->>Journal: run.started with signed deployment snapshot
   Runtime->>Research: Child/read-only research task
   Runtime->>Compliance: Child/policy-read task
   Research-->>Runtime: Research artifact
@@ -45,24 +45,24 @@ sequenceDiagram
   Runtime->>Model: Propose normalized order arguments
   Runtime->>Policy: Authorize €180,000 create action
   Policy-->>Runtime: Require dual approval
-  Runtime->>Journal: ApprovalRequested + checkpoint
+  Runtime->>Journal: approval.requested + checkpoint
   Approvers->>API: Approve exact action digest
   API->>Runtime: Resume
   Runtime->>Policy: Revalidate
-  Runtime->>Journal: EffectPlanned + idempotency key
-  Runtime->>ERP: Create order
+  Runtime->>Journal: effect.planned + idempotency key
+  Runtime->>ERP: Invocation 1 — create order
   ERP--xRuntime: Response connection fails after commit
-  Runtime->>Journal: EffectOutcomeUnknown
-  Runtime->>ERP: Reconcile by idempotency key
+  Runtime->>Journal: effect.outcome_unknown
+  Runtime->>ERP: Invocation 2 — reconcile by idempotency key
   ERP-->>Runtime: PO-2026-8841 exists
-  Runtime->>Journal: EffectReconciled + RunCompleted
+  Runtime->>Journal: effect.reconciled + run.completed
   Journal-->>Eval: Events and artifacts
   Journal-->>Meter: Usage facts
 ```
 
 ## Ownership
 
-| Step | Owner | Evidence |
+| Operation | Owner | Evidence |
 |---|---|---|
 | Authenticate and route tenant | Application/identity | Auth audit and EU cell decision |
 | Resolve behavior | Control plane | Deployment digest |
@@ -72,7 +72,7 @@ sequenceDiagram
 | Propose order | Model gateway | Normalized request/result and usage |
 | Validate totals | Domain/task activity | Deterministic validation event |
 | Approve | Approval service | Signed decisions bound to action digest |
-| Create and reconcile | Tool gateway/runtime | Effect ledger and provider operation evidence |
+| Create and reconcile | Tool gateway/runtime | One effect, two invocation attempts, provider evidence |
 | Complete | Run aggregate | Terminal result and artifacts |
 | Evaluate | Evaluation plane | Versioned evaluation result |
 | Bill | Metering plane | Immutable usage records |
@@ -87,20 +87,13 @@ both approvals precede tool dispatch
 action digest equals executed argument digest
 exactly one ERP order exists for the idempotency key
 no cross-tenant or cross-region access occurred
-hard run budget was not exceeded
+effective USD 8 run budget was enforced
 ```
-
-## Semantic assertions
-
-- The explanation accurately describes discrepancies.
-- Claims cite the supporting contract/quote evidence.
-- Material constraints are not omitted.
-- Escalations are clear to approvers.
 
 ## Failure recovery
 
-The timeout is classified `effectMayHaveOccurred=true` and `safeToRetry=false`. The runtime reconciles by idempotency key rather than sending another create request.
+The timeout is classified `effectMayHaveOccurred=true` and `safeToRetry=false`. The runtime retains one logical create effect and performs a separate reconciliation invocation rather than sending another create request.
 
-## Cost attribution
+## Compensation boundary
 
-Usage is attributed to tenant, workspace, deployment, agent version, workflow version, model route, tool version, child runs, evaluation suite, region, and marketplace package release.
+The example demonstrates reconciliation, not rollback. If the domain permits cancelling a created order, that cancellation is a separately authorized compensation effect with its own audit and failure semantics. See [Saga and compensation](/patterns/saga-and-compensation).

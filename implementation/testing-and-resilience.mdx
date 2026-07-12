@@ -1,0 +1,87 @@
+---
+title: Testing and resilience program
+description: Unit, contract, replay, load, soak, chaos, disaster recovery, security, red-team, and operational game-day guidance.
+---
+
+# Testing and resilience program
+
+Evaluation quality is necessary but not sufficient. A production agentic platform must also prove distributed-system behavior, capacity, security boundaries, recovery, and operational procedures.
+
+## Test portfolio
+
+| Layer | What it proves | Typical cadence |
+|---|---|---|
+| Unit/property | Domain invariants, budget arithmetic, state evolution | Every change |
+| Contract | Port errors, idempotency, streaming, tenant scope, cancellation | Every adapter change |
+| State-machine/model checking | Legal transitions, terminal-state safety, concurrency | Pull request/nightly |
+| Replay compatibility | Historical journals/histories still evolve correctly | Runtime release |
+| Workflow simulation | Timers, signals, child joins, no-progress rules | Pull request/nightly |
+| Fault injection | Worker death, duplicate delivery, lost responses, ambiguous effects | Nightly/release |
+| Load | Capacity, queue fairness, rate limiting, backpressure | Release/major change |
+| Soak | Leaks, drift, long waits, retry storms, storage growth | Scheduled |
+| Chaos | Provider/tool/broker/database/region disruption | Scheduled game day |
+| Disaster recovery | Restore, fencing, timer/approval recovery, reconciliation | At least per recovery objective |
+| Security/penetration | AuthZ, tenant isolation, egress, secrets, supply chain | Release/periodic |
+| Agentic red team | Injection, peer-agent abuse, evaluator manipulation, excessive agency | Release/continuous corpus |
+| Sandbox escape | Filesystem, process, kernel, network, credential isolation | Image/runtime release |
+| Model lifecycle | Deprecation, forced removal, fallback, migration, rollback | Route/release change |
+
+## Required failure scenarios
+
+```text
+worker dies before effect dispatch
+worker dies after provider accepted effect but before result commit
+duplicate command/event/signal
+stale worker attempts a fenced commit
+model stream truncates or returns invalid structure
+tool returns 429, 5xx, timeout, and ambiguous mutation
+approval expires or action changes
+child result is duplicated, late, malicious, or from wrong audience
+control plane unavailable while admitted runs continue
+region fails during irreversible effect
+payload deletion occurs, followed by backup restore
+provider model is forcibly withdrawn
+```
+
+## Load and rate-limit tests
+
+Model logical parallelism separately from physical provider concurrency. Load tests should verify:
+
+- Requests-per-minute, tokens-per-minute, and concurrent-invocation permits.
+- Tenant fairness and reserved capacity.
+- Queue growth, shedding, and deadline behavior.
+- Provider `Retry-After` handling without sleeping workers.
+- Budget reservation under high concurrency.
+- No uncontrolled retry amplification.
+
+## Disaster-recovery game day
+
+A game day should demonstrate:
+
+1. Fence the failed writer/cell.
+2. Restore state, journal, workflow-engine history, artifacts, approvals, timers, tombstones, and legal holds.
+3. Rebuild projections and derived indexes.
+4. Reconcile every planned-but-unfinished effect.
+5. Resume eligible runs without duplicate completed mutations.
+6. Verify audit/usage continuity and measured RTO/RPO.
+7. Record gaps as tracked corrective work.
+
+## Security and red-team program
+
+Include direct/indirect injection, data exfiltration, cross-tenant access, malicious memory, tool/schema poisoning, forged/replayed agent messages, deceptive approval summaries, downstream sink injection, evaluator manipulation, package supply-chain compromise, sandbox escape, budget abuse, and audit tampering.
+
+Probabilistic guardrail tests report false-positive/negative rates. Deterministic authorization and hard-gate failures remain release blockers.
+
+## Release evidence
+
+A release record should reference test suite versions, environment digests, datasets, fault scenarios, load profile, security results, unresolved exceptions, approvers, canary policy, and rollback target.
+
+## Production readiness criteria
+
+- No open critical hard-gate failure.
+- Replay compatibility demonstrated for affected long-running versions.
+- Capacity and provider-limit behavior measured.
+- Recovery procedure exercised within the declared objective.
+- Mandatory audit and usage continuity proven.
+- Model and tool rollback/fallback paths tested.
+- Residual risks accepted by named owners with expiry.

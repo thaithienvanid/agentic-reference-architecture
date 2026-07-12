@@ -5,7 +5,7 @@ description: Use Harbor for containerized task and final-environment verificatio
 
 # Harbor adapter guide
 
-Use Harbor for environment-level, sandboxed verification of whether an agent actually changed the world correctly. Its official documentation models a task around instructions, an environment, tests/verifiers, trials, jobs, and datasets. See [Harbor core concepts](https://www.harborframework.com/docs/core-concepts) and [task structure](https://www.harborframework.com/docs/tasks), retrieved July 12, 2026.
+Use Harbor for environment-level, sandboxed verification of whether an agent actually changed the world correctly. Its official documentation models tasks, environments, verifiers, trials, jobs, and datasets. See [Harbor core concepts](https://www.harborframework.com/docs/core-concepts) and [task structure](https://www.harborframework.com/docs/tasks), retrieved July 12, 2026.
 
 ## Architectural placement
 
@@ -14,28 +14,24 @@ flowchart LR
     Snapshot["Agent deployment snapshot"] --> Adapter["Harbor evaluation adapter"]
     Fixture["Versioned environment fixture"] --> Adapter
     Task["Instruction and verifier"] --> Adapter
-    Adapter --> Trial["Sandboxed trial"]
+    Adapter --> Trial["Harbor trial"]
     Trial --> Raw["Verifier results and artifacts"]
     Raw --> Result["Platform EvaluationResult"]
 ```
 
-Harbor is not the production workflow engine or platform run model. It supplies evaluation environments and verifiable trials behind `EvaluationPort` and, where appropriate, `SandboxPort`.
+Harbor is not the production workflow engine or platform run model. It supplies evaluation environments and verifiable executions behind `EvaluationPort` and, where appropriate, `SandboxPort`.
+
+## Trial terminology
+
+Harbor uses **trial** for one agent execution against a task. The adapter records it as a platform evaluation trial. When several independent Harbor trials start from the same frozen subject/configuration baseline to measure stochasticity, each carries ARA `TrialRun` semantics.
+
+A Harbor trial is not an `InvocationAttempt`: provider retries and reconciliation calls remain nested beneath the effects of that evaluation execution.
 
 ## Task design
 
-A strong task defines:
+A strong task defines clear instruction and permitted behavior, pinned image/environment, fixtures and tenant boundaries, failure injection, deterministic final-state tests, artifact collection, resource limits, and repeated trials where variance matters.
 
-- Clear instruction and permitted behavior.
-- Versioned environment/image digest.
-- Input fixtures and tenant boundaries.
-- Failure injection where relevant.
-- Deterministic tests of final state.
-- Artifact collection and resource limits.
-- Several trials when model variance matters.
-
-## Procurement example
-
-The environment contains mock contract, vendor, approval, ERP, audit, and network services. Verifiers assert:
+## Procurement verifier examples
 
 ```python
 def test_exactly_one_order():
@@ -55,26 +51,14 @@ def test_no_cross_tenant_access():
     assert audit.cross_tenant_reads == []
 
 def test_timeout_reconciled_without_duplicate():
-    assert erp.create_attempts == 1
+    assert erp.create_requests == 1
     assert audit.reconciliation_queries >= 1
 ```
 
 ## Use Harbor for
 
-- Repository repair and test success.
-- Database/API final state.
-- Exactly-once behavior in a simulated provider.
-- Filesystem and permission constraints.
-- Network and credential restrictions.
-- Sandbox behavior and resource limits.
-- Failure recovery in reproducible environments.
+Repository repair/tests, database/API final state, idempotency in simulated providers, filesystem/permission/network/credential constraints, sandbox limits, and failure recovery in reproducible environments.
 
 ## Do not use Harbor alone for
 
-- Nuanced response quality.
-- Plan or explanation quality.
-- Production authorization.
-- Multi-tenant policy truth.
-- Online drift.
-
-Combine environment verification with DeepEval-style trajectory evaluation, deterministic platform tests, and human review where needed.
+Nuanced response/plan quality, production authorization, multi-tenant policy truth, or online drift. Combine it with DeepEval-style trajectory evaluation, deterministic platform tests, and human review where needed.

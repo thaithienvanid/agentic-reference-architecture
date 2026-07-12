@@ -1,6 +1,6 @@
 ---
 title: Cross-run chaining and experiments
-description: Execution plans, artifact dependencies, A/B tests, selection decisions, shadow execution, and lineage.
+description: Execution plans, immutable dependencies, variants, trials, selection decisions, shadow execution, and lineage.
 ---
 
 # Cross-run chaining and experiments
@@ -20,20 +20,7 @@ flowchart LR
     ArtA --> C
 ```
 
-Run C records exact upstream run, artifact digest, decision ID, and input binding. It never reads an unspecified “current best result.”
-
-## Dependency policies
-
-```text
-all_successful
-any_successful
-artifact_required
-quality_threshold
-selected_variant
-manual_selection
-time_window_closed
-fallback
-```
+Run C records exact upstream run, artifact digest, decision ID, and input binding. It never reads an unspecified current-best result.
 
 ## Experiment domain model
 
@@ -41,36 +28,55 @@ fallback
 Experiment
   hypothesis
   variants
-  cohort or dataset snapshot
-  assignment policy
-  primary metrics and guardrails
-  analysis method and window
+  cohort/dataset and baseline snapshots
+  assignment and scheduling policy
+  TrialRuns per variant
+  primary metrics and hard gates
+  analysis method/window
   selection decision
 ```
 
-An experiment is domain-owned. It may use an `ExecutionPlanRun` to coordinate variant `WorkflowRun`s.
+A `SimulationVariantRun` compares a configuration such as model A versus model B. A `TrialRun` is one independent stochastic repetition from the same frozen baseline. An `IterationRun` is sequential and consumes updated state. An `InvocationAttempt` is only a concrete provider call/retry for one effect.
+
+```text
+Variant A
+├── TrialRun A1
+├── TrialRun A2
+└── TrialRun A3
+
+Variant B
+├── TrialRun B1
+├── TrialRun B2
+└── TrialRun B3
+```
 
 ## Fair comparison
 
-Freeze the input cohort/dataset and all non-experimental variables where possible. Record every intentional difference: agent, workflow, prompt, model route, tool, policy, or strategy version.
+Freeze the input cohort/dataset, participant state, prompts, policies, tools, budgets, cache policy, and non-experimental variables. Record every intentional difference and balance scheduling when provider capacity or time-of-day may affect results.
+
+If participant and deliberation models both change between A/A and B/B, the experiment compares complete configurations. Use a factorial A/A, A/B, B/A, B/B design to isolate interaction effects when required.
 
 ## Selection policy
 
 ```yaml
+hardGateRegistry: enterprise-agent-safety@1.0.0
 hardRequirements:
-  policyCompliance: 1.0
   taskCompletion: ">= 0.90"
 optimize:
   metric: quality
   tieBreaker: lowerCost
 ```
 
-Do not choose solely by average LLM-judge score. Include deterministic outcomes, safety guardrails, uncertainty, important slices, cost, and latency.
+Do not choose solely by average LLM-judge score. Include deterministic outcomes, uncertainty, important slices, cost, latency, and repeated-trial failure modes.
+
+## Harbor terminology
+
+Harbor calls one agent execution against a task a `Trial`. The evaluation adapter maps it to a platform evaluation trial and, when it is an independent repetition from a frozen baseline, to `TrialRun` semantics. It is never mapped to an effect `InvocationAttempt`.
 
 ## Shadow execution
 
-A candidate may receive production inputs without applying production mutations. Reuse recorded tool results, invoke only read-only tools, or run against sandbox systems. The candidate output is evaluation evidence, not production truth.
+A candidate may receive production inputs without applying production mutations. Reuse recorded results, invoke read-only tools, or run against sandbox systems. Candidate output is evaluation evidence, not production truth.
 
 ## Plan-level observability
 
-Use separate traces per workflow run, shared `executionPlanRunId` or `experimentId`, span links, and artifact/decision lineage. Avoid one multi-day trace.
+Use separate traces per workflow run, a shared plan/experiment ID, span links, explicit variant/trial IDs, and artifact/decision lineage. Avoid one multi-day trace.

@@ -1,43 +1,49 @@
 ---
 title: Implementation roadmap and variants
-description: Build sequence, practical variants, team maturity, migration, risks, and build-versus-buy decisions.
+description: Build sequence, validation exits, practical variants, team maturity, migration, risks, and build-versus-buy decisions.
 ---
 
 # Implementation roadmap and variants
 
 ## Stage 0 — Architecture foundation
 
-Build terminology, the run state machine, effect/error model, event envelope, threat model, one high-risk scenario, and port contract harness.
+Build terminology, execution ontology, run state machine, effect/invocation error model, event envelope, threat model, one high-risk scenario, canonical gates, and port contract harness.
 
-**Exit:** the team can identify the owner of every state transition and external effect.
+**Exit:** the team can identify the owner and evidence for every transition, effect, invocation, retry, iteration, and trial.
 
 ## Stage 1 — One production agent
 
-Build immutable versions, start/query/cancel APIs, model/tool gateways, SQL run journal, artifact store, basic policy, telemetry mapping, deterministic tests, and adapter contracts.
+Build immutable versions, start/query/cancel APIs, model/tool gateways, SQL journal, artifact store, policy, telemetry, deterministic tests, and adapter contracts.
 
-**Exit:** every model/tool call is attributable, budgeted, and auditable.
+**Exit:** every model/tool interaction is attributable, budgeted, tenant-scoped, and auditable.
 
 ## Stage 2 — Durable execution
 
-Add durable engine adapter, approvals, timers/events, effect ledger, reconciliation, checkpoints, resume, evidence replay, loop detection, and hard budgets.
+Add durable engine adapter, approvals, timers/events, effect ledger, invocation reconciliation, checkpoints, resume, evidence replay, loop detection, and hard budgets.
 
-**Exit:** a run survives worker loss and multi-day suspension without repeating completed effects.
+**Exit:** a run survives worker loss and multi-day suspension without repeating a completed effect.
 
-## Stage 3 — Internal platform
+## Stage 3 — Evaluation and resilience
 
-Add catalogs, deployment compiler, promotion, shared policy/model gateways, evaluation service, workspace isolation, developer portal/SDK, and shared connectors.
+Add canonical hard gates, DeepEval/Harbor adapters, historical replay corpus, fault injection, load/soak testing, model lifecycle qualification, security red-team cases, and recovery game days.
 
-**Exit:** several teams share the platform without sharing domain code or provider SDKs.
+**Exit:** release evidence demonstrates quality, security, capacity, replay compatibility, and recovery objectives.
 
-## Stage 4 — Enterprise SaaS
+## Stage 4 — Internal platform
 
-Add regional cells, isolation tiers, SSO/RBAC/ABAC, BYOM/BYOS, private networking, usage ledger/billing, tenant migration, SLOs, and disaster recovery.
+Add catalogs, deployment compiler, promotion, shared policy/model gateways, evaluation service, workspace isolation, developer portal/SDK, shared connectors, cost governance, and route deprecation management.
 
-**Exit:** a tenant can move from shared to dedicated execution without changing its agents.
+**Exit:** several teams share the platform without sharing domain code, provider SDKs, or unsafe mutable configuration.
 
-## Stage 5 — Marketplace
+## Stage 5 — Enterprise SaaS
 
-Add publisher identity, package manifests, exact locks, signatures/provenance/SBOM, security/evaluation review, installation grants, upgrade/rollback/revocation, licensing, and revenue sharing.
+Add regional cells, isolation tiers, SSO/RBAC/ABAC, BYOM/BYOS, private networking, usage/billing, tenant migration, data-rights workflows, compliance evidence, SLOs, and DR.
+
+**Exit:** a tenant can move isolation tier and exercise export/deletion/recovery without changing its agent definitions.
+
+## Stage 6 — Marketplace
+
+Add publisher identity, exact dependency locks, signatures/provenance/SBOM, security/evaluation review, installation grants, upgrade/rollback/revocation, licensing, and revenue sharing.
 
 **Exit:** third-party content can be installed and revoked without direct access to platform internals.
 
@@ -51,7 +57,7 @@ Add publisher identity, package manifests, exact locks, signatures/provenance/SB
 | Deployment | One region and shared infrastructure |
 | Main risks | Provider coupling, weak replay, unsafe tools |
 | Team | Roughly 4–8 strong backend/AI engineers plus security support |
-| Next step | Extract runtime and catalogs; add shared evaluation/policy |
+| Next step | Extract runtime/catalogs; add shared evaluation, resilience, and policy |
 
 ## Variant B — Internal agent platform
 
@@ -62,7 +68,7 @@ Add publisher identity, package manifests, exact locks, signatures/provenance/SB
 | Omit initially | External package commerce and public publishers |
 | Main risks | Central bottleneck, over-generic APIs, platform owning domain correctness |
 | Team | Roughly 10–25 across platform, SRE, security, evaluation, DX |
-| Next step | Add external tenancy, billing, publisher governance, dedicated cells |
+| Next step | Add external tenancy, billing, data rights, publisher governance, dedicated cells |
 
 ## Variant C — Enterprise SaaS and marketplace
 
@@ -72,7 +78,7 @@ Add publisher identity, package manifests, exact locks, signatures/provenance/SB
 | Components | Regional/global control, shared/dedicated cells, BYOM/BYOS, private networking, marketplace, commerce |
 | Main risks | Cross-tenant leakage, supply chain, billing disputes, regional consistency |
 | Team | Multiple specialized teams; often 30+ across the complete capability set |
-| Rule | Do not build this before runtime journal, policy boundary, and evaluation are reliable |
+| Rule | Do not build before journal, policy, evaluation, security, and recovery are reliable |
 
 ## Build versus buy
 
@@ -80,23 +86,15 @@ Add publisher identity, package manifests, exact locks, signatures/provenance/SB
 |---|---|
 | Domain/execution contracts | Build |
 | Durable workflow engine | Adopt/managed |
-| Policy evaluation engine | Adopt behind platform contract |
+| Policy engine | Adopt behind platform contract |
 | Identity, secrets, KMS | Integrate mature services |
-| Sandbox foundation | Adopt strong container/userspace-kernel/microVM technology |
+| Sandbox foundation | Adopt proven isolation technology |
 | OpenTelemetry pipeline | Adopt |
-| Evaluation frameworks | Integrate, but own datasets/gates/results |
-| Marketplace domain and capability grants | Build |
+| Evaluation frameworks | Integrate; own datasets/gates/results |
+| Marketplace and capability grants | Build |
 | Billing attribution | Build core ledger; integrate invoicing |
-| Vector/search infrastructure | Adopt as derived indexes |
+| Vector/search | Adopt as derived indexes |
 
 ## Main unresolved risks
 
-- Provider model drift and imperfect reproducibility.
-- Evaluation-judge calibration and correlated errors.
-- Privacy deletion versus replay evidence.
-- Policy behavior under control-plane outage.
-- Workflow-engine migration and replay compatibility.
-- Marketplace packages with context-triggered malicious behavior.
-- Synthetic-persona validity and stereotype amplification.
-
-Treat these as explicit research and operational workstreams, not hidden implementation details.
+Provider drift, evaluator correlation, privacy deletion, policy staleness, workflow-engine migration, malicious packages, synthetic-persona validity, and legal applicability remain explicit workstreams. Track owners, evidence, review dates, and acceptance expiry.

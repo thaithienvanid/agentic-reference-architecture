@@ -1,0 +1,112 @@
+---
+title: Model lifecycle and provider change
+description: Qualification, routing, drift detection, deprecation, forced withdrawal, migration, canary, rollback, and historical evidence.
+---
+
+# Model lifecycle and provider change
+
+Models and provider endpoints are operational dependencies with changing capabilities, behavior, price, identifiers, and availability. Agent versions should reference a versioned `ModelRoutingProfile`, not assume that one provider model exists forever.
+
+## Lifecycle states
+
+```text
+discovered -> qualified -> approved -> active
+-> deprecated -> blocked -> retired
+```
+
+| State | Meaning |
+|---|---|
+| Qualified | Contract, security, region, capability, and evaluation checks completed |
+| Approved | May be included in specified routing profiles |
+| Active | Eligible for production routing |
+| Deprecated | No new deployment should select it after the migration deadline |
+| Blocked | Immediately ineligible because of security, legal, quality, or provider incident |
+| Retired | Historical metadata remains, but invocation is unavailable |
+
+## Routing profile
+
+A routing profile pins requirements and allowed routes:
+
+```text
+capabilities
+approved provider/model deployments
+regions and data classifications
+primary and explicit fallbacks
+cost/latency/quality policy
+provider account and retention configuration
+```
+
+A provider alias such as `latest` is not a deployment identity.
+
+## Drift monitoring
+
+Monitor by route and version:
+
+- Task and hard-gate performance.
+- Structured-output and tool-call accuracy.
+- Refusal/safety behavior.
+- Tokenization, latency, rate limits, and cost.
+- Output and embedding distribution drift where useful.
+- Provider-side configuration or endpoint changes.
+- Important tenant/domain slices.
+
+A route can be blocked even when the provider reports it healthy.
+
+## Planned deprecation workflow
+
+```text
+provider/platform announces deprecation
+-> inventory affected deployments and long-running runs
+-> freeze baseline and historical evidence
+-> qualify candidate replacement
+-> counterfactual and shadow evaluation
+-> security/privacy/vendor review
+-> canary by tenant and workload slice
+-> promote new routing-profile version
+-> migrate or complete pinned long-running runs
+-> retain historical route metadata
+```
+
+## Forced withdrawal
+
+When a provider removes or blocks a model before migration completes:
+
+1. Stop admitting work that requires the unavailable route.
+2. Determine whether the deployment contains an explicitly approved compatible fallback.
+3. Re-evaluate policy, residency, output/tool capabilities, quality floor, and budget.
+4. Record `model.route_unavailable` and any fallback decision.
+5. Resume only with the declared fallback; otherwise suspend/fail and require redeployment.
+
+Never silently substitute a model.
+
+## Long-running runs
+
+A run remains pinned to its deployment snapshot. If its route becomes unavailable, the runtime follows the snapshot’s unavailability policy:
+
+```text
+wait until deadline
+use exact approved fallback
+request operator migration
+terminate with explicit dependency failure
+```
+
+An operator migration creates a recorded decision and new continuation snapshot; it does not rewrite history.
+
+## Rollback
+
+Rollback means publishing or reactivating a known-good routing-profile/deployment version and routing new/canary work to it. Historical runs retain the route and provider identifiers actually used.
+
+## Qualification suite
+
+- Capability and schema-contract tests.
+- Tool-choice and argument evaluation.
+- Domain golden and adversarial datasets.
+- Injection and unsafe-output tests.
+- Cost, rate-limit, and latency tests.
+- Data-region and provider-retention review.
+- Repeated trials for stochastic failure modes.
+- Shadow tests against recorded production evidence.
+
+## Ownership
+
+The platform owns route mechanics, evidence, and enforcement. Domain teams own fitness thresholds and accepted behavior. Security/privacy/procurement own provider-risk decisions appropriate to the deployment.

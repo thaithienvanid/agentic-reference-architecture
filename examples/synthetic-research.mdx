@@ -1,122 +1,136 @@
 ---
 title: Worked example — synthetic research panel
-description: Longitudinal AI participants, survey, deliberation, cross-run continuity, evaluation, and validity boundaries.
+description: Persistent AI participants, model variants, repeated trials, deliberation iterations, rate limits, evaluation, and validity boundaries.
 ---
 
 # Worked example — synthetic research panel
 
 ## Scenario
 
-A product-research application simulates three persistent participants A, B, and C. Day 1 collects independent opinions. Day 2 presents new evidence, conducts a bounded deliberation, and asks each participant to update or preserve its position.
+A product-research application simulates three persistent participants A, B, and C against an uploaded evidence bundle. It compares two simulation configurations:
+
+```text
+Variant A: participant model A + deliberation model A
+Variant B: participant model B + deliberation model B
+```
 
 This is a simulation system, not a substitute for validated human-subject research.
+
+## Top-level workflow
+
+```mermaid
+flowchart LR
+    Ingest["Activity 1: ingest files/context"]
+    Simulate["Activity 2: panel simulation workflow"]
+    Report["Activity 3: write report"]
+    Ingest --> Simulate --> Report
+```
+
+Activity 2 is a referenced workflow because it has internal dependencies, parallelism, budgets, evaluation, and rate-limit waits.
 
 ## Domain model
 
 ```text
 Study
-  Cohort
-  ParticipantDefinition and Version
-  ParticipantInstance A/B/C
-    ParticipantStateVersions
-    scoped MemoryRecords
-    ParticipantSessions
-    Contributions
-  Deliberation
+  SyntheticParticipantPanel
+    ParticipantInstance A/B/C
+      PersonaVersion
+      ParticipantStateVersions
+      scoped MemoryRecords
+      ParticipantSessions
+  SimulationExperiment
   ResearchReport
 ```
 
+`Panel` is a domain term for the stable group of participants. The reference-architecture core does not define a `PanelSimulationWorkflow` type; the research bounded context names a generic workflow for its domain.
+
 ## Execution model
 
-```mermaid
-flowchart TB
-  Study["Study / execution-plan owner"] --> Day1["Day 1 survey workflow run"]
-  Day1 --> A1["A session"]
-  Day1 --> B1["B session"]
-  Day1 --> C1["C session"]
-  A1 --> Bundle["Independent contribution artifact"]
-  B1 --> Bundle
-  C1 --> Bundle
-  Bundle --> Eval1["Consistency and coverage evaluation"]
-  Eval1 --> Timer["Durable wait until Day 2"]
-  Timer --> Day2["Day 2 workflow run"]
-  Day2 --> Delib["Survey + deliberation iteration"]
-  Delib --> Report["Consensus, dissent, and limitations report"]
+```text
+AgenticResearchWorkflowRun
+├── ActivityRun: ingest-context -> ContextBundle artifact
+├── WorkflowRun: simulate-panel
+│   ├── ExecutionBranch: Variant A
+│   │   ├── TrialRuns from frozen baseline
+│   │   ├── parallel ParticipantSession ActivityRuns
+│   │   ├── DeliberationRound domain views -> IterationRuns
+│   │   └── VariantEvaluation
+│   ├── ExecutionBranch: Variant B
+│   └── ActivityRun: compare-variants
+└── ActivityRun: write-report
 ```
 
-## Participant continuity
+Model A and Model B are variants, not rounds. Repeated independent executions are trials. A sequential discussion cycle is an iteration, optionally presented as a `DeliberationRound`. A provider 429 retry is an `InvocationAttempt` for the same model effect.
 
-Participant A in Day 2 is reconstructed from:
+## Participant continuity and experimental isolation
+
+Both variants consume the same frozen participant baseline:
 
 ```yaml
 participantId: participant-A-017
 personaVersion: budget-conscious-urban-student@1.2.0
-participantStateVersion: 2
-memorySelection:
-  scope: participant-A-017
-  include:
-    - prior_preferences
-    - prior_commitments
-    - unresolved_concerns
-currentStudyInput:
-  evidenceArtifact: artifact://sha256/day2-evidence
-  questionSet: follow-up@2.0.0
+baselineStateVersion: 2
+baselineMemorySnapshot: memory-snapshot-A@8
+contextBundle: artifact://sha256/study-context
 ```
 
-A persistent participant is not a persistent model process. Continuity is explicit identity, state, memory, and provenance.
-
-## Day 1
-
-A, B, and C receive the same question/evidence snapshot but cannot see one another’s private answers. Each session may be a model activity or agent activity. Contributions are immutable artifacts.
-
-After each response:
+Each variant writes to an isolated branch:
 
 ```text
-extract proposed beliefs/preferences/commitments
--> validate provenance and contradictions
--> create new ParticipantStateVersion
--> write participant-scoped memory records
+Participant A baseline
+├── Variant A state/memory branch
+└── Variant B state/memory branch
 ```
 
-## Day 2 deliberation
+Variant A must not modify the baseline seen by Variant B. A longitudinal study that intentionally passes A’s updated state into B is an iteration and answers a different question.
+
+## Participant survey and deliberation
+
+Within each variant:
 
 ```text
-private updated survey
--> normalize positions
+private independent survey A/B/C
+-> validate and collect immutable contributions
 -> identify agreement and contradictions
--> share only permitted contribution bundle
+-> create permitted shared evidence bundle
 -> targeted challenges/rebuttals
 -> verify disputed claims
--> synthesize consensus and dissent
--> evaluate whether another iteration is justified
+-> synthesize consensus, dissent, and uncertainty
+-> evaluate whether another deliberation iteration is justified
 ```
 
-`Round` is the domain label; `IterationRun` executing a body workflow is the runtime model.
+Private memories are not shared. Peer contributions remain untrusted inputs and are schema/provenance validated before use.
 
-## Isolation
+## Logical parallelism and physical throttling
 
-- A cannot retrieve B or C private memory.
-- Shared study evidence is a separate scope.
-- Deliberation transcript is a separate attributed or anonymized artifact.
-- Tenant and study IDs are mandatory in every memory lookup.
+Variants and participant sessions are logically parallelizable. The model gateway controls physical concurrency by provider account, model, tenant, region, requests-per-minute, tokens-per-minute, concurrent calls, deadline, and budget.
+
+```text
+runnable model effects
+-> provider/model capacity queue
+-> reserve request/token/concurrency permit
+-> invoke
+-> reconcile actual usage
+```
+
+A rate limit creates a durable capacity wait or invocation retry; it is not a new trial. For rigorous comparisons, use balanced interleaving or phase barriers so one variant is not systematically favored by scheduling time.
 
 ## Evaluation
 
-Hard checks:
+Participant level:
+- Persona and longitudinal consistency.
+- Memory and evidence correctness.
+- Stereotype amplification and cross-participant leakage.
 
-- No cross-participant memory access.
-- Stable persona version and state input.
-- Prior explicit commitments are represented or intentionally revised.
-- Position changes cite new evidence.
+Deliberation level:
+- Contradiction detection, evidence use, justified opinion change, minority-view preservation, groupthink.
 
-Soft/empirical checks:
+Variant/trial level:
+- Task quality, variance, failure rate, cost, duration, rate-limit wait, hard gates.
 
-- Longitudinal consistency.
-- Justification of opinion change.
-- Persona adherence without stereotype amplification.
-- Diversity and model-route sensitivity.
-- Agreement with real human validation samples.
+Cross-variant level:
+- Model sensitivity, agreement/disagreement, quality/cost frontier, robustness across trials.
 
 ## Limitations
 
-LLMs do not constitute statistically representative people. Demographic labels can amplify stereotypes. Results must disclose models, persona construction, validation method, uncertainty, and the fact that participants are synthetic.
+LLMs do not constitute statistically representative people. Results must disclose models, persona construction, trial count, validation method, uncertainty, scheduling/budget treatment, and the fact that participants are synthetic.

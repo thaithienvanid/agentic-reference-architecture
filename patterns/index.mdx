@@ -1,6 +1,6 @@
 ---
 title: Pattern catalog
-description: Reusable control-flow, orchestration, multi-agent, evaluation, and longitudinal patterns.
+description: Reusable control-flow, orchestration, multi-agent, evaluation, longitudinal, and compensation patterns.
 ---
 
 # Pattern catalog
@@ -25,24 +25,14 @@ Patterns compose the small core without introducing a new platform architecture 
 | Parent–child delegation | Independent lifecycle or permissions | A bounded activity is sufficient |
 | Deliberation | Verifiable disagreement is useful | Persuasion substitutes for evidence |
 | Cross-run chaining | Separate runs span time/version/ownership | Activities belong in one run |
-| Experiment/A-B | Variants can be fairly compared | Multiple uncontrolled variables change |
+| Experiment/A-B | Variants and trials can be fairly compared | Multiple uncontrolled variables change |
 | Longitudinal participant | Persistent simulated identity is required | One-shot persona is sufficient |
-| Saga/compensation | Distributed side effects need mitigation | True atomicity is mandatory |
+| [Saga/compensation](/patterns/saga-and-compensation) | Distributed side effects need mitigation | True atomicity is mandatory |
 | Declared fallback | Reduced safe capability is useful | Fallback silently changes risk/residency |
 
 ## Pattern template
 
-For every pattern document:
-
-```text
-Intent
-Use when / avoid when
-Definition model
-Execution and state model
-Failure and security controls
-Evaluation requirements
-Concrete example
-```
+Every pattern should state intent, use/avoid conditions, definition and execution models, state/data, failure/security controls, evaluation, and a concrete example.
 
 ## Selection principle
 

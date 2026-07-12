@@ -1,6 +1,6 @@
 ---
 title: Observability, audit, and lineage
-description: Trace hierarchy, metrics, logging, progress signals, sampling, audit, and data lineage.
+description: Trace hierarchy, execution identities, metrics, logging, progress, sampling, audit, and data lineage.
 ---
 
 # Observability, audit, and lineage
@@ -25,68 +25,61 @@ description: Trace hierarchy, metrics, logging, progress signals, sampling, audi
 execution-plan.run
   workflow.run
     activity.run
+      branch / trial / iteration (when present)
+      effect
+        invocation.attempt
       context.compile
-        memory.search
-        retrieval.query
-        prompt.compile
       policy.evaluate
-      model.invoke
-      tool.invoke
-      artifact.write
-      child workflow.run
-    approval.wait
+      approval.wait
     evaluation.online
 ```
 
-One activity may produce several spans. Do not force a one-node/one-span mapping.
+One activity may produce several effects and spans. Do not force a one-node/one-span mapping.
 
 ## Stable attributes
 
 ```text
 tenant.id_hash, workspace.id_hash, region
 execution_plan_run.id, workflow.run.id, activity.run.id
-attempt.id, effect.id
-workflow.name/version, agent.name/version, deployment.digest
-prompt.name/version/compiled_digest
+branch.id, trial.id, iteration.id
+effect.id, invocation_attempt.id
+workflow/agent/prompt/tool/policy versions, deployment.digest
 model.route/provider_identifier
-tool.name/version
-policy.version/decision
 side_effect.class, data.classification
 usage.input_tokens/output_tokens/cost
-retry.count, completion.reason, fallback.route
+retry.count, completion.reason, fallback.route, cache.status
 ```
 
-Run IDs belong in traces and logs, not high-cardinality metric labels.
+Run and invocation IDs belong in traces/logs, not high-cardinality metric labels.
 
 ## Agentic golden signals
 
-Traditional latency, traffic, errors, and saturation are extended with quality, cost, progress, and safety.
-
-Progress signals include new evidence, contradictions resolved, required fields completed, score improvement, repeated action count, and cost delta. Alert when iterations consume cost without state or quality progress.
+Traditional latency, traffic, errors, and saturation are extended with quality, cost, progress, and safety. Progress includes new evidence, contradictions resolved, fields completed, score improvement, repeated-action count, and cost delta.
 
 ## Metrics
 
 - Run starts, terminal states, active/suspended duration, recovery latency.
-- Model latency, tokens, cost, rate limits, invalid structured output.
+- Model latency, tokens, cost, rate limits, invalid output, cache use, route/fallback.
 - Tool success, timeout, ambiguous outcome, reconciliation, policy denial.
-- Agent iterations, delegation, no-progress, loop detection, escalation.
-- Context tokens, compaction, memory policy rejection.
+- Branch/trial/iteration count, variance, marginal quality, and abandoned work.
+- Agent delegation, no-progress, loop detection, escalation.
+- Context tokens, compaction, retrieval and memory-policy rejection.
 - Approval count, denial, expiry, wait duration, revalidation failure.
-- Evaluation scores and regressions.
-- Tenant queue fairness and sandbox saturation.
+- Evaluation scores/regressions, tenant fairness, sandbox saturation.
+- Cost per successful evaluated outcome.
 
 ## Content handling
 
-Do not collect raw secrets, authorization headers, private hidden reasoning, or full sensitive prompts by default. Record versions, digests, source references, token counts, and protected payload references. Apply redaction before telemetry export.
+Do not collect raw secrets, authorization headers, private hidden reasoning, or full sensitive prompts by default. Record versions, digests, source references, token counts, and protected payload references. Apply redaction before export.
 
 ## Sampling
 
-Keep 100% of failed runs, security events, policy denials, ambiguous effects, budget stops, sandbox findings, and evaluation regressions. Tail-sample successful low-risk runs and high-volume read-only effects.
+Keep all failed runs, security events, policy denials, ambiguous effects, budget stops, sandbox findings, and evaluation regressions. Tail-sample successful low-risk runs and high-volume read-only effects.
 
 ## Cross-run causality
 
-Use a separate trace per workflow run, a shared execution-plan/experiment ID, span links, and explicit artifact/decision lineage. Avoid week-long monolithic traces.
+Use a separate trace per workflow run, shared plan/experiment ID, span links, and artifact/decision lineage. Avoid week-long monolithic traces.
 
 ## Observability tests
 
-Contract tests should prove every run creates a root span, important effects correlate with journal event IDs, usage is recorded, sensitive fields are absent, failed traces survive sampling, cross-run links exist, and metric labels remain bounded.
+Prove root spans, effect/journal correlation, invocation-attempt lineage, usage accuracy, absence of sensitive fields, failed-trace retention, cross-run links, bounded metric labels, and trace continuity across worker loss.

@@ -1,0 +1,53 @@
+---
+title: Multi-pass refinement report
+description: Results of three focused audit passes after the independent A-minus audit.
+---
+
+# Multi-pass refinement report
+
+**Date:** July 12, 2026  
+**Scope:** normative contracts, security/compliance, operations, examples, research presentation, and automated checks.
+
+## Pass 1 — Contract and internal consistency
+
+Completed:
+
+- Corrected the procurement policy reference and effective budget example.
+- Replaced dead-end/inconsistent state machines with one complete transition model.
+- Added normative execution ontology for activities, branches, trials, iterations, activity retries, effects, and invocation attempts.
+- Added canonical representation conventions for money, time, events, identifiers, versions, and sequence fields.
+- Established one canonical port registry and trusted context contracts.
+- Established one canonical eight-item hard-gate registry.
+- Reconciled journal ownership and marketplace permissions.
+- Added deterministic consistency checks to prevent recurrence.
+
+## Pass 2 — Security, compliance, and data rights
+
+Completed:
+
+- Added inter-agent authentication, audience binding, nonce/expiry, replay protection, and untrusted-result validation.
+- Added controls for approver persuasion, downstream sink injection, tool-schema poisoning, evaluator manipulation, and probabilistic guardrail limitations.
+- Added deterministic normalized approval presentation.
+- Added applicability-oriented EU AI Act and NIST AI RMF capability maps without claiming certification.
+- Added lineage-aware deletion, legal holds, tombstones, backup restore behavior, and crypto-shredding limitations.
+- Updated the Harbor canonical repository source.
+
+## Pass 3 — Operational and implementation quality
+
+Completed:
+
+- Added cost governance, cache identity, routing, context reduction, and cost-per-successful-outcome metrics.
+- Added provider model qualification, drift, deprecation, forced withdrawal, migration, canary, and rollback.
+- Added load, soak, chaos, DR, penetration, red-team, sandbox, and model-lifecycle testing.
+- Added a worked saga and compensation pattern.
+- Made comparison matrices explicitly account for simplicity, cognitive load, and operational cost, including cases where full ARA is not justified.
+- Expanded synthetic-research guidance for variants, trials, iterations, participant-state branching, rate limits, and experimental fairness.
+- Pinned the Mintlify CLI and added repository consistency checks.
+
+## Remaining assurance obligations
+
+The documentation is not a formal legal opinion, security assessment, conformity assessment, penetration test, or operational certification. Implementations still require domain-specific threat modeling, provider/vendor review, legal/privacy analysis, performance testing, recovery exercises, evaluator calibration, and independent assurance appropriate to their risk.
+
+## Recommendation
+
+The architecture is materially more coherent and implementation-ready after these passes. Future changes should modify the canonical ontology, conventions, gates, ports, diagrams, schemas, examples, and checks together rather than restating core contracts independently.
