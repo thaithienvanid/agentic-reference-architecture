@@ -1,0 +1,122 @@
+---
+title: Ports and adapters
+description: Stable inbound and outbound contracts, errors, security boundaries, and adapter constraints.
+---
+
+# Ports and adapters
+
+## Common invocation context
+
+Every outbound call carries trusted execution context.
+
+```typescript
+interface InvocationContext {
+  tenant: TenantScope;
+  actor: ActorIdentity;
+  runId?: RunId;
+  activityRunId?: ActivityRunId;
+  attemptId?: AttemptId;
+  effectId?: EffectId;
+  correlationId: string;
+  deadline: Instant;
+  dataClassification: DataClassification;
+  residencyRegion: Region;
+  capabilityGrant: CapabilityGrant;
+}
+```
+
+## Error contract
+
+```typescript
+type ErrorCategory =
+  | "invalid_argument" | "unauthenticated" | "unauthorized"
+  | "policy_denied" | "not_found" | "conflict"
+  | "quota_exceeded" | "rate_limited" | "timeout"
+  | "unavailable" | "invalid_response" | "ambiguous_effect"
+  | "security_violation" | "internal";
+
+interface PortError {
+  category: ErrorCategory;
+  code: string;
+  message: string;
+  retryable: boolean;
+  safeToRetry: boolean;
+  effectMayHaveOccurred: boolean;
+  retryAfter?: Duration;
+  externalReference?: string;
+}
+```
+
+## Core interfaces
+
+```typescript
+interface ModelPort {
+  capabilities(ctx: InvocationContext, model: ModelRef): Promise<Result<ModelCapabilities>>;
+  invoke(ctx: InvocationContext, request: ModelRequest): AsyncIterable<ModelEvent>;
+  cancel(ctx: InvocationContext, invocationId: ModelInvocationId): Promise<Result<void>>;
+}
+
+interface ToolPort {
+  describe(ctx: InvocationContext, tool: ToolRef): Promise<Result<ToolDescriptor>>;
+  invoke(ctx: InvocationContext, request: ToolRequest): Promise<Result<ToolResponse>>;
+  status(ctx: InvocationContext, operation: ExternalOperationRef): Promise<Result<OperationStatus>>;
+  cancel(ctx: InvocationContext, operation: ExternalOperationRef): Promise<Result<void>>;
+}
+
+interface PolicyPort {
+  evaluate(ctx: InvocationContext, request: PolicyRequest): Promise<Result<PolicyDecision>>;
+}
+
+interface MemoryPort {
+  search(ctx: InvocationContext, query: MemoryQuery): Promise<Result<readonly MemoryHit[]>>;
+  put(ctx: InvocationContext, record: NewMemoryRecord, key: string): Promise<Result<MemoryRef>>;
+  revoke(ctx: InvocationContext, record: MemoryRef, reason: string): Promise<Result<void>>;
+}
+
+interface RunJournalPort {
+  load(runId: RunId, fromSequence?: number): Promise<Result<readonly RunEvent[]>>;
+  append(runId: RunId, expectedSequence: number, events: readonly NewRunEvent[]): Promise<Result<AppendResult>>;
+}
+
+interface WorkflowEnginePort {
+  start(runId: RunId, snapshot: DeploymentSnapshotRef): Promise<Result<WorkflowExecutionRef>>;
+  signal(execution: WorkflowExecutionRef, signal: RuntimeSignal, key: string): Promise<Result<void>>;
+  cancel(execution: WorkflowExecutionRef, reason: string): Promise<Result<void>>;
+  query(execution: WorkflowExecutionRef): Promise<Result<WorkflowExecutionStatus>>;
+}
+```
+
+## Port matrix
+
+| Port | Responsibility | Idempotency and async behavior | Security boundary | Example adapters |
+|---|---|---|---|---|
+| `ModelPort` | Normalize model capability, request, stream, result, usage | Streaming; semantic retries are distinct attempts | Data egress and provider credentials | OpenAI, Anthropic, local serving |
+| `ToolPort` | Validate and invoke a capability; reconcile mutation | Mutation requires stable key; may return operation handle | Highest-risk effect boundary | HTTP, gRPC, MCP, ERP, CRM |
+| `MemoryPort` | Search, write, revoke governed records | Writes deduplicated by record/key | Tenant, subject, residency | SQL, search, vector index |
+| `StateStorePort` | Strong versioned state projection | Compare-and-set | Authoritative run state | PostgreSQL, distributed SQL |
+| `RunJournalPort` | Append canonical events | Expected-sequence append | Execution truth | SQL journal, event store |
+| `EventBusPort` | Publish integration events | At-least-once and event-ID dedupe | Not authoritative state | Kafka, NATS, RabbitMQ |
+| `PolicyPort` | Allow, deny, or require obligations | Deterministic for fixed input/version | Authorization | OPA, Cedar service, custom |
+| `ArtifactStorePort` | Immutable large payloads | Content digest/upload ID | Encryption and residency | S3-compatible storage |
+| `SandboxPort` | Constrained untrusted execution | Execution ID; clean retry environment | Code and host isolation | Containers, gVisor, microVM |
+| `EvaluationPort` | Submit and retrieve evaluation | Async job ID | Evaluation data boundary | DeepEval, Harbor, custom |
+| `TelemetryPort` | Emit traces, metrics, logs | Buffered/best effort | Redaction and access | OTLP/OpenTelemetry |
+| `MeteringPort` | Append attributable usage | Immutable usage ID | Financial integrity | Internal usage ledger |
+
+## MCP and A2A
+
+MCP belongs at a tool/resource interoperability edge. It does not replace platform authorization, tenancy, durability, or audit. An MCP tool declaration is translated to `ToolPort`, then subjected to platform policy.
+
+A2A belongs at an external or federated agent-collaboration edge. An external task is represented through a collaboration gateway and explicit identity, capability, and result contracts; its opaque state is not imported as the platform’s internal `RunState`.
+
+## Architectural constraints
+
+Some technologies are not transparently interchangeable:
+
+- Temporal imposes deterministic workflow and activity boundaries.
+- LangGraph imposes graph-state, checkpoint, and interrupt semantics.
+- Dify and Langflow provide valuable authoring/plugin environments but introduce native graph and component models if used as the production runtime.
+- Policy languages differ in conflict resolution and explanation.
+- Sandboxes differ materially in startup latency and isolation strength.
+
+The port should expose required capabilities and typed extensions rather than pretending all adapters are identical.
