@@ -1,206 +1,68 @@
 ---
-title: Runtime architecture
-description: Execution kernel, durable orchestration, retries, idempotency, replay, recovery, and budgets.
+title: Runtime implementation guide
+description: Informative implementation guidance for the canonical execution kernel, runtime service, durable backend, workers, leases, effects, and replay.
 ---
 
-# Runtime architecture
+# Runtime implementation guide
+
+> **Status: Informative.** Normative ownership and semantics are in [RFC — Runtime and kernel](/rfc/runtime).
 
 ## Recommended composition
 
-The runtime should be a combination rather than a single library or engine:
+```text
+Execution Kernel library
++ Runtime Service
++ Scheduler
++ Runtime Workers and WorkerLeases
++ DurableExecutionPort adapter
++ State Store and Platform Run Journal
++ Effect Ledger
++ Model/Tool/Policy/Secret/Sandbox gateways
+```
+
+## Kernel versus runtime
+
+The `ExecutionKernel` is pure and deterministic. It evolves state and emits execution intents. The `RuntimeService` handles admission, persistence, scheduling, capacity, cancellation, streaming, and recovery.
+
+A durable backend supplies timers, signals, suspension, and backend recovery. Its history is not the public ARA run model.
+
+## Worker ownership
+
+A worker acquires a `WorkerLease` with a fencing token. Worker loss followed by durable resume creates a new lease, not a new activity attempt.
+
+A new `ActivityAttempt` is created only when the complete activity restarts from its declared boundary.
+
+## Effects and invocations
 
 ```text
-Framework-neutral execution-kernel library
-+ horizontally scalable runtime service
-+ durable-workflow adapter
-+ platform-owned canonical run journal
-+ effect and idempotency ledger
-+ optional per-run actor or lease
+ActivityRun
+└── Effect
+    ├── Invocation 1
+    └── Invocation 2
 ```
 
-```mermaid
-flowchart TB
-    Command["Start, signal, cancel, approve"] --> Admission["Admission and cell routing"]
-    Admission --> Host["Runtime host and scheduler"]
-    Host <--> Engine["Durable workflow adapter"]
-    Engine --> Kernel["Execution kernel"]
-    Kernel <--> Journal["State and canonical journal"]
-    Kernel --> Dispatcher["Effect dispatcher"]
-    Dispatcher --> Gate["Policy, budget, approval"]
-    Gate --> Model["Model gateway"]
-    Gate --> Tool["Tool gateway"]
-    Gate --> Memory["Memory/context gateway"]
-    Gate --> Sandbox["Sandbox"]
-    Dispatcher <--> Ledger["Effect ledger"]
-```
+A transport retry, poll, or reconciliation query creates another `Invocation`. A changed prompt, context, arguments, tool, or objective creates another `Effect`.
 
-## Ownership
+## Retry table
 
-| Component | Owns | Must not own |
-|---|---|---|
-| Execution kernel | Legal transitions, dependency resolution, intents, completion | Workers, SDKs, queue offsets, secrets |
-| Runtime host | Admission, scheduling, leases, streaming, cancellation | Business invariants and publication |
-| Durable engine | Timers, signals, suspension, activity retry, recovery | Public domain model and audit semantics |
-| Platform run journal | Canonical execution facts and stable public run semantics | Token-level streaming and provider internals |
-| Effect ledger | Effect identity, invocation attempts, ambiguous outcomes, reconciliation | Business completion decisions |
-
-## State machine
-
-```mermaid
-stateDiagram-v2
-    [*] --> Created
-    Created --> Admitted
-    Created --> Rejected
-    Admitted --> Queued
-    Queued --> Running
-
-    Running --> WaitingForModel
-    Running --> WaitingForTool
-    Running --> WaitingForApproval
-    Running --> WaitingForEvent
-    Running --> RetryBackoff
-    Running --> Paused
-    Running --> Cancelling
-
-    WaitingForModel --> Running
-    WaitingForModel --> RetryBackoff
-    WaitingForModel --> Cancelling
-
-    WaitingForTool --> Running
-    WaitingForTool --> RetryBackoff
-    WaitingForTool --> Reconciling
-    WaitingForTool --> Cancelling
-
-    Reconciling --> Running
-    Reconciling --> RetryBackoff
-    Reconciling --> WaitingForApproval
-    Reconciling --> Failed
-    Reconciling --> Cancelled
-
-    WaitingForApproval --> Running
-    WaitingForApproval --> PolicyStopped
-    WaitingForApproval --> Cancelling
-    WaitingForApproval --> TimedOut
-
-    WaitingForEvent --> Running
-    WaitingForEvent --> TimedOut
-    WaitingForEvent --> Cancelling
-
-    RetryBackoff --> Queued
-    RetryBackoff --> TimedOut
-    RetryBackoff --> Cancelling
-
-    Paused --> Queued
-    Paused --> Cancelling
-
-    Cancelling --> Cancelled
-    Cancelling --> Reconciling
-
-    Running --> Completed
-    Running --> Failed
-    Running --> TimedOut
-    Running --> BudgetStopped
-    Running --> PolicyStopped
-
-    Rejected --> [*]
-    Completed --> [*]
-    Failed --> [*]
-    Cancelled --> [*]
-    TimedOut --> [*]
-    BudgetStopped --> [*]
-    PolicyStopped --> [*]
-```
-
-Waiting releases active compute. A terminal run cannot produce new effects.
-
-## Effect versus invocation
-
-An effect is one logical external or nondeterministic operation. An invocation attempt is one concrete adapter/provider call used to realize or reconcile that effect.
-
-```text
-ActivityRun -> 0..N EffectRecords -> 0..N InvocationAttempts
-```
-
-A transport retry keeps the same effect ID, payload digest, and idempotency key but creates a new invocation-attempt ID. A semantic retry that changes the prompt, context, arguments, or objective creates a new effect.
-
-## Effect lifecycle
-
-```text
-Effect proposed
--> schema and semantic validation
--> policy decision
--> budget reservation
--> human approval when required
--> effect.planned event committed
--> invocation attempt(s)
--> result, failure, or ambiguous outcome recorded
--> actual usage reconciled
--> state advanced
-```
-
-The intent must be durable before dispatch so worker failure cannot erase evidence that an effect may have occurred.
-
-## Idempotency and retry
-
-A suitable logical idempotency key is:
-
-```text
-{tenant}/{run}/{activity}/{effect-ordinal}/{intent-digest}
-```
-
-It remains stable across invocation attempts. Do not include a random retry ID.
-
-| Operation | Retry rule |
+| Situation | Response |
 |---|---|
-| Pure calculation | Retry the qualified activity attempt if needed |
-| Read-only effect | Bounded invocation backoff |
-| Model effect | Preserve each semantic effect; deduplicate transport duplicates |
-| Idempotent write | Retry invocations with the same key |
-| Reversible write | Reconcile an uncertain outcome before retry |
-| Irreversible write | Require provider idempotency or reconciliation; otherwise suspend |
+| Pure task fails before durable output | Retry through `ActivityAttempt` when safe |
+| Provider returns 429 | New invocation after durable backoff |
+| Mutation response is lost | Reconcile the same effect |
+| Worker dies after checkpoint | New `WorkerLease`, resume same activity |
+| Deliberation continues with new evidence | New `Iteration` |
+| Experiment repeats from frozen baseline | New `ExperimentTrial` |
 
-`retryable` and `safeToRetry` are separate error properties.
+## Runtime invariants
 
-## Ambiguous outcome
+- One authoritative state-transition writer per run.
+- Effect intent is durable before first invocation.
+- Idempotency keys remain stable across invocations.
+- Stale leases cannot commit.
+- Waiting releases active workers.
+- Completed effects are reused during resume/replay.
+- Cancellation does not erase completed mutations.
+- Fallback routes are declared in the deployment snapshot.
 
-```mermaid
-flowchart LR
-    Dispatch --> Timeout["Connection fails after dispatch"]
-    Timeout --> Unknown["effect.outcome_unknown"]
-    Unknown --> Reconcile["Query by operation ID or idempotency key"]
-    Reconcile -->|Occurred| Success
-    Reconcile -->|Absent| Retry
-    Reconcile -->|Unknowable| Human["Operator resolution"]
-```
-
-Blindly retrying an irreversible effect is prohibited.
-
-## Concurrency
-
-Use one authoritative state-transition writer per run with controlled parallel effects. Parallel branches are allowed only when no dependency edge exists, policy and budgets allow concurrency, results can be deterministically joined, and branches do not mutate shared state directly.
-
-## Budgets and runaway detection
-
-Budgets are hierarchical: tenant, workspace, deployment, plan, run, activity, branch/trial/iteration where applicable, effect, and invocation attempt.
-
-Dimensions include money, tokens, wall time, active compute, activities, model calls, tool calls, iteration count, trial count, child depth, sandbox compute, data volume, and risk-weighted effects.
-
-Detect repeated action digests, no-progress cycles, delegation loops, escalating context without quality gain, repeated policy denials, and abnormal cost velocity.
-
-## Replay
-
-| Mode | Purpose |
-|---|---|
-| Operational resume | Continue pending work without repeating completed effects |
-| Evidence replay | Reconstruct state using captured effect outcomes |
-| Counterfactual rerun | Start a new run with historical inputs and changed versions |
-
-Workflow-engine history and checkpoints support recovery, but the platform-owned journal defines stable execution semantics.
-
-## Streaming
-
-Use two streams: durable semantic events for run/activity/effect lifecycle and ephemeral detail for token deltas, tool stdout, and progress text. Ephemeral detail may be sampled and is not an audit source.
-
-## Default engine choice
-
-A Temporal-class durable engine is the recommended default for critical long-running work. LangGraph can implement agentic graph execution behind an adapter. Airflow, Dagster, and Prefect are generally stronger for scheduled data and evaluation pipelines. Actor systems are useful for hot-state serialization but should not be the sole persistence or audit mechanism.
+See [Reference interfaces](/specifications/reference-interfaces).
