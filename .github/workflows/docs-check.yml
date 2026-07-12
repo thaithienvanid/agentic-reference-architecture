@@ -32,8 +32,12 @@ jobs:
         with:
           node-version: "20.17.0"
 
-      - name: Install pinned Mintlify CLI
-        run: npm install --global mint@4.0.1125
+      - name: Resolve and install current Mintlify CLI
+        run: |
+          MINT_VERSION="$(npm view mint version)"
+          echo "Resolved Mintlify CLI version: ${MINT_VERSION}"
+          npm install --global "mint@${MINT_VERSION}"
+          mint version || true
 
       - name: Validate Mintlify configuration and content
         run: mint validate
