@@ -1,0 +1,49 @@
+---
+title: Pattern catalog
+description: Reusable control-flow, orchestration, multi-agent, evaluation, and longitudinal patterns.
+---
+
+# Pattern catalog
+
+Patterns compose the small core without introducing a new platform architecture for every agent technique.
+
+| Pattern | Use when | Avoid when |
+|---|---|---|
+| Deterministic pipeline | Process and transitions are known | Exploration is genuinely required |
+| Model activity | One bounded cognitive transformation | Multi-step tools or lifecycle are needed |
+| Guarded branch | Model helps route among safe options | Code can decide exactly |
+| Bounded agent loop | Tool choice depends on observations | Progress and limits cannot be measured |
+| Planner–executor | Complex task needs explicit decomposition | Workflow is already known |
+| Critique–revise | Measurable draft improvement | Judge and generator share uncalibrated errors |
+| Best-of-N | Candidate variance plus reliable selection | No trustworthy aggregator |
+| Multi-model ensemble | Diversity adds proven value | Consensus only disguises correlated error |
+| Search/tree | Backtracking and alternative states matter | Deterministic search is sufficient |
+| Fan-out/fan-in | Independent work can be joined | Branches mutate shared state |
+| MapReduce | Large partitionable evidence | Cross-partition context dominates |
+| Iterative research | Evidence gaps guide the next cycle | Iterations only restyle the answer |
+| Durable wait | Approval, event, or timer may take long | In-request delay is enough |
+| Parent–child delegation | Independent lifecycle or permissions | A bounded activity is sufficient |
+| Deliberation | Verifiable disagreement is useful | Persuasion substitutes for evidence |
+| Cross-run chaining | Separate runs span time/version/ownership | Activities belong in one run |
+| Experiment/A-B | Variants can be fairly compared | Multiple uncontrolled variables change |
+| Longitudinal participant | Persistent simulated identity is required | One-shot persona is sufficient |
+| Saga/compensation | Distributed side effects need mitigation | True atomicity is mandatory |
+| Declared fallback | Reduced safe capability is useful | Fallback silently changes risk/residency |
+
+## Pattern template
+
+For every pattern document:
+
+```text
+Intent
+Use when / avoid when
+Definition model
+Execution and state model
+Failure and security controls
+Evaluation requirements
+Concrete example
+```
+
+## Selection principle
+
+Start deterministic. Add a model activity for bounded cognition. Add agentic control only when it materially improves a measured outcome. Promote work to a child run only when an independent lifecycle or authority boundary exists.

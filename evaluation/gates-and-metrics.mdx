@@ -1,0 +1,74 @@
+---
+title: Gates, metrics, and reproducibility
+description: Promotion logic, metric ownership, evaluation result schema, failed-run reproduction, and online feedback.
+---
+
+# Gates, metrics, and reproducibility
+
+## Promotion rule
+
+```text
+Deterministic invariants pass
+AND semantic/trajectory thresholds pass
+AND environment and security tasks pass
+AND cost/latency remain within limits
+AND no critical regression exists
+```
+
+Do not collapse all dimensions into one weighted average. A package with quality 0.96 and one approval bypass fails.
+
+## Metric ownership
+
+| Subject | Metrics |
+|---|---|
+| Agent version | Task success, trajectory, policy compliance, cost, latency, escalation |
+| Workflow version | Branch frequency, failure points, duration, completion, retry burden |
+| Dataset version | Coverage, freshness, difficulty, slice distribution, label agreement |
+| Run | Terminal state, quality, policy, cost, active/suspended time, retries |
+| Activity run | Attempts, latency, usage, progress contribution, effect outcome |
+| Model route | Quality, schema adherence, refusal, tool accuracy, cost, latency |
+| Tool version | Success, timeout, ambiguous outcome, idempotency, authorization denial |
+| Tenant | Spend, quota, SLO, incidents, quality distribution |
+| Package release | Installs, rollback, findings, resource cost, evaluation score |
+
+## Result schema
+
+```json
+{
+  "evaluationResultId": "evalres_01...",
+  "subject": {
+    "type": "run",
+    "id": "run_01...",
+    "agentVersion": "procurement-agent@5.2.0",
+    "deploymentSnapshot": "sha256:394e..."
+  },
+  "dataset": { "name": "procurement-regression", "version": "6.3.0" },
+  "evaluator": { "name": "procurement-correctness", "version": "6.0.0" },
+  "status": "passed",
+  "scores": {
+    "taskCompletion": 0.94,
+    "toolCorrectness": 1.0,
+    "policyCompliance": 1.0,
+    "grounding": 0.88
+  },
+  "hardGates": [
+    { "name": "approval_binding", "passed": true }
+  ],
+  "evidenceRefs": ["artifact://sha256/..."],
+  "environmentDigest": "sha256:77b3..."
+}
+```
+
+## Reproducing a failure
+
+Capture agent/workflow/prompt/policy/tool versions, deployment snapshot, normalized model requests/results or protected digests, context recipe and selected sources, tool arguments/results, approvals, budget state, adapter/environment versions, state-transition events, and artifacts.
+
+Exact token regeneration is not generally guaranteed. Evidence replay can still reproduce deterministic state evolution using recorded effects. Counterfactual reruns create a new run and clearly identify which model/tool effects were reinvoked.
+
+## Online evaluation
+
+- Evaluate all policy and security failures.
+- Sample successful runs based on risk and traffic.
+- Use shadow execution for candidate versions without applying mutating effects.
+- Monitor slice-level drift by domain, tenant tier, model route, tool version, and region.
+- Curate reviewed incidents into versioned datasets rather than blindly training on every user signal.

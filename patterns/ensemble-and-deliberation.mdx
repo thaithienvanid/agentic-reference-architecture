@@ -1,0 +1,98 @@
+---
+title: Ensembles, iterations, and deliberation
+description: Best-of-N, multi-model ensembles, survey/deliberation rounds, aggregation, and completion policies.
+---
+
+# Ensembles, iterations, and deliberation
+
+## Universal model
+
+Do not make `Round` the universal abstraction. Use:
+
+```text
+ActivityRun
+  execution strategy
+  scheduler
+  execution branches
+  aggregator
+  completion policy
+  optional IterationRuns
+```
+
+A **round** is a valid domain-facing name for one debate or deliberation iteration. An iteration may execute a complete multi-step body workflow.
+
+## Best-of-N
+
+```mermaid
+flowchart TB
+    Input --> A["Candidate A"]
+    Input --> B["Candidate B"]
+    Input --> C["Candidate C"]
+    A --> Validate
+    B --> Validate
+    C --> Validate
+    Validate --> Select["Rank, vote, verify, or preserve all"]
+```
+
+Candidates are intentional branches; retries within a candidate remain `AttemptRun`s. Compare the strategy against the strongest individual candidate and report incremental value per added branch.
+
+## Multi-model ensemble
+
+Different model routes use one common input snapshot and normalized output schema. Record each branch model route, prompt snapshot, result, usage, and evaluation. Aggregation may use deterministic verification, ranking, weighted vote, evidence merge, synthesis, or preserved dissent.
+
+Use only when model diversity provides measured value and policy permits all providers/regions.
+
+## Survey then deliberate
+
+```mermaid
+flowchart TB
+    Question["Common question and evidence snapshot"]
+    Question --> A["Private contribution A"]
+    Question --> B["Private contribution B"]
+    Question --> C["Private contribution C"]
+    A --> Normalize
+    B --> Normalize
+    C --> Normalize
+    Normalize --> Compare["Agreement and contradictions"]
+    Compare --> Challenge
+    Challenge --> Rebuttal
+    Rebuttal --> Verify
+    Verify --> Synthesize["Consensus and dissent"]
+    Synthesize --> Decide{"Completion policy?"}
+    Decide -->|Continue| Next["Targeted next iteration"]
+```
+
+Collect initial views independently before sharing them when anchoring and groupthink matter. Deliberation should verify disputed claims, not reward persuasive wording.
+
+## Iteration body
+
+```text
+IterationRun
+  -> body WorkflowRun
+       independent contributions
+       normalization
+       contradiction analysis
+       challenge/rebuttal
+       evidence verification
+       synthesis
+       progress evaluation
+```
+
+## Completion policy
+
+Use semantic conditions plus hard bounds:
+
+```yaml
+stopWhen:
+  evidenceCoverage: ">= 0.90"
+  unresolvedCriticalContradictions: 0
+  consensusScore: ">= 0.80"
+hardLimits:
+  maximumIterations: 4
+  maximumCostUsd: 8.00
+noProgress:
+  maximumStagnantIterations: 1
+  minimumImprovement: 0.02
+```
+
+Valid outcomes include consensus, partial consensus, documented dissent, insufficient evidence, irreconcilable disagreement, budget stop, or human judgment required. Do not force false consensus.
