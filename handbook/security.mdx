@@ -1,47 +1,92 @@
 ---
 title: Security and safety architecture
-description: Trust boundaries, threat model, controls, recovery, and residual risks for agentic systems.
+description: Trust boundaries, threat model, preventive and detective controls, recovery, and residual risk for agentic systems.
 ---
 
 # Security and safety architecture
 
 ## Security posture
 
-Prompt instructions are not security controls. Enforce identity, capability, data, network, budget, and approval policy at deterministic boundaries around every effect.
+Prompt instructions and probabilistic guardrails are not authorization controls. Enforce identity, capability, data, network, budget, approval, and sink policy at deterministic boundaries around every effect.
 
 ## Primary trust boundaries
 
 ```text
-User and external input -> application
-Retrieved content -> model context
+User/external input -> application
+Retrieved or remembered content -> model context
 Model proposal -> effect authorization
-Runtime -> model provider
-Runtime -> tool and external system
+Runtime -> model/tool/sandbox provider
+Parent agent -> child or external agent
+Peer-agent result -> parent state and downstream sinks
+Human-facing explanation -> approval decision
+Generated output -> HTML, SQL, shell, code, email, or other sink
 Package -> sandbox and platform
 Tenant -> shared infrastructure
-Human approval -> resumed effect
-Telemetry -> external observability backend
+Telemetry/evaluation payload -> external backend or judge
 ```
 
 ## Threat model
 
 | Threat | Attack path | Preventive controls | Detection and recovery | Residual risk |
 |---|---|---|---|---|
-| Direct prompt injection | User content influences model | Separate data from instructions, typed tasks, least privilege | Suspicious action analytics, stop and review | Model may still follow adversarial text |
-| Indirect injection | Documents/tool output contain instructions | Source trust, active-content removal, provenance, restricted tools | Source-to-action lineage, quarantine and replay | Detection is probabilistic |
-| Data exfiltration | Model/tool sends data to external endpoint | Egress allowlists, DLP, scoped context, no secrets in prompts | Network anomaly detection, credential rotation | Authorized endpoints may be abused |
+| Direct prompt injection | User content influences model | Separate instructions/data, typed tasks, least privilege | Suspicious action analytics, stop and review | Model may still follow adversarial text |
+| Indirect prompt injection | Documents, memory, tool or peer output contains instructions | Provenance/trust labels, active-content removal, untrusted-data framing, scoped tools | Source-to-action lineage, quarantine, revoke memory, replay | Detection is probabilistic |
+| Data exfiltration | Model/tool sends data to an endpoint | Egress allowlists, DLP, scoped context, no secrets in prompts | Network anomaly detection, credential rotation | Authorized endpoints may be abused |
 | Cross-tenant leakage | Cache, DB, vector, trace, memory | Tenant-partitioned keys, enforced filters, scoped credentials, encryption | Canary records, synthetic isolation tests, cell quarantine | Shared implementations retain nonzero risk |
-| Excessive agency | Broad tools and long loops | Capability subsets, budgets, risk tiers, deterministic shell | Loop and cost-velocity alerts, pause/revoke | An allowed capability can still be misused |
-| Unauthorized tool use | Model proposal reaches effect | Schema validation, policy gate, resource-side auth | Grant-to-invocation reconciliation | Tool-side authorization bugs remain |
-| Credential leakage | Secret reaches prompt, log, sandbox | Short-lived credentials, secret refs, redaction, no default network | Secret scanning, unusual-use detection, rotate | Providers may retain some metadata |
-| Poisoned memory/retrieval | Untrusted data becomes durable context | Provenance, trust tiers, TTL, write policy, revocation | Contradiction and drift tests, rebuild index | Subtle poisoning may persist |
+| Excessive agency | Broad tools, delegation, or long loops | Capability subsets, budgets, risk tiers, deterministic shell | Loop/cost-velocity alerts, pause/revoke | An allowed capability can still be misused |
+| Unauthorized tool use | Proposal reaches effect gateway | Schema/business validation, policy gate, resource-side auth | Grant-to-invocation reconciliation | Tool-side authorization bugs remain |
+| Inter-agent spoofing/replay | Forged or replayed delegation/result message | Authenticated channels, audience-bound identity, nonce/message ID, expiry, signature/MAC | Duplicate/replay alerts, lineage verification, revoke peer | Compromised peer identity remains trusted until revoked |
+| Malicious peer or child output | Child result injects instructions or malformed content | Typed result schema, treat peer output as untrusted, capability-independent parent validation | Contract failures, source-to-effect tracing, quarantine child/package | Semantically malicious valid output may evade checks |
+| Approver persuasion or deceptive summary | Agent-generated prose hides or reframes risky action | Deterministically normalized approval view from exact action schema; separate evidence and agent commentary | Compare approved digest to executed action; review reversals/incidents | Human judgment and compromised accounts remain fallible |
+| Unsafe downstream output handling | Generated text reaches HTML, SQL, shell, Markdown, code, or email | Sink-specific encoding, parameterized APIs, allowlisted templates, sandbox/test generated code | SAST/DAST, content-security monitoring, rollback | Complex interpreter chains retain injection risk |
+| Guardrail/classifier bypass | Probabilistic filter misses or falsely blocks content | Defense in depth; guardrails may reduce exposure but never grant authority | Calibration, adversarial evaluation, disagreement monitoring | Classifiers have unavoidable false positives/negatives |
+| Credential leakage | Secret reaches prompt, log, sandbox | Short-lived credentials, secret refs, redaction, no default network | Secret scanning, unusual-use detection, rotate | Providers may retain metadata |
+| Poisoned memory/retrieval | Untrusted data becomes durable context | Provenance, trust tiers, TTL, write policy, revocation | Contradiction/drift tests, rebuild index | Subtle poisoning may persist |
+| Tool/schema poisoning | Malicious tool description or schema steers behavior | Signed/versioned tool definitions, schema review, platform-generated descriptions, capability intersection | Registry diff alerts, tool-call anomalies, revoke version | Trusted publisher compromise remains possible |
+| Evaluator/judge manipulation | Candidate output attacks or biases evaluator | Isolate instructions/data, multiple evaluators, deterministic gates, hidden holdouts | Judge disagreement, calibration drift, human adjudication | Correlated judge/model failures remain |
 | Malicious package | Publisher content executes with privilege | Signing, review, exact lock, sandbox, least privilege | Runtime behavior monitoring and revocation | Triggered malicious behavior may evade review |
 | Sandbox escape | Generated/untrusted code reaches host | Strong isolation, minimal image, no host socket, egress control | Node monitoring, destroy/rebuild/rotate | No sandbox eliminates all risk |
 | Model denial of service | Huge prompts, loops, provider saturation | Input/output limits, quotas, timeouts, circuit breakers | Token/latency anomaly alerts, load shedding | Provider-wide outage remains external |
 | Unbounded spending | Repeated model/tool/sandbox effects | Hierarchical hard budgets and reservation | Usage reconciliation and cost-velocity alerts | Provider usage can arrive late |
 | Insecure generated code | Model output executed/deployed | Sandbox, tests, SAST, dependency policy, no secrets/network | Runtime behavior and vulnerability monitoring | Static and dynamic checks are incomplete |
-| Approval bypass | Resumed action differs from approved one | Bind action digest, expiry, role, run version, revalidate | Action-change alerts, invalidate and stop | Compromised approver identity |
+| Approval bypass | Resumed action differs from approved one | Bind action digest, expiry, role, state version, revalidate | Action-change alerts, invalidate and stop | Compromised approver identity |
 | Audit tampering | Runtime/operator modifies evidence | Separate credentials, append-only/WORM, hash chaining | Sequence verification, replicas, external anchoring | Privileged collusion or broad compromise |
+
+The threat taxonomy should be revalidated against current [OWASP Agentic Security](https://genai.owasp.org/) guidance for each release.
+
+## Runtime guardrail layer
+
+A runtime may apply classifiers, DLP, injection detectors, toxicity filters, and anomaly models before context inclusion, after model output, and before tool dispatch. Their decisions must be recorded with model/version and confidence. They may deny, redact, flag, or escalate, but an `allow` result never creates a capability grant.
+
+## Secure inter-agent communication
+
+Every delegation and result message should bind:
+
+```text
+sender and intended audience
+parent and child run IDs
+task/result schema and content digest
+capability grant reference
+message ID, nonce, issued/expiry time
+correlation and causation IDs
+signature or authenticated-channel evidence
+```
+
+The receiver reauthorizes effects locally and does not import a peer’s policy decision as its own authority.
+
+## Human approval safety
+
+The approver sees a deterministic normalized action generated from the exact tool schema and arguments, affected resources, estimated impact, policy reasons, evidence references, and agent commentary as a separately labeled untrusted explanation. Editing the action creates a new digest and normally a new approval request.
+
+## Output-to-sink safety
+
+Validate structured output and apply sink-specific controls at the final adapter:
+
+- Parameterized queries rather than generated SQL concatenation.
+- Escaping and content-security policy for HTML/Markdown.
+- Fixed command APIs rather than generated shell where possible.
+- Sandboxed compilation, tests, and review for code.
+- Recipient/domain and DLP checks for messages and external publication.
 
 ## Tool and sandbox tiers
 
@@ -54,18 +99,6 @@ Telemetry -> external observability backend
 
 Every execution pins image digest, runtime version, CPU/memory, filesystem policy, network policy, secret grants, input artifact digests, and deadline.
 
-## Human approval safety
-
-Approval binds tenant, run, activity, effect, tool version, normalized argument digest, policy version, approver identity/authority, and expiry. Editing the action creates a new digest and normally a new approval request.
-
-## Multi-agent safety
-
-- Child capabilities are explicit subsets.
-- Delegation depth and child count are bounded.
-- Private memories are not shared implicitly.
-- Parent and child runs exchange typed task and result contracts.
-- Delegation cycles and confused-deputy behavior are monitored.
-
 ## Audit integrity
 
-Mandatory audit records use append-only storage, separate service identities, sequence validation, partition hash chaining, replicas, restricted break-glass access, and retention according to regulatory class. A trace-export failure must not silently erase required audit evidence.
+Mandatory audit records use append-only storage, separate service identities, sequence validation, partition hash chaining, replicas, restricted break-glass access, and policy-based retention. A telemetry-export failure must not silently erase required audit evidence.

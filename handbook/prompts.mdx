@@ -1,6 +1,6 @@
 ---
 title: Prompt and context management
-description: Versioned prompt assets, deterministic compilation, typed variables, context contracts, and evaluation.
+description: Versioned prompt assets, deterministic compilation, typed variables, context contracts, guardrails, and evaluation.
 ---
 
 # Prompt and context management
@@ -62,49 +62,11 @@ Platform behavioral base
 + output schema
 ```
 
-Merge rules must prevent a lower-authority layer from weakening a higher-authority restriction:
+Merge rules prevent a lower-authority layer from weakening a higher-authority restriction. Safety/tenant notices are additive, capability limits intersect, output schemas are pinned, and tool descriptions are generated only from authorized definitions.
 
-| Section | Merge rule |
-|---|---|
-| Safety and tenant restrictions | Additive only |
-| Capability limits | Intersection |
-| Output schema | Exact pinned contract |
-| Task objective | Per-run value |
-| Style | Lower layer may override |
-| Tool descriptions | Generated only from authorized tools |
+## Typed variables and context
 
-## Typed variables
-
-Variables declare schema, source, sensitivity, and limits. They must not resolve arbitrary global state or secrets.
-
-```yaml
-variables:
-  - name: research_question
-    source: task
-    schema: { type: string, maxLength: 4000 }
-    sensitivity: internal
-  - name: evidence
-    source: artifact
-    schemaRef: EvidenceBundle@2
-    sensitivity: confidential
-```
-
-## Context contract
-
-The prompt states what context it needs. A versioned context recipe decides how records are selected, ordered, compacted, and redacted.
-
-```yaml
-context:
-  required:
-    - type: contract
-      minimum: 1
-  optional:
-    - type: policy_document
-      maximum: 5
-  maximumTokens: 24000
-  requireProvenance: true
-  allowedClassifications: [internal, confidential]
-```
+Variables declare schema, source, sensitivity, and limits. They must not resolve arbitrary global state or secrets. The prompt states what context it needs; a versioned context recipe selects, orders, compacts, and redacts actual records with provenance.
 
 ## Compilation pipeline
 
@@ -112,15 +74,26 @@ context:
 flowchart LR
     Version["Prompt versions"] --> Compiler["Prompt compiler"]
     Variables["Typed variables"] --> Compiler
-    Context["Selected context"] --> Compiler
+    Context["Selected trusted/untrusted context"] --> Compiler
     Tools["Authorized tools"] --> Compiler
-    Policies["Policy notices"] --> Compiler
-    Compiler --> Validate["Schema, data, token checks"]
-    Validate --> Snapshot["Compiled prompt snapshot"]
+    Policies["Human-readable policy notices"] --> Compiler
+    Compiler --> Validate["Schema, classification, token checks"]
+    Validate --> PreGuard["Optional probabilistic input guardrails"]
+    PreGuard --> Snapshot["Compiled prompt snapshot"]
     Snapshot --> Model["ModelPort"]
+    Model --> PostGuard["Output guardrails and DLP"]
+    PostGuard --> Sink["Schema validation, policy, or safe sink adapter"]
 ```
 
-The compiler records the exact source references, section versions, compaction decisions, output schema, and final digest.
+The compiler records exact source references, trust labels, section versions, compaction decisions, output schema, and final digest.
+
+## Untrusted content rule
+
+User content, retrieval, memories, tool results, and peer-agent output remain data even when they contain imperative language. Context items carry source, trust, classification, and provenance. A model must not gain capabilities because untrusted text claims that a tool or policy is authorized.
+
+## Guardrail rule
+
+Probabilistic guardrails may classify, redact, deny, or escalate inputs and outputs. They are versioned and evaluated, and their decisions are recorded. They do not grant authorization, replace output-schema validation, or make unsafe sink interpolation acceptable.
 
 ## Lifecycle
 
@@ -129,8 +102,8 @@ draft -> review -> offline evaluation -> publish immutable version
 -> include in deployment snapshot -> monitor -> create a new version
 ```
 
-Never resolve `latest` during a run. A prompt change is a behavioral code change and should pass regression, safety, cost, and tool-use gates.
+Never resolve `latest` during a run. A prompt change is a behavioral code change and should pass regression, safety, cost, injection, output-handling, and tool-use gates.
 
 ## Security rule
 
-Prompts communicate behavior and context. They do not grant permission, enforce tenant boundaries, protect credentials, or authorize tools. Those controls live in deterministic policy and capability gateways.
+Prompts communicate behavior and context. They do not grant permission, enforce tenant boundaries, protect credentials, authorize tools, authenticate peer agents, or sanitize output for a downstream interpreter. Those controls live at deterministic identity, policy, capability, and sink boundaries.
