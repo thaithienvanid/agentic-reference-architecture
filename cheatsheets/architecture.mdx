@@ -1,126 +1,138 @@
 ---
 title: Architecture cheatsheet
-description: The complete Agentic Reference Architecture on one compact page.
+description: Canonical Agentic Reference Architecture vocabulary, boundaries, and decision rules.
 ---
 
 # Agentic Reference Architecture cheatsheet
 
-> **Models propose. Deterministic code and policy authorize. The runtime executes, persists, and audits.**
+> **Models propose. Deterministic code and policy authorize. The runtime executes, persists, and records.**
 
-## Canonical hierarchy
+## Canonical resource model
 
 ```text
-Agentic application or service
-  -> ExecutionPlanRun
-    -> WorkflowRun
-      -> ActivityRun
-        -> EffectRecord
-          -> InvocationAttempt
+Agent -> AgentVersion -> AgentRun
+Workflow -> WorkflowVersion -> WorkflowRun
+ExecutionPlan -> ExecutionPlanVersion -> ExecutionPlanRun
+Prompt -> PromptVersion -> CompiledPromptSnapshot
+Tool -> ToolVersion -> Effect -> Invocation
+Policy -> PolicyVersion -> PolicyDecision
+EvaluationSuite -> EvaluationSuiteVersion -> EvaluationRun
 ```
 
-Optional activity semantics: `ExecutionBranch`, `IterationRun`, `TrialRun`, and qualified `ActivityAttempt`. See the [canonical execution ontology](/handbook/execution-ontology).
+Stable resource identity is not executable. Published versions are immutable. Runs pin an exact deployment snapshot.
 
-## Definition versus execution
+## Canonical execution model
 
-| Definition | Execution |
+```text
+ExecutionPlanRun
+└── WorkflowRun
+    └── ActivityRun
+        ├── ActivityAttempt    whole-activity restart
+        ├── ExecutionBranch   parallel candidate/path
+        ├── Iteration         sequential cycle with updated state
+        └── Effect            logical external/nondeterministic operation
+            └── Invocation    concrete adapter/provider call
+
+WorkerLease                  temporary worker ownership/fencing
+```
+
+Trials are not core runtime children:
+
+```text
+ExperimentRun -> ExperimentVariant -> ExperimentTrial -> WorkflowRunRef
+```
+
+## Naming rules
+
+| Meaning | Canonical name |
 |---|---|
-| Workflow | Workflow run |
-| Activity | Activity run |
-| Agent version | Agent run |
-| Prompt version | Compiled prompt snapshot |
-| Tool version | Tool effect and invocation attempts |
-| Evaluation suite | Evaluation job |
+| Semantic work in a workflow version | `Activity` |
+| Logical execution of that work | `ActivityRun` |
+| Whole activity restarted after failure | `ActivityAttempt` |
+| Worker resumes the same durable work | New `WorkerLease` |
+| Intentional cycle with updated state | `Iteration` |
+| Parallel candidate or model variant | `ExecutionBranch` or domain `ExperimentVariant` |
+| Independent experiment replicate | `ExperimentTrial` |
+| Logical model/tool/memory/human operation | `Effect` |
+| One concrete external call | `Invocation` |
+| Proposed plan item | `PlanStep` |
+| Domain discussion cycle | `DeliberationRound` mapped to `Iteration` |
 
-## Layers
+Do not create unqualified `Step`, `Round`, `AttemptRun`, `TrialRun`, `SubAgent`, or `SubWorkflow` entities.
 
-| Layer | Owns |
+## Kernel and runtime
+
+| Component | Owns |
 |---|---|
-| Domain | Business language and invariants |
+| Domain | Business meaning and invariants |
 | Application | Commands, queries, and use cases |
-| Execution kernel | Legal state transitions and effect planning |
-| Runtime | Scheduling, waits, retries, recovery, streaming |
-| Ports | Stable provider-independent contracts |
-| Adapters | Models, tools, engines, stores, sandboxes |
-| Control plane | Versions, deployment, tenants, marketplace |
-| Execution plane | Live runs and effects |
-| Evidence planes | Evaluation, observability, audit, metering |
-
-## Repetition and retry
-
-| Meaning | Use |
-|---|---|
-| Independent repeated evaluation | `TrialRun` |
-| Sequential cycle with updated state | `IterationRun` |
-| Parallel candidate or model variant | `ExecutionBranch` |
-| Retry whole activity | `ActivityAttempt` |
-| Retry/poll/reconcile one effect | `InvocationAttempt` |
-| Domain discussion cycle | `DeliberationRound` mapped to `IterationRun` |
-
-## Activity selection
-
-| Need | Use |
-|---|---|
-| Deterministic calculation | Task activity |
-| One bounded model response | Model activity |
-| Multi-step reasoning inside parent | Agent activity |
-| Independent lifecycle or permissions | Child agent run |
-| Explicit external capability | Tool activity |
-| Approval or review | Human activity |
-| Repeated multi-step cycle | Iteration activity |
-
-## State boundaries
-
-```text
-Domain state      business truth
-Workflow state    next legal transition
-Activity result   typed immutable output
-Artifact          large immutable content
-Conversation      messages
-Working context   exact model input
-Memory            reusable governed information
-Checkpoint        resume optimization
-Trace             operational diagnosis
-Audit             authoritative control evidence
-```
+| Execution Kernel | Pure legal state evolution and execution intents |
+| Runtime Service | Admission, coordination, scheduling, cancellation, recovery |
+| Scheduler | Fairness, capacity, priority, placement |
+| Runtime Worker | Bounded assigned work |
+| WorkerLease | Temporary ownership and fencing |
+| DurableExecutionPort | Timers, signals, suspension, backend recovery |
+| Platform Run Journal | Canonical execution facts |
+| Effect Ledger | Effect identity, invocation history, reconciliation |
+| Gateways | Models, tools, memory, artifacts, humans, sandboxes |
 
 ## Effect flow
 
 ```text
-propose -> validate -> authorize -> reserve budget -> approve
--> persist effect intent -> execute invocation attempt(s)
--> record effect result -> reconcile -> advance state
+proposal
+-> validate
+-> authorize
+-> reserve budget
+-> approve when required
+-> persist effect
+-> invoke
+-> reconcile outcome and usage
+-> advance state
 ```
 
-A timeout does not prove that an irreversible effect failed.
+A timeout does not prove a mutation failed.
 
-## Essential port categories
+## State boundaries
 
 ```text
-Execution: journal, state, workflow engine, checkpoints, effect ledger
-Capability: model, tool, memory, artifacts, sandbox, human approval
-Governance: policy, identity, secrets, entitlements
-Evidence: evaluation, telemetry, audit, metering, event bus
+Domain state       business truth
+Workflow state     next legal transition
+Input snapshot     exact activity input
+Activity result    typed committed output
+Context snapshot   exact model context
+Memory record      reusable governed information
+Artifact           immutable content
+Checkpoint         resume optimization
+Run journal        canonical execution facts
+Trace              operational diagnosis
+Audit              authoritative control evidence
+Usage              cost attribution
 ```
 
-The canonical interfaces live in [Reference interfaces](/specifications/reference-interfaces).
+## Child rule
 
-## Multi-agent rule
+Inline execution shares the parent lifecycle and creates no independent run. Child execution creates a separate `WorkflowRun` or `AgentRun` with explicit task, capabilities, budget, deadline, result contract, and cancellation policy.
 
-Use child agents only when independent state, lifecycle, budget, permissions, cancellation, or evaluation is required. Otherwise prefer model or agent activities. Child authority must be an explicit subset of delegated parent authority.
-
-## Deployment default
+## Production default
 
 ```text
-Modular control-plane application
-+ runtime API and workers
-+ durable workflow backend
-+ relational state and platform-owned run journal
-+ object storage and event bus
-+ model/tool/policy gateways
+modular control plane
++ execution kernel library
++ runtime service and workers
++ durable execution adapter
++ relational state/journal/effect ledger
++ immutable artifact storage
++ model/tool/policy/secret gateways
 + evaluation workers
-+ OpenTelemetry
++ OpenTelemetry-compatible observability
 ```
 
-## Non-negotiable rules
+## Profiles
 
-The normative list is maintained in [Principles and invariants](/handbook/principles). In brief: immutable published definitions, pinned deployments, deterministic authorization, explicit tenant scope, typed bindings, controlled effects, qualified retry semantics, framework isolation, durable evidence, and deterministic software by default.
+- **ARA Core:** versions, workflows, activities, effects, ports, state/evidence separation.
+- **ARA Durable:** journal, leases, idempotency, reconciliation, resume, replay.
+- **ARA Enterprise:** tenancy, identity, audit, quotas, SLOs, cells.
+- **ARA Marketplace:** signed packages, permissions, sandbox, revocation.
+- **ARA Regulated:** human oversight, data rights, retention, tamper evidence.
+
+See the [normative specification](/rfc/index).

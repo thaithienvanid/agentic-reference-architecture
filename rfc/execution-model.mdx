@@ -1,0 +1,176 @@
+---
+title: Execution model
+description: Canonical semantics for runs, activities, retries, iterations, branches, effects, invocations, worker leases, child execution, and experiments.
+---
+
+# Execution model
+
+> **Status: Normative**
+
+## Naming rule
+
+`Run` is reserved for an independently addressable, durable logical execution. Subordinate scopes use qualified nouns rather than another generic `Run`.
+
+```text
+ExecutionPlanRun
+└── WorkflowRun
+    └── ActivityRun
+        ├── ActivityAttempt       optional whole-activity restart
+        ├── ExecutionBranch      optional parallel candidate/path
+        ├── Iteration            optional sequential cycle with updated state
+        └── Effect               zero or more logical external/nondeterministic operations
+            └── Invocation       zero or more concrete adapter/provider calls
+
+WorkerLease                     temporary runtime ownership; not logical work
+```
+
+The core does not define unqualified `Step`, `Round`, `AttemptRun`, `TrialRun`, `SubAgent`, `SubWorkflow`, or `ExecutionEpisode`.
+
+## Workflow and activity
+
+A `WorkflowVersion` defines control flow, typed activities, dependencies, bindings, policies, budgets, and completion.
+
+A `WorkflowRun` is one durable execution of that exact version.
+
+An `Activity` is one semantic unit of workflow work. An `ActivityRun` is one logical execution of that activity.
+
+An activity is atomic at the boundary where independent input/output contracts, policy, budget, retry, evaluation, or observability matter. If internal work has meaningful dependencies, branches, waits, or several activities, it **SHOULD** be modeled as a referenced workflow rather than an opaque “step list.”
+
+BPMN uses Activity as the general work concept and Task for an atomic unit; Temporal similarly distinguishes Activity definition, Activity execution, and retry attempts. ARA adopts `Activity` while keeping its runtime model framework-independent.
+
+## Activity kinds
+
+```text
+TaskActivity        deterministic local logic
+ModelActivity       one bounded model effect
+AgentActivity       bounded multi-effect agent behavior in the parent lifecycle
+ToolActivity        one explicit capability effect
+HumanActivity       approval, review, or data entry
+WorkflowActivity    reference to another WorkflowVersion
+DecisionActivity    guarded branch selection
+ParallelActivity    fork with explicit join
+IterationActivity   repeated body with a completion policy
+EventActivity       wait for a correlated event
+TimerActivity       durable time wait
+EvaluationActivity  explicit quality/safety assessment
+```
+
+## Activity attempt
+
+An `ActivityAttempt` exists only when the complete `ActivityRun` restarts from its declared retry boundary using the same immutable input snapshot.
+
+```text
+ActivityRun: render-report
+├── ActivityAttempt 1 -> process failure before durable result
+└── ActivityAttempt 2 -> succeeds
+```
+
+Worker loss does not automatically create an activity attempt. If the activity resumes from durable state, it remains the same `ActivityRun` under a new `WorkerLease`.
+
+## Worker lease
+
+A `WorkerLease` is temporary infrastructure ownership:
+
+```typescript
+interface WorkerLease {
+  leaseId: LeaseId;
+  runId: RunId;
+  activityRunId?: ActivityRunId;
+  workerId: WorkerId;
+  fencingToken: number;
+  acquiredAt: Instant;
+  expiresAt: Instant;
+}
+```
+
+An expired worker **MUST NOT** commit after a newer fencing token has been issued.
+
+## Effect and invocation
+
+An `Effect` is one logical request to cross the deterministic state boundary. Examples include model generation, a tool call, governed memory access, artifact write, approval request, child-run start, timer, event wait, or sandbox execution.
+
+An `Invocation` is one concrete adapter/provider call used to realize or reconcile an effect.
+
+```text
+ActivityRun -> 0..N Effects
+Effect      -> 0..N Invocations
+Invocation  -> exactly one Effect
+```
+
+An effect may have zero invocations when policy denies it, cancellation occurs before dispatch, evidence replay supplies the historical result, or an approved exact cache satisfies it.
+
+Example:
+
+```text
+Effect: create purchase order
+├── Invocation 1: POST order; response lost
+├── Invocation 2: reconcile by idempotency key
+└── EffectResult: succeeded; order already existed
+```
+
+A transport retry creates a new `Invocation` for the same effect. A semantic retry that changes prompt, context, arguments, tool, or objective creates a new `Effect`.
+
+Adapters **SHOULD** disable hidden automatic retries or surface them as invocation evidence. Otherwise cost, rate-limit, and reconciliation records are incomplete.
+
+## Iteration
+
+An `Iteration` is an intentional sequential cycle that consumes updated state, evidence, or objectives.
+
+```text
+Iteration 1 -> discover contradictions
+Iteration 2 -> investigate unresolved contradictions
+```
+
+A domain may expose a qualified name such as `DeliberationRound`, `InterviewRound`, or `TournamentRound`; each maps to an `Iteration`.
+
+## Execution branch
+
+An `ExecutionBranch` is an independent parallel path, candidate, or variant inside an activity strategy. Branches consume explicit input snapshots and return immutable results. They **MUST NOT** mutate shared state directly.
+
+## Experiment extension
+
+Trials belong to an experiment/evaluation bounded context, not the universal runtime core:
+
+```text
+ExperimentRun
+├── ExperimentVariant A
+│   ├── ExperimentTrial A1 -> WorkflowRunRef
+│   └── ExperimentTrial A2 -> WorkflowRunRef
+└── ExperimentVariant B
+    └── ExperimentTrial B1 -> WorkflowRunRef
+```
+
+An `ExperimentTrial` is one independent repetition from a frozen baseline. It is not a retry. A lightweight implementation may store experiment ID, variant ID, trial ordinal, and baseline snapshot directly on a `WorkflowRun` instead of creating a separate trial entity.
+
+Harbor’s adapter may use its native `Trial` term; it maps to an evaluation-domain trial, not to an invocation retry.
+
+## Nested and child execution
+
+A `WorkflowActivity` or `AgentActivity` may execute in two modes:
+
+- **Inline:** compiled into the parent `WorkflowRun`; no independent run identity.
+- **Child:** starts a separate `WorkflowRun` or `AgentRun` with its own state, result, budget, deadline, failure status, cancellation, and capability grant.
+
+“Child” is a runtime relationship, not a new resource type.
+
+## Explicit data binding
+
+```text
+Activity A completes
+-> validate result
+-> commit result and events
+-> evolve workflow state
+-> resolve Activity B bindings
+-> create immutable input snapshot
+-> start Activity B
+```
+
+Retries of the same logical activity **SHOULD** reuse the same input snapshot. A new iteration or semantic effect may receive a new snapshot.
+
+## Qualified use of step and round
+
+- `PlanStep`: proposed item in a plan artifact.
+- `UIProgressStep` or `RunTimelineStep`: presentation projection.
+- `DeliberationRound`: domain label for an iteration.
+
+Unqualified `Step` and `Round` are not canonical runtime entities.

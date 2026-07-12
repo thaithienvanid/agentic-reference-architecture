@@ -1,40 +1,44 @@
 # Contributing
 
-## Documentation workflow
+## Change workflow
 
-1. Create a branch.
-2. Edit or add MDX pages with `title` and `description` frontmatter.
-3. Add new pages to `docs.json` navigation.
-4. Use Mermaid for architecture diagrams and make each diagram independently understandable.
-5. Run `mint validate` and `mint broken-links` with the current Mintlify CLI.
-6. Open a pull request that explains the architectural change, affected contracts, trade-offs, and migration impact.
+1. Identify the canonical RFC or specification that owns the concept.
+2. Make the normative change first.
+3. Update affected interfaces, schemas, ADRs, diagrams, examples, guides, and cheatsheets.
+4. Add or update a deterministic consistency check when drift can be detected mechanically.
+5. Run the complete documentation validation suite.
+6. Explain compatibility and migration impact in the pull request.
 
-## Content standards
+## Content status
 
-- Use precise complete sentences.
-- Define terms before relying on them.
-- Keep definition-time concepts separate from runtime executions.
-- Distinguish workflow state, conversation, working context, memory, artifacts, checkpoints, traces, and audit.
-- Describe why a component exists, what it owns, what it must not own, dependencies, failure modes, testing, and an example.
-- Prefer deterministic software when agentic choice is unnecessary.
-- Do not present model behavior as a business invariant.
-- Do not expose private chain-of-thought; document observable plans, decisions, actions, evidence, and outcomes.
-
-## Research standards
-
-- Use official documentation, source repositories, specifications, and primary papers.
-- Include retrieval dates for time-sensitive product claims.
-- Mark private-architecture assumptions as inference.
-- Separate vendor facts from ARA recommendations.
-- Avoid popularity-based ranking; compare against explicit criteria.
+- `/rfc` and pages marked **Status: Normative** define ARA.
+- Guides, patterns, examples, and research are informative.
+- Historical audit pages may quote retired terminology but do not define it.
 
 ## Review checklist
 
-- [ ] Source dependencies still point inward.
-- [ ] Provider/framework DTOs stop at adapters.
-- [ ] Side effects have idempotency and reconciliation semantics.
-- [ ] Tenant and data boundaries are explicit.
+- [ ] Stable resource, immutable version, and runtime execution are distinct.
+- [ ] `Run` is used only for an independently durable execution.
+- [ ] Activity retry, iteration, branch, effect, invocation, and worker lease are not conflated.
+- [ ] Inline composition and child execution are explicitly distinguished.
+- [ ] Inputs, outputs, state transitions, tenant scope, budgets, and permissions are typed.
+- [ ] Mutating effects have idempotency or reconciliation.
+- [ ] Provider/framework types stop at adapters.
 - [ ] Evaluation and observability impacts are covered.
-- [ ] Security and failure modes are described.
-- [ ] Versioning and migration effects are described.
-- [ ] Diagrams, examples, ADRs, and navigation are synchronized.
+- [ ] Security, data rights, and failure modes are covered.
+- [ ] Migration or compatibility consequences are stated.
+- [ ] Navigation and links are valid.
+
+## Research
+
+Use official documentation, specifications, source repositories, and primary papers. Record retrieval dates for time-sensitive claims. Do not attribute an ARA recommendation to a vendor unless the source states it.
+
+## Validation
+
+```bash
+python scripts/check_doc_consistency.py
+python -m json.tool docs.json > /dev/null
+npm install --global mint@4.2.687
+mint validate
+mint broken-links
+```

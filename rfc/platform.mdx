@@ -1,0 +1,117 @@
+---
+title: Platform architecture
+description: Normative planes, execution cells, multi-tenancy, gateways, marketplace boundaries, deployment topology, and evolution profiles.
+---
+
+# Platform architecture
+
+> **Status: Normative for ARA Enterprise and higher profiles**
+
+## Logical planes
+
+| Plane | Owns |
+|---|---|
+| **Experience** | UI, API presentation, developer portal, approval and run views |
+| **Control** | Resources, versions, deployment compilation, tenant configuration, package installation |
+| **Execution** | Live runs, activities, effects, invocations, state, checkpoints, streams |
+| **Governance** | Identity, policy, capabilities, approvals, secrets, data classification |
+| **Evaluation** | Datasets, evaluators, offline/online evaluation, release gates |
+| **Evidence** | Observability, audit, lineage, usage, security monitoring |
+
+Logical separation does not require a microservice per plane.
+
+## Control and execution separation
+
+The control plane compiles and signs `DeploymentSnapshot`s. Execution cells cache and verify snapshots before admission.
+
+An authoring outage SHOULD NOT automatically stop admitted runs. Emergency revocation and bounded policy staleness require explicit channels and policies.
+
+## Execution cell
+
+An execution cell is a bounded regional or tenant-specific failure and scaling domain containing:
+
+```text
+run API and stream gateway
+runtime service and scheduler
+runtime workers and worker leases
+durable execution backend
+state, journal, and effect ledger
+artifact/checkpoint storage
+model/tool/policy/secret gateways
+sandbox pools
+regional telemetry and audit delivery
+```
+
+Cells provide blast-radius control, residency, noisy-neighbor protection, and independent recovery.
+
+## Tenant model
+
+Trusted tenant context is derived from authenticated identity and routing. It MUST be present in database keys, caches, queues, vector/search filters, artifacts, memory, secrets, traces, usage, budgets, credentials, and package installations.
+
+Isolation may evolve:
+
+```text
+shared rows
+-> tenant schemas
+-> tenant databases and buckets
+-> dedicated execution cell
+-> fully dedicated deployment
+```
+
+An enterprise platform MAY support several tiers simultaneously.
+
+## Authorization chain
+
+```text
+authenticate human/workload
+-> resolve tenant/workspace
+-> authorize application use case
+-> mint scoped capability grant
+-> narrow grant for child execution
+-> gateway exchanges grant for short-lived resource credential
+-> resource performs its own authorization
+```
+
+Network location alone does not imply trust.
+
+## Model gateway
+
+The model gateway owns capability negotiation, provider routing, regional policy, credentials, request/stream normalization, cost estimation, rate limits, usage, fallback, and provider health.
+
+Fallback routes MUST be declared in the deployment snapshot and recorded when used. A fallback MUST NOT silently change residency, authority, or experimental validity.
+
+## Tool gateway
+
+The tool gateway owns schema validation, authorization, credential injection, network policy, idempotency, reconciliation, output validation, rate limits, audit, and health.
+
+Critical mutating tools SHOULD require explicit approval or deterministic business authorization.
+
+## Marketplace boundary
+
+A package release includes immutable digest, publisher identity, signature, provenance, SBOM, dependency lock, compatibility, requested capabilities, tests, and commercial metadata.
+
+Installation produces a tenant-scoped revision with explicitly granted capabilities. Package code MUST NOT access platform databases, tenant secrets, provider credentials, shared event buses, or unrestricted networks except through approved ports and gateways.
+
+## Deployment evolution
+
+| Variant | Typical scope |
+|---|---|
+| **A — Agentic application** | One team, modular application, one runtime cell |
+| **B — Internal platform** | Multiple teams, shared catalogs/gateways/evaluation, regional cells |
+| **C — Enterprise SaaS/marketplace** | External tenants, billing, isolation tiers, publishers, private networking |
+
+Implementations SHOULD evolve only when scale, security, residency, ownership, or commercial boundaries justify additional distribution.
+
+## Enterprise SLOs
+
+SLOs SHOULD distinguish platform admission and durability from external provider availability and model quality. Important objectives include:
+
+- No acknowledged command loss.
+- No stale worker commit after lease transfer.
+- No repeated completed mutation after recovery.
+- Per-run event ordering.
+- Hard-budget enforcement before effect invocation.
+- Approval-action integrity.
+- Mandatory-audit completeness.
+- Usage-ledger reconciliation.
+- Recovery objectives per execution-cell tier.

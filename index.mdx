@@ -1,71 +1,74 @@
 ---
 title: Agentic Reference Architecture
-description: A framework-agnostic, evaluation-driven architecture for production agentic systems.
+description: A framework-agnostic, evaluation-driven specification for production agentic systems.
 ---
 
 # Agentic Reference Architecture
 
-> **Models propose. Deterministic software, policy, and humans authorize. The runtime executes, persists, and audits.**
+> **Models propose. Deterministic software, policy, and humans authorize. The runtime executes, persists, and records.**
 
-This site is the source of truth for a production-grade architecture that supports a single agent, deterministic and agentic workflows, durable long-running execution, multi-agent systems, enterprise SaaS, and an extensible marketplace.
-
-```mermaid
-flowchart LR
-    Define["Define and version"] --> Deploy["Compile deployment snapshot"]
-    Deploy --> Execute["Durable execution kernel"]
-    Execute --> Control["Policy, budget, approval"]
-    Control --> Effects["Models, tools, memory, humans"]
-    Effects --> Record["State, events, artifacts"]
-    Record --> Evaluate["Evaluate and observe"]
-    Evaluate --> Improve["Publish a new version"]
-    Improve --> Define
-```
-
-## The clean mental model
-
-```text
-Domain application
-  -> ExecutionPlanRun
-    -> WorkflowRun
-      -> ActivityRun
-        -> EffectRecord
-          -> InvocationAttempt
-```
-
-Activities may additionally contain explicit execution branches, iterations, trials, or a qualified whole-activity retry. These are optional semantics, not mandatory hierarchy levels.
-
-- The **application** owns business outcomes.
-- An **execution plan** coordinates multiple workflow runs.
-- A **workflow** coordinates activities inside one run.
-- An **activity** owns one logical unit of work.
-- An **effect** names one logical external or nondeterministic operation.
-- An **invocation attempt** records one concrete adapter/provider call.
-- The **runtime** makes execution durable.
-- **Evaluation** determines whether behavior is good enough to promote.
-
-## Start here
+ARA is a compact normative specification plus optional implementation guides. It supports one production agent, deterministic and agentic workflows, long-running stateful execution, multi-agent systems, enterprise platforms, and governed marketplaces.
 
 <CardGroup cols={2}>
+  <Card title="Read the specification" icon="book" href="/rfc/index">
+    Start with the normative resource, execution, runtime, platform, security, and evaluation contracts.
+  </Card>
   <Card title="Architecture cheatsheet" icon="bolt" href="/cheatsheets/architecture">
-    The complete model on one compact page.
+    Use the canonical names and decision rules without reading every guide.
   </Card>
-  <Card title="Execution ontology" icon="diagram-project" href="/handbook/execution-ontology">
-    Precise meanings for trials, iterations, effects, invocations, retries, nested execution, and child runs.
+  <Card title="Implementation contracts" icon="code" href="/specifications/reference-interfaces">
+    Typed ports, events, state, APIs, and manifests.
   </Card>
-  <Card title="Executive summary" icon="map" href="/handbook/executive-summary">
-    Scope, conclusions, and consequential decisions.
-  </Card>
-  <Card title="Evaluation-driven development" icon="flask" href="/evaluation/evaluation-driven-development">
-    Build quality gates into every version and release.
+  <Card title="Patterns and examples" icon="diagram-project" href="/patterns/index">
+    Apply the core to agents, deliberation, experiments, child runs, and enterprise effects.
   </Card>
 </CardGroup>
 
-## What this architecture rejects
+## Clean mental model
 
-- Model output as a reliable business invariant.
-- A framework as the entire system architecture.
-- A vector database as universal memory.
+```text
+stable resource
+  -> immutable resource version
+    -> durable run
+      -> activity run
+        -> logical effect
+          -> concrete invocation
+```
+
+Optional subordinate scopes include `ActivityAttempt`, `ExecutionBranch`, and `Iteration`. Temporary runtime ownership is a `WorkerLease`. Experiment repetitions are `ExperimentTrial`s in the experiment/evaluation bounded context.
+
+## Architecture shape
+
+```mermaid
+flowchart LR
+    Define["Version resources"] --> Deploy["Compile deployment snapshot"]
+    Deploy --> Kernel["Execution kernel"]
+    Kernel --> Control["Policy, budget, approval"]
+    Control --> Effect["Effect"]
+    Effect --> Invoke["Invocation(s)"]
+    Invoke --> Record["State, journal, artifacts"]
+    Record --> Evaluate["Evaluation and evidence"]
+    Evaluate --> Define
+```
+
+## Conformance profiles
+
+```text
+ARA Core
+  -> ARA Durable
+    -> ARA Enterprise
+      -> ARA Marketplace or ARA Regulated
+```
+
+An implementation adopts only the profiles justified by its risk and scale. A one-shot summarizer does not need the same runtime as a regulated multi-tenant marketplace.
+
+## What ARA rejects
+
+- Model output as a business invariant.
+- A framework as the complete architecture.
 - Prompts as authorization controls.
-- Hidden mutable state between activities or runs.
-- Unbounded retries, autonomy, cost, or delegation.
-- Marketplace plugins that bypass platform policy and gateways.
+- A vector database as universal state or memory.
+- Hidden mutable data flow between activities or runs.
+- Unqualified `Step`, `Round`, `AttemptRun`, or `SubAgent` core types.
+- Blind retries of ambiguous mutations.
+- Marketplace code that bypasses platform gateways.

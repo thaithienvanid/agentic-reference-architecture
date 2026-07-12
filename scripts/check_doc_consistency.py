@@ -29,8 +29,21 @@ GATE_FILES = [
     "cheatsheets/evaluation.mdx",
 ]
 
-# Historical audit records may quote retired terms. Normative and guidance pages may not.
 VOCABULARY_EXCLUDED_PREFIXES = ("audits/",)
+NEGATIVE_CONTEXT_MARKERS = (
+    "does not define",
+    "do not define",
+    "do not create",
+    "must not define",
+    "retired",
+    "legacy",
+    "migration",
+    "non-canonical",
+    "alternatives:",
+    "not `",
+    "never generic",
+)
+
 RETIRED_TERMS = {
     r"\bAgentDefinition\b": "use Agent for stable identity and AgentVersion for immutable behavior",
     r"\bWorkflowDefinition\b": "use Workflow for stable identity and WorkflowVersion for immutable behavior",
@@ -85,6 +98,11 @@ def public_mdx_files() -> list[Path]:
     )
 
 
+def is_explicit_negative_guidance(line: str) -> bool:
+    lowered = line.lower()
+    return any(marker in lowered for marker in NEGATIVE_CONTEXT_MARKERS)
+
+
 def main() -> int:
     failures: list[str] = []
     docs = json.loads((ROOT / "docs.json").read_text(encoding="utf-8"))
@@ -115,7 +133,7 @@ def main() -> int:
         for path in files:
             rel = path.relative_to(ROOT).as_posix()
             for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-                if regex.search(line):
+                if regex.search(line) and not is_explicit_negative_guidance(line):
                     fail(f"{rel}:{line_number}: retired term {regex.pattern!r}; {guidance}", failures)
 
     manifests = (ROOT / "specifications/manifests.mdx").read_text(encoding="utf-8")
@@ -128,16 +146,30 @@ def main() -> int:
         if missing:
             fail(f"{rel} missing canonical gates: {missing}", failures)
 
-    for rel in ["handbook/runtime.mdx", "diagrams/index.mdx"]:
+    for rel in ["rfc/runtime.mdx", "diagrams/index.mdx"]:
         text = (ROOT / rel).read_text(encoding="utf-8")
         for transition in ["Reconciling --> Running", "Reconciling --> Failed"]:
             if transition not in text:
                 fail(f"{rel} missing state transition: {transition}", failures)
 
-    ontology = (ROOT / "handbook/execution-ontology.mdx").read_text(encoding="utf-8")
+    ontology = (ROOT / "rfc/execution-model.mdx").read_text(encoding="utf-8")
     for term in CANONICAL_EXECUTION_TERMS:
         if term not in ontology:
-            fail(f"execution ontology missing {term}", failures)
+            fail(f"execution model missing {term}", failures)
+
+    required_rfc_pages = [
+        "rfc/index",
+        "rfc/resource-model",
+        "rfc/execution-model",
+        "rfc/runtime",
+        "rfc/data-and-evidence",
+        "rfc/platform",
+        "rfc/security-and-governance",
+        "rfc/evaluation-and-conformance",
+    ]
+    for page in required_rfc_pages:
+        if page not in pages:
+            fail(f"normative RFC page not in navigation: {page}", failures)
 
     if failures:
         print("Documentation consistency checks failed:")

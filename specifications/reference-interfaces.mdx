@@ -1,13 +1,13 @@
 ---
 title: Reference interfaces
-description: Canonical framework-neutral ports for execution, models, tools, state, memory, policy, artifacts, evaluation, audit, integration, and telemetry.
+description: Canonical framework-neutral ports for execution, capabilities, governance, evidence, and integration.
 ---
 
 # Reference interfaces
 
-> **Status: Normative.** This page is the canonical port registry. Examples use TypeScript-like pseudocode.
+> **Status: Normative.** TypeScript-like pseudocode expresses semantics, not a required implementation language.
 
-## Shared contexts and errors
+## Shared types
 
 ```typescript
 type Result<T, E = PortError> =
@@ -26,6 +26,7 @@ interface ExecutionContext {
   actor: ActorIdentity;
   runId?: RunId;
   activityRunId?: ActivityRunId;
+  activityAttemptId?: ActivityAttemptId;
   correlationId: string;
   deadline: Instant;
   dataClassification: DataClassification;
@@ -35,7 +36,7 @@ interface ExecutionContext {
 
 interface InvocationContext extends ExecutionContext {
   effectId: EffectId;
-  invocationAttemptId?: InvocationAttemptId;
+  invocationId: InvocationId;
 }
 
 interface PortError {
@@ -50,24 +51,25 @@ interface PortError {
 }
 ```
 
-## Execution kernel
+## Execution Kernel
 
 ```typescript
-interface RunMachine {
+interface ExecutionKernel {
   evolve(state: RunState, event: RunEvent): RunState;
   decide(
     state: RunState,
-    definition: WorkflowDefinition,
+    workflow: WorkflowVersion,
     deployment: DeploymentSnapshot
-  ): readonly RuntimeIntent[];
+  ): readonly ExecutionIntent[];
 }
 
-type RuntimeIntent =
-  | { type: "start_activity"; activity: ActivityId; input: InputSnapshotRef }
-  | { type: "schedule_activity_retry"; activityRunId: ActivityRunId; at: Instant }
+type ExecutionIntent =
+  | { type: "start_activity"; activityId: ActivityId; input: InputSnapshotRef }
+  | { type: "retry_activity"; activityRunId: ActivityRunId; at: Instant }
+  | { type: "request_effect"; effect: EffectDraft }
   | { type: "request_approval"; request: ApprovalRequest }
   | { type: "wait_for_event"; wait: ExternalEventWait }
-  | { type: "start_child_run"; delegation: ChildRunRequest }
+  | { type: "start_child_run"; request: ChildRunRequest }
   | { type: "write_checkpoint" }
   | { type: "complete"; result: ExecutionResultDraft }
   | { type: "fail"; failure: RunFailure };
@@ -79,7 +81,7 @@ type RuntimeIntent =
 interface ModelPort {
   capabilities(ctx: ExecutionContext, model: ModelRef): Promise<Result<ModelCapabilities>>;
   invoke(ctx: InvocationContext, request: ModelRequest): AsyncIterable<ModelEvent>;
-  cancel(ctx: InvocationContext, invocation: ModelInvocationId): Promise<Result<void>>;
+  cancel(ctx: InvocationContext, invocationId: InvocationId): Promise<Result<void>>;
 }
 
 interface ToolPort {
@@ -91,7 +93,7 @@ interface ToolPort {
 
 interface MemoryPort {
   search(ctx: InvocationContext, query: MemoryQuery): Promise<Result<readonly MemoryHit[]>>;
-  put(ctx: InvocationContext, record: NewMemoryRecord, key: string): Promise<Result<MemoryRef>>;
+  put(ctx: InvocationContext, record: NewMemoryRecord, idempotencyKey: string): Promise<Result<MemoryRef>>;
   revoke(ctx: InvocationContext, record: MemoryRef, reason: string): Promise<Result<void>>;
 }
 
@@ -145,11 +147,17 @@ interface RunJournalPort {
   append(ctx: ExecutionContext, runId: RunId, expectedSequence: number, events: readonly NewRunEvent[]): Promise<Result<AppendResult>>;
 }
 
-interface WorkflowEnginePort {
-  start(ctx: ExecutionContext, run: RunId, snapshot: DeploymentSnapshotRef): Promise<Result<WorkflowExecutionRef>>;
-  signal(ctx: ExecutionContext, execution: WorkflowExecutionRef, signal: RuntimeSignal, key: string): Promise<Result<void>>;
-  cancel(ctx: ExecutionContext, execution: WorkflowExecutionRef, reason: string): Promise<Result<void>>;
-  query(ctx: ExecutionContext, execution: WorkflowExecutionRef): Promise<Result<WorkflowExecutionStatus>>;
+interface DurableExecutionPort {
+  start(ctx: ExecutionContext, runId: RunId, deployment: DeploymentSnapshotRef): Promise<Result<DurableExecutionRef>>;
+  signal(ctx: ExecutionContext, execution: DurableExecutionRef, signal: RuntimeSignal, idempotencyKey: string): Promise<Result<void>>;
+  cancel(ctx: ExecutionContext, execution: DurableExecutionRef, reason: string): Promise<Result<void>>;
+  query(ctx: ExecutionContext, execution: DurableExecutionRef): Promise<Result<DurableExecutionStatus>>;
+}
+
+interface WorkerLeasePort {
+  acquire(ctx: ExecutionContext, request: LeaseRequest): Promise<Result<WorkerLease>>;
+  renew(ctx: ExecutionContext, lease: WorkerLeaseRef, expiresAt: Instant): Promise<Result<WorkerLease>>;
+  release(ctx: ExecutionContext, lease: WorkerLeaseRef): Promise<Result<void>>;
 }
 
 interface CheckpointStorePort {
@@ -158,10 +166,10 @@ interface CheckpointStorePort {
 }
 
 interface EffectLedgerPort {
-  register(ctx: ExecutionContext, effect: EffectIntent): Promise<Result<void>>;
-  appendInvocation(ctx: InvocationContext, attempt: InvocationAttemptRecord): Promise<Result<void>>;
+  register(ctx: ExecutionContext, effect: Effect): Promise<Result<void>>;
+  appendInvocation(ctx: InvocationContext, invocation: Invocation): Promise<Result<void>>;
   complete(ctx: ExecutionContext, result: EffectResult): Promise<Result<void>>;
-  get(ctx: ExecutionContext, effectId: EffectId): Promise<Result<EffectRecord>>;
+  get(ctx: ExecutionContext, effectId: EffectId): Promise<Result<Effect>>;
 }
 ```
 
@@ -169,8 +177,8 @@ interface EffectLedgerPort {
 
 ```typescript
 interface EvaluationPort {
-  submit(ctx: ExecutionContext, subject: EvaluationSubject, suite: EvaluationSuiteRef): Promise<Result<EvaluationJobRef>>;
-  result(ctx: ExecutionContext, job: EvaluationJobRef): Promise<Result<EvaluationResult | null>>;
+  start(ctx: ExecutionContext, subject: EvaluationSubject, suite: EvaluationSuiteVersionRef): Promise<Result<EvaluationRunRef>>;
+  result(ctx: ExecutionContext, run: EvaluationRunRef): Promise<Result<EvaluationResult | null>>;
 }
 
 interface TelemetryPort {
@@ -190,6 +198,15 @@ interface EventBusPort {
 }
 ```
 
-## Contract-test requirements
+## Port registry
 
-Each adapter must prove error classification, timeout semantics, cancellation, idempotency, tenant scoping, content redaction, usage accuracy, streaming completion, and capability negotiation. Mutating tool adapters additionally prove reconciliation after connection loss. State/journal/workflow/evidence adapters prove tenant isolation, expected-version behavior, duplicate delivery handling, and required durability.
+| Category | Ports |
+|---|---|
+| Execution | State, journal, durable execution, worker lease, checkpoint, effect ledger |
+| Capability | Model, tool, memory, artifact, sandbox, human approval |
+| Governance | Policy, identity, secrets, entitlements |
+| Evidence/integration | Evaluation, telemetry, audit, metering, event bus |
+
+## Contract tests
+
+Adapters prove error classification, timeout and cancellation semantics, idempotency, reconciliation, tenant isolation, content redaction, usage accuracy, streaming completion, capability negotiation, duplicate delivery handling, and required durability.

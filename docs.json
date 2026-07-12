@@ -2,41 +2,100 @@
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
   "name": "Agentic Reference Architecture",
-  "colors": { "primary": "#2563EB", "light": "#3B82F6", "dark": "#1D4ED8" },
+  "colors": {
+    "primary": "#2563EB",
+    "light": "#3B82F6",
+    "dark": "#1D4ED8"
+  },
   "navigation": {
-    "global": { "anchors": [{ "anchor": "GitHub", "href": "https://github.com/thaithienvanid/agentic-reference-architecture" }] },
+    "global": {
+      "anchors": [
+        {
+          "anchor": "GitHub",
+          "href": "https://github.com/thaithienvanid/agentic-reference-architecture"
+        }
+      ]
+    },
     "tabs": [
       {
-        "tab": "Architecture",
+        "tab": "Specification",
         "groups": [
-          { "group": "Start here", "pages": ["index", "deliverables", "cheatsheets/architecture", "handbook/index"] },
-          { "group": "Fundamentals", "pages": ["handbook/executive-summary", "handbook/terminology", "handbook/principles", "handbook/execution-ontology", "handbook/reference-architecture", "handbook/domain-and-ddd"] },
-          { "group": "Execution model", "pages": ["handbook/workflows", "handbook/agents", "handbook/state-context-memory", "handbook/prompts", "handbook/runtime", "handbook/ports-and-adapters"] },
-          { "group": "Platform and governance", "pages": ["handbook/control-and-execution-planes", "handbook/enterprise-saas", "handbook/marketplace", "handbook/security", "handbook/compliance-and-data-rights", "handbook/cost-governance", "handbook/model-lifecycle", "handbook/observability", "handbook/deployment-and-operations"] },
-          { "group": "Architecture decisions", "pages": ["decisions/decision-guide", "decisions/adrs"] }
+          {
+            "group": "Start here",
+            "pages": ["index", "cheatsheets/architecture", "rfc/index"]
+          },
+          {
+            "group": "Normative core",
+            "pages": ["rfc/resource-model", "rfc/execution-model", "rfc/runtime", "rfc/data-and-evidence"]
+          },
+          {
+            "group": "Platform and conformance",
+            "pages": ["rfc/platform", "rfc/security-and-governance", "rfc/evaluation-and-conformance"]
+          },
+          {
+            "group": "Normative contracts",
+            "pages": ["specifications/canonical-conventions", "specifications/reference-interfaces", "specifications/events-and-state"]
+          }
         ]
       },
       {
-        "tab": "Evaluation",
-        "groups": [{ "group": "Evaluation-driven development", "pages": ["evaluation/index", "cheatsheets/evaluation", "evaluation/evaluation-driven-development", "evaluation/deepeval", "evaluation/harbor", "evaluation/gates-and-metrics"] }]
+        "tab": "Guides",
+        "groups": [
+          {
+            "group": "Application design",
+            "pages": ["handbook/workflows", "handbook/agents", "handbook/state-context-memory", "handbook/prompts"]
+          },
+          {
+            "group": "Platform design",
+            "pages": ["handbook/control-and-execution-planes", "handbook/enterprise-saas", "handbook/marketplace", "handbook/security", "handbook/compliance-and-data-rights", "handbook/cost-governance", "handbook/model-lifecycle", "handbook/observability", "handbook/deployment-and-operations"]
+          },
+          {
+            "group": "Evaluation-driven development",
+            "pages": ["evaluation/index", "cheatsheets/evaluation", "evaluation/evaluation-driven-development", "evaluation/deepeval", "evaluation/harbor", "evaluation/gates-and-metrics"]
+          }
+        ]
       },
       {
-        "tab": "Patterns",
-        "groups": [{ "group": "Pattern catalog", "pages": ["patterns/index", "patterns/agentic-control", "patterns/ensemble-and-deliberation", "patterns/child-agents", "patterns/cross-run-experiments", "patterns/longitudinal-participants", "patterns/saga-and-compensation"] }]
+        "tab": "Patterns and examples",
+        "groups": [
+          {
+            "group": "Pattern catalog",
+            "pages": ["patterns/index", "patterns/agentic-control", "patterns/ensemble-and-deliberation", "patterns/child-agents", "patterns/cross-run-experiments", "patterns/longitudinal-participants", "patterns/saga-and-compensation"]
+          },
+          {
+            "group": "Worked examples",
+            "pages": ["examples/procurement", "examples/synthetic-research"]
+          }
+        ]
       },
       {
         "tab": "Implementation",
         "groups": [
-          { "group": "Contracts and specifications", "pages": ["specifications/canonical-conventions", "specifications/reference-interfaces", "specifications/api", "specifications/manifests", "specifications/events-and-state", "specifications/repository-structure"] },
-          { "group": "Diagrams and examples", "pages": ["diagrams/index", "examples/procurement", "examples/synthetic-research"] },
-          { "group": "Delivery", "pages": ["implementation/roadmap", "implementation/testing-and-resilience"] }
+          {
+            "group": "Public contracts",
+            "pages": ["specifications/api", "specifications/manifests", "specifications/repository-structure"]
+          },
+          {
+            "group": "Architecture decisions",
+            "pages": ["decisions/decision-guide", "decisions/adrs"]
+          },
+          {
+            "group": "Operations and delivery",
+            "pages": ["implementation/roadmap", "implementation/testing-and-resilience", "diagrams/index"]
+          }
         ]
       },
       {
         "tab": "Research",
         "groups": [
-          { "group": "Evidence and comparisons", "pages": ["research/findings", "research/comparisons", "research/sources"] },
-          { "group": "Audits", "pages": ["audits/refinement-plan-2026-07-12", "audits/refinement-report-2026-07-12"] }
+          {
+            "group": "Evidence and comparisons",
+            "pages": ["research/findings", "research/comparisons", "research/sources"]
+          },
+          {
+            "group": "Audit history",
+            "pages": ["audits/refinement-report-2026-07-12"]
+          }
         ]
       }
     ]

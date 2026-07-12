@@ -1,71 +1,78 @@
 # Agentic Reference Architecture
 
-A framework-agnostic, evaluation-driven reference architecture for production AI agents, deterministic and agentic workflows, long-running execution, multi-agent systems, enterprise SaaS platforms, and governed marketplaces.
+A framework-agnostic, evaluation-driven specification for production AI agents, deterministic and agentic workflows, durable execution, multi-agent systems, enterprise platforms, and governed marketplaces.
 
-> **Models propose. Deterministic software, policy, and humans authorize. The runtime executes, persists, and audits.**
+> **Models propose. Deterministic software, policy, and humans authorize. The runtime executes, persists, and records.**
 
-## Source of truth
+## Start with the specification
 
-All documentation is maintained as Markdown/MDX in this repository and rendered as a Mintlify site. The site configuration is [`docs.json`](./docs.json).
+The normative core is intentionally compact:
 
-## Deliverables
+1. [`rfc/index.mdx`](./rfc/index.mdx) — scope, BCP 14 language, profiles, invariants.
+2. [`rfc/resource-model.mdx`](./rfc/resource-model.mdx) — stable resources and immutable versions.
+3. [`rfc/execution-model.mdx`](./rfc/execution-model.mdx) — runs, activities, effects, invocations, retries, branches, iterations, and experiments.
+4. [`rfc/runtime.mdx`](./rfc/runtime.mdx) — kernel, runtime service, durable execution, workers, leases, journal, and recovery.
+5. [`rfc/data-and-evidence.mdx`](./rfc/data-and-evidence.mdx) — state, context, memory, artifacts, events, telemetry, audit, and lineage.
+6. [`rfc/platform.mdx`](./rfc/platform.mdx) — planes, cells, tenancy, marketplace, and deployment.
+7. [`rfc/security-and-governance.mdx`](./rfc/security-and-governance.mdx) — trust boundaries and controls.
+8. [`rfc/evaluation-and-conformance.mdx`](./rfc/evaluation-and-conformance.mdx) — evaluation-driven development and conformance profiles.
 
-- Architecture handbook
-- Architecture cheatsheet
-- Evaluation-driven development handbook
-- Evaluation cheatsheet
-- Pattern catalog
-- Architecture decision guide and ADRs
-- Reference interfaces
-- Mermaid diagram pack
-- API, event, state, and manifest specifications
-- DDD modeling guide
-- Worked procurement and synthetic-research examples
-- Research findings, comparisons, and primary-source index
-- Implementation roadmap and architecture variants
+The rest of the repository supplies informative guides, patterns, worked examples, research, and implementation contracts.
 
-See [`deliverables.mdx`](./deliverables.mdx) for the navigation map.
+## Canonical vocabulary
 
-## Local preview
+```text
+Agent -> AgentVersion -> AgentRun
+Workflow -> WorkflowVersion -> WorkflowRun
+ExecutionPlan -> ExecutionPlanVersion -> ExecutionPlanRun
 
-Install the current Mintlify CLI and run:
+WorkflowRun
+└── ActivityRun
+    ├── ActivityAttempt
+    ├── ExecutionBranch
+    ├── Iteration
+    └── Effect
+        └── Invocation
+
+WorkerLease
+ExperimentRun -> ExperimentVariant -> ExperimentTrial -> WorkflowRunRef
+```
+
+`Run` is reserved for independently addressable durable executions. The core does not define unqualified `Step`, `Round`, `AttemptRun`, `TrialRun`, `SubAgent`, or `SubWorkflow`.
+
+## Documentation site
+
+Markdown/MDX is the source of truth; Mintlify renders the website. Navigation is defined in [`docs.json`](./docs.json).
 
 ```bash
-npm install -g mint
+npm install --global mint@4.2.687
 mint dev
 ```
 
-Quality checks:
+Validation:
 
 ```bash
+python scripts/check_doc_consistency.py
+python -m json.tool docs.json > /dev/null
 mint validate
 mint broken-links
 ```
 
-Current Mintlify setup follows the official [`docs.json` configuration](https://www.mintlify.com/docs/organize/settings), [navigation](https://www.mintlify.com/docs/organize/navigation), and [Mermaid](https://www.mintlify.com/docs/components/mermaid-diagrams) documentation.
-
-## Repository structure
+## Repository map
 
 ```text
-handbook/        normative architecture
-cheatsheets/     compact operational references
+rfc/             normative ARA specification
+specifications/  normative public contracts and schemas
+handbook/        informative design and operations guides
 evaluation/      evaluation-driven development and adapters
-patterns/        reusable workflow and multi-agent patterns
+patterns/        reusable composition patterns
+examples/        worked end-to-end systems
 decisions/       decision guide and ADRs
-specifications/  interfaces, APIs, manifests, events, and schemas
-diagrams/        standalone Mermaid diagram pack
-examples/        end-to-end worked examples
-research/        primary evidence and comparison matrices
-implementation/  rollout and architecture variants
+implementation/  rollout, testing, and resilience
+research/        primary evidence and comparisons
+audits/          historical audit reports
 ```
 
-## Contribution principles
+## Contributing
 
-1. Keep the framework-independent core free of provider SDK types.
-2. Distinguish documented facts, architectural inferences, and ARA recommendations.
-3. Prefer official documentation, specifications, repositories, and primary papers.
-4. Update affected contracts, diagrams, examples, and ADRs together.
-5. Treat prompts, policies, workflows, agents, tools, and evaluators as immutable versioned assets after publication.
-6. Add new domain concepts as bounded-context extensions rather than expanding the shared core without evidence.
-
-See [`CONTRIBUTING.md`](./CONTRIBUTING.md) and [`AGENTS.md`](./AGENTS.md).
+A terminology or boundary change is incomplete until the RFC, interfaces, schemas, examples, diagrams, ADRs, cheatsheets, and automated consistency checks agree. See [`CONTRIBUTING.md`](./CONTRIBUTING.md) and [`AGENTS.md`](./AGENTS.md).
