@@ -1,49 +1,40 @@
 ---
 title: Ports and adapters
-description: Stable inbound and outbound contracts, errors, security boundaries, and adapter constraints.
+description: Informative guidance for stable contracts, trusted contexts, interoperability edges, and adapter constraints.
 ---
 
 # Ports and adapters
 
-The canonical port registry and typed contracts live in [Reference interfaces](/specifications/reference-interfaces). This page explains responsibilities and adapter constraints rather than maintaining a competing interface set.
+> **Status: Informative guide.** The canonical registry and signatures live in [Reference interfaces](/specifications/reference-interfaces).
 
-## Execution context
+## Trusted context
 
-Every outbound or infrastructure operation carries trusted tenant, actor, run, correlation, deadline, classification, residency, and capability context. Effect invocations additionally carry effect and invocation-attempt identity.
+Protected operations carry tenant, actor, run, correlation, deadline, classification, residency, and capability context. Effect invocations additionally carry effect and invocation identity.
 
-## Canonical port categories
+## Port categories
 
 | Category | Ports |
 |---|---|
-| Execution | `StateStorePort`, `RunJournalPort`, `WorkflowEnginePort`, `CheckpointStorePort`, `EffectLedgerPort` |
+| Execution | `StateStorePort`, `RunJournalPort`, `DurableExecutionPort`, `WorkerLeasePort`, `CheckpointStorePort`, `EffectLedgerPort` |
 | Capability | `ModelPort`, `ToolPort`, `MemoryPort`, `ArtifactStorePort`, `SandboxPort`, `HumanApprovalPort` |
 | Governance | `PolicyPort`, `IdentityPort`, `SecretStorePort`, `EntitlementPort` |
 | Evidence/integration | `EvaluationPort`, `TelemetryPort`, `AuditPort`, `MeteringPort`, `EventBusPort` |
 
-## Behavior requirements
+Each port states responsibility, typed inputs/outputs, error taxonomy, sync/async and streaming semantics, idempotency, security boundary, and contract tests.
 
-Each port specifies responsibility, typed inputs/outputs, error taxonomy, sync/async behavior, streaming needs, idempotency, security boundary, and contract-test obligations.
+## Interoperability
 
-- Model and tool adapters normalize provider behavior without leaking provider DTOs into the core.
-- Mutating tool adapters expose idempotency and reconciliation semantics.
-- State and journal adapters enforce trusted tenant context and optimistic concurrency.
-- Evidence adapters preserve independent retention and durability requirements.
-- Workflow-engine adapters provide durable mechanics but do not define the public run model.
+MCP belongs at a tool/resource edge; it does not replace platform authorization, tenancy, durability, or audit.
 
-## MCP and A2A
+A2A belongs at an external/federated agent edge. Remote messages and results remain untrusted and use explicit identity, capability, integrity, and schema contracts.
 
-MCP belongs at a tool/resource interoperability edge. It does not replace platform authorization, tenancy, durability, or audit. An MCP declaration is translated to a platform capability and then subjected to policy.
+## Adapter constraints
 
-A2A belongs at an external or federated collaboration edge. External tasks use explicit identity, capability, message-integrity, and result contracts; opaque remote state is not imported as internal `RunState`.
+- Temporal introduces deterministic workflow and activity-execution semantics.
+- LangGraph introduces graph state, checkpoint, and interrupt semantics.
+- Open Workflow Specification introduces a vendor-neutral DSL and subflow constructs.
+- Dify and Langflow introduce native visual/component models when used as runtimes.
+- Policy languages differ in conflict resolution and explanations.
+- Sandboxes differ materially in startup latency and isolation.
 
-## Architectural constraints
-
-Some technologies are not transparently interchangeable:
-
-- Temporal imposes deterministic workflow and activity boundaries.
-- LangGraph imposes graph-state, checkpoint, and interrupt semantics.
-- Dify and Langflow introduce native graph/component models if used as the production runtime.
-- Policy languages differ in conflict resolution and explanation.
-- Sandboxes differ materially in startup latency and isolation strength.
-
-Ports expose required capabilities and typed extensions rather than pretending all adapters are identical.
+Ports expose required semantics and typed extensions; they do not pretend every adapter is identical.
