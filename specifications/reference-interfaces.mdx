@@ -1,13 +1,13 @@
 ---
 title: Reference interfaces
-description: Framework-neutral typed interfaces for execution, models, tools, state, memory, policy, artifacts, evaluation, and telemetry.
+description: Canonical framework-neutral ports for execution, models, tools, state, memory, policy, artifacts, evaluation, audit, integration, and telemetry.
 ---
 
 # Reference interfaces
 
-The examples use TypeScript-like pseudocode. Production code may use TypeScript, Python, Java, Go, C#, or another typed language while preserving semantics.
+> **Status: Normative.** This page is the canonical port registry. Examples use TypeScript-like pseudocode.
 
-## Shared types
+## Shared contexts and errors
 
 ```typescript
 type Result<T, E = PortError> =
@@ -21,18 +21,32 @@ type SideEffectClass =
   | "reversible_write"
   | "irreversible_write";
 
-interface InvocationContext {
+interface ExecutionContext {
   tenant: TenantScope;
   actor: ActorIdentity;
   runId?: RunId;
   activityRunId?: ActivityRunId;
-  attemptId?: AttemptId;
-  effectId?: EffectId;
   correlationId: string;
   deadline: Instant;
   dataClassification: DataClassification;
   residencyRegion: Region;
   capabilityGrant: CapabilityGrant;
+}
+
+interface InvocationContext extends ExecutionContext {
+  effectId: EffectId;
+  invocationAttemptId?: InvocationAttemptId;
+}
+
+interface PortError {
+  category: ErrorCategory;
+  code: string;
+  message: string;
+  retryable: boolean;
+  safeToRetry: boolean;
+  effectMayHaveOccurred: boolean;
+  retryAfter?: Duration;
+  externalReference?: string;
 }
 ```
 
@@ -50,7 +64,7 @@ interface RunMachine {
 
 type RuntimeIntent =
   | { type: "start_activity"; activity: ActivityId; input: InputSnapshotRef }
-  | { type: "schedule_retry"; activityRunId: ActivityRunId; at: Instant }
+  | { type: "schedule_activity_retry"; activityRunId: ActivityRunId; at: Instant }
   | { type: "request_approval"; request: ApprovalRequest }
   | { type: "wait_for_event"; wait: ExternalEventWait }
   | { type: "start_child_run"; delegation: ChildRunRequest }
@@ -59,104 +73,22 @@ type RuntimeIntent =
   | { type: "fail"; failure: RunFailure };
 ```
 
-## Model port
+## Capability ports
 
 ```typescript
 interface ModelPort {
-  capabilities(
-    ctx: InvocationContext,
-    model: ModelRef
-  ): Promise<Result<ModelCapabilities>>;
-
-  invoke(
-    ctx: InvocationContext,
-    request: ModelRequest
-  ): AsyncIterable<ModelEvent>;
-
-  cancel(
-    ctx: InvocationContext,
-    invocation: ModelInvocationId
-  ): Promise<Result<void>>;
+  capabilities(ctx: ExecutionContext, model: ModelRef): Promise<Result<ModelCapabilities>>;
+  invoke(ctx: InvocationContext, request: ModelRequest): AsyncIterable<ModelEvent>;
+  cancel(ctx: InvocationContext, invocation: ModelInvocationId): Promise<Result<void>>;
 }
 
-type ModelEvent =
-  | { type: "started"; invocationId: ModelInvocationId }
-  | { type: "content_delta"; text: string }
-  | { type: "tool_call_delta"; call: PartialToolCall }
-  | { type: "usage_delta"; usage: PartialUsage }
-  | { type: "completed"; result: ModelResult; usage: Usage }
-  | { type: "failed"; error: PortError };
-```
-
-Provider-specific capabilities may appear through typed extensions included in the deployment snapshot. Do not pass raw provider request objects through the core.
-
-## Tool port
-
-```typescript
 interface ToolPort {
-  describe(ctx: InvocationContext, tool: ToolRef): Promise<Result<ToolDescriptor>>;
+  describe(ctx: ExecutionContext, tool: ToolRef): Promise<Result<ToolDescriptor>>;
   invoke(ctx: InvocationContext, request: ToolRequest): Promise<Result<ToolResponse>>;
   status(ctx: InvocationContext, operation: ExternalOperationRef): Promise<Result<OperationStatus>>;
   cancel(ctx: InvocationContext, operation: ExternalOperationRef): Promise<Result<void>>;
 }
 
-interface ToolRequest {
-  tool: ToolRef;
-  arguments: unknown;
-  argumentsDigest: ContentDigest;
-  sideEffectClass: SideEffectClass;
-  idempotencyKey?: string;
-  credentialRef?: SecretRef;
-}
-
-type ToolResponse =
-  | { status: "completed"; result: ToolResult }
-  | { status: "accepted"; operation: ExternalOperationRef }
-  | { status: "requires_polling"; operation: ExternalOperationRef };
-```
-
-## Policy port
-
-```typescript
-interface PolicyPort {
-  evaluate(
-    ctx: InvocationContext,
-    request: PolicyRequest
-  ): Promise<Result<PolicyDecision>>;
-}
-
-type PolicyDecision =
-  | { decision: "allow"; policyVersions: PolicyVersionRef[]; obligations: Obligation[] }
-  | { decision: "deny"; policyVersions: PolicyVersionRef[]; reasons: PolicyReason[] }
-  | {
-      decision: "require_approval";
-      policyVersions: PolicyVersionRef[];
-      requirement: ApprovalRequirement;
-      obligations: Obligation[];
-    };
-```
-
-## State and journal ports
-
-```typescript
-interface StateStorePort {
-  load(runId: RunId): Promise<Result<RunState>>;
-  compareAndSet(runId: RunId, expectedVersion: number, state: RunState): Promise<Result<void>>;
-}
-
-interface RunJournalPort {
-  load(runId: RunId, fromSequence?: number): Promise<Result<readonly RunEventEnvelope[]>>;
-  append(
-    runId: RunId,
-    expectedSequence: number,
-    events: readonly NewRunEvent[]
-  ): Promise<Result<AppendResult>>;
-}
-```
-
-## Memory and artifact ports
-
-```typescript
 interface MemoryPort {
   search(ctx: InvocationContext, query: MemoryQuery): Promise<Result<readonly MemoryHit[]>>;
   put(ctx: InvocationContext, record: NewMemoryRecord, key: string): Promise<Result<MemoryRef>>;
@@ -165,44 +97,99 @@ interface MemoryPort {
 
 interface ArtifactStorePort {
   put(ctx: InvocationContext, artifact: ArtifactDraft): Promise<Result<ArtifactRef>>;
-  get(ctx: InvocationContext, artifact: ArtifactRef): Promise<Result<ArtifactDescriptor>>;
-  open(ctx: InvocationContext, artifact: ArtifactRef): AsyncIterable<Uint8Array>;
-}
-```
-
-## Durable workflow and sandbox ports
-
-```typescript
-interface WorkflowEnginePort {
-  start(run: RunId, snapshot: DeploymentSnapshotRef): Promise<Result<WorkflowExecutionRef>>;
-  signal(execution: WorkflowExecutionRef, signal: RuntimeSignal, key: string): Promise<Result<void>>;
-  cancel(execution: WorkflowExecutionRef, reason: string): Promise<Result<void>>;
-  query(execution: WorkflowExecutionRef): Promise<Result<WorkflowExecutionStatus>>;
+  get(ctx: ExecutionContext, artifact: ArtifactRef): Promise<Result<ArtifactDescriptor>>;
+  open(ctx: ExecutionContext, artifact: ArtifactRef): AsyncIterable<Uint8Array>;
 }
 
 interface SandboxPort {
   execute(ctx: InvocationContext, request: SandboxExecution): Promise<Result<SandboxResult>>;
   cancel(ctx: InvocationContext, execution: SandboxExecutionRef): Promise<Result<void>>;
 }
+
+interface HumanApprovalPort {
+  deliver(ctx: InvocationContext, request: ApprovalRequest): Promise<Result<ApprovalDeliveryRef>>;
+  revoke(ctx: ExecutionContext, approval: ApprovalRef, reason: string): Promise<Result<void>>;
+}
 ```
 
-## Evaluation, telemetry, and metering
+## Governance ports
+
+```typescript
+interface PolicyPort {
+  evaluate(ctx: ExecutionContext, request: PolicyRequest): Promise<Result<PolicyDecision>>;
+}
+
+interface IdentityPort {
+  authenticate(credential: PresentedCredential): Promise<Result<ActorIdentity>>;
+}
+
+interface SecretStorePort {
+  resolve(ctx: ExecutionContext, secret: SecretRef): Promise<Result<ShortLivedCredential>>;
+}
+
+interface EntitlementPort {
+  authorize(ctx: ExecutionContext, request: EntitlementRequest): Promise<Result<EntitlementDecision>>;
+}
+```
+
+## Execution infrastructure ports
+
+```typescript
+interface StateStorePort {
+  load(ctx: ExecutionContext, runId: RunId): Promise<Result<RunState>>;
+  compareAndSet(ctx: ExecutionContext, runId: RunId, expectedVersion: number, state: RunState): Promise<Result<void>>;
+}
+
+interface RunJournalPort {
+  load(ctx: ExecutionContext, runId: RunId, fromSequence?: number): Promise<Result<readonly RunEventEnvelope[]>>;
+  append(ctx: ExecutionContext, runId: RunId, expectedSequence: number, events: readonly NewRunEvent[]): Promise<Result<AppendResult>>;
+}
+
+interface WorkflowEnginePort {
+  start(ctx: ExecutionContext, run: RunId, snapshot: DeploymentSnapshotRef): Promise<Result<WorkflowExecutionRef>>;
+  signal(ctx: ExecutionContext, execution: WorkflowExecutionRef, signal: RuntimeSignal, key: string): Promise<Result<void>>;
+  cancel(ctx: ExecutionContext, execution: WorkflowExecutionRef, reason: string): Promise<Result<void>>;
+  query(ctx: ExecutionContext, execution: WorkflowExecutionRef): Promise<Result<WorkflowExecutionStatus>>;
+}
+
+interface CheckpointStorePort {
+  put(ctx: ExecutionContext, checkpoint: CheckpointDraft): Promise<Result<CheckpointRef>>;
+  latest(ctx: ExecutionContext, runId: RunId): Promise<Result<CheckpointRef | null>>;
+}
+
+interface EffectLedgerPort {
+  register(ctx: ExecutionContext, effect: EffectIntent): Promise<Result<void>>;
+  appendInvocation(ctx: InvocationContext, attempt: InvocationAttemptRecord): Promise<Result<void>>;
+  complete(ctx: ExecutionContext, result: EffectResult): Promise<Result<void>>;
+  get(ctx: ExecutionContext, effectId: EffectId): Promise<Result<EffectRecord>>;
+}
+```
+
+## Evidence and integration ports
 
 ```typescript
 interface EvaluationPort {
-  submit(subject: EvaluationSubject, suite: EvaluationSuiteRef): Promise<Result<EvaluationJobRef>>;
-  result(job: EvaluationJobRef): Promise<Result<EvaluationResult | null>>;
+  submit(ctx: ExecutionContext, subject: EvaluationSubject, suite: EvaluationSuiteRef): Promise<Result<EvaluationJobRef>>;
+  result(ctx: ExecutionContext, job: EvaluationJobRef): Promise<Result<EvaluationResult | null>>;
 }
 
 interface TelemetryPort {
-  emit(signal: TelemetrySignal): void;
+  emit(ctx: ExecutionContext, signal: TelemetrySignal): void;
+}
+
+interface AuditPort {
+  append(ctx: ExecutionContext, record: AuditRecord): Promise<Result<void>>;
 }
 
 interface MeteringPort {
-  append(record: UsageRecord): Promise<Result<void>>;
+  append(ctx: ExecutionContext, record: UsageRecord): Promise<Result<void>>;
+}
+
+interface EventBusPort {
+  publish(ctx: ExecutionContext, events: readonly IntegrationEvent[]): Promise<Result<void>>;
 }
 ```
 
-## Contract test requirements
+## Contract-test requirements
 
-Each adapter must prove error classification, timeout semantics, cancellation, idempotency, tenant scoping, content redaction, usage accuracy, streaming completion, and capability negotiation. Mutating tool adapters additionally prove reconciliation after connection loss.
+Each adapter must prove error classification, timeout semantics, cancellation, idempotency, tenant scoping, content redaction, usage accuracy, streaming completion, and capability negotiation. Mutating tool adapters additionally prove reconciliation after connection loss. State/journal/workflow/evidence adapters prove tenant isolation, expected-version behavior, duplicate delivery handling, and required durability.

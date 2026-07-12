@@ -5,7 +5,7 @@ description: A practical EDD lifecycle for agent, workflow, prompt, tool, and pa
 
 # Evaluation-driven development
 
-Evaluation-driven development applies the test-first discipline to probabilistic systems.
+Evaluation-driven development applies test-first discipline to probabilistic systems.
 
 ```mermaid
 flowchart LR
@@ -31,8 +31,8 @@ flowchart LR
 4. Define semantic, trajectory, cost, and latency metrics.
 5. Run the current version to establish a baseline.
 6. Implement the smallest behavior change.
-7. Compare distributions across repeated trials where stochasticity matters.
-8. Promote only if hard gates pass and regression tolerances hold.
+7. Compare distributions across `TrialRun`s where stochasticity matters.
+8. Promote only if the canonical hard-gate registry passes and regression tolerances hold.
 9. Observe a canary and automatically roll back on declared triggers.
 10. Convert reviewed production failures into durable cases.
 
@@ -50,16 +50,22 @@ datasets:
   environment: procurement-sandbox@3.1.0
   adversarial: procurement-security@2.2.0
 metrics:
-  taskCompletion: { minimumMean: 0.90 }
-  toolCorrectness: { minimumMean: 0.98 }
-  argumentCorrectness: { minimumMean: 0.95 }
+  taskCompletion: { minimumMean: "0.90" }
+  toolCorrectness: { minimumMean: "0.98" }
+  argumentCorrectness: { minimumMean: "0.95" }
+hardGateRegistry: enterprise-agent-safety@1.0.0
 hardGates:
-  - zero_cross_tenant_access
-  - zero_approval_bypass
-  - zero_duplicate_irreversible_effects
+  - no_cross_tenant_access
+  - no_unauthorized_tool_execution
+  - no_approval_bypass
+  - approval_action_digest_matches
+  - no_duplicate_irreversible_effect
+  - no_forbidden_data_egress
+  - hard_budget_enforced
+  - mandatory_audit_complete
 operational:
-  maximumP95CostUsd: 8.00
-  maximumP95DurationSeconds: 180
+  maximumP95Cost: { amount: "8.00", currency: USD }
+  maximumP95Duration: PT3M
 ```
 
 ## CI/CD tiers
@@ -79,8 +85,8 @@ Use mocks to force invalid JSON, refusal, partial stream, repeated tool proposal
 
 ## Baseline discipline
 
-A baseline pins agent/workflow/prompt/tool versions, model-routing profile, dataset version, evaluator versions, trial count, environment digest, and scoring thresholds. Compare a candidate against the strongest relevant baseline, not a deliberately weak implementation.
+A baseline pins subject versions, model-routing profile, dataset, evaluators, trial count, environment digest, and thresholds. Compare a candidate against the strongest relevant baseline, not a deliberately weak implementation.
 
 ## Stochastic confidence
 
-For variable behavior, report pass rate, mean, dispersion, confidence interval where appropriate, worst critical slice, and repeated-trial failure modes. A single passing sample is weak evidence.
+Report pass rate, mean, dispersion, confidence interval where appropriate, worst critical slice, and repeated-trial failure modes. A single passing sample is weak evidence.

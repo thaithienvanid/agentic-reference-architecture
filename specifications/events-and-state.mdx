@@ -1,9 +1,11 @@
 ---
 title: State and event schemas
-description: Canonical run state, activity result, effect, event envelope, approval, and usage schemas.
+description: Canonical run state, activity result, effect, invocation, event envelope, approval, and usage schemas.
 ---
 
 # State and event schemas
+
+These examples follow the [canonical conventions](/specifications/canonical-conventions) and the [execution ontology](/handbook/execution-ontology).
 
 ## Run state
 
@@ -18,11 +20,13 @@ description: Canonical run state, activity result, effect, event envelope, appro
   "deploymentSnapshot": "sha256:394e...",
   "status": "waiting_for_approval",
   "stateVersion": 27,
-  "eventSequence": 141,
-  "currentActivity": "create-purchase-order",
+  "runSequence": 141,
+  "currentActivity": "create-order",
   "budgets": {
     "money": {
-      "limit": { "amount": "12.00", "currency": "USD" },
+      "parentLimit": { "amount": "12.00", "currency": "USD" },
+      "limit": { "amount": "8.00", "currency": "USD" },
+      "source": "request_override",
       "reserved": { "amount": "0.10", "currency": "USD" },
       "consumed": { "amount": "3.82", "currency": "USD" }
     },
@@ -33,17 +37,17 @@ description: Canonical run state, activity result, effect, event envelope, appro
   "pendingEffects": [
     {
       "effectId": "effect_01K2B",
-      "type": "tool.invoke",
+      "kind": "tool.invoke",
       "tool": "purchase-order.create@4.2.1",
       "sideEffectClass": "irreversible_write",
       "argumentsDigest": "sha256:8ea7...",
-      "idempotencyKey": "tenant_acme_eu/run_01K2A/create-po/1/8ea7"
+      "idempotencyKey": "tenant_acme_eu/run_01K2A/create-order/1/8ea7"
     }
   ],
   "pendingApproval": {
     "approvalId": "approval_01K2C",
     "actionDigest": "sha256:778c...",
-    "policyVersion": "high-value-approval@5.0.0",
+    "policyVersion": "high-value-purchase-approval@5.0.0",
     "expiresAt": "2026-07-14T10:00:00Z"
   },
   "checkpointRef": "artifact://sha256/a82f...",
@@ -70,12 +74,44 @@ Large histories and provider payloads are references, not embedded collections.
 }
 ```
 
+## Effect record
+
+```json
+{
+  "effectId": "effect_01K2B",
+  "activityRunId": "activity_run_12",
+  "kind": "tool.invoke",
+  "sideEffectClass": "irreversible_write",
+  "payloadDigest": "sha256:8ea7...",
+  "idempotencyKey": "tenant_acme_eu/run_01K2A/create-order/1/8ea7",
+  "status": "completed",
+  "invocationAttemptRefs": ["invocation_01", "invocation_02"],
+  "resultRef": "effect-result://effect_01K2B"
+}
+```
+
+## Invocation attempt
+
+```json
+{
+  "invocationAttemptId": "invocation_02",
+  "effectId": "effect_01K2B",
+  "ordinal": 2,
+  "operation": "reconcile",
+  "adapter": "erp-http-adapter@3.1.0",
+  "externalOperationRef": "erp-idempotency:tenant_acme_eu/run_01K2A/create-order/1/8ea7",
+  "status": "succeeded",
+  "startedAt": "2026-07-12T08:04:12Z",
+  "completedAt": "2026-07-12T08:04:13Z"
+}
+```
+
 ## Canonical event envelope
 
 ```json
 {
   "eventId": "evt_01K2D",
-  "eventType": "tool.invocation.planned",
+  "eventType": "effect.planned",
   "schemaVersion": "3.1.0",
   "occurredAt": "2026-07-12T08:04:11.483Z",
   "recordedAt": "2026-07-12T08:04:11.491Z",
@@ -87,7 +123,6 @@ Large histories and provider payloads are references, not embedded collections.
   "aggregateVersion": 27,
   "runSequence": 141,
   "activityRunId": "activity_run_12",
-  "attemptId": "attempt_1",
   "effectId": "effect_01K2B",
   "actor": {
     "type": "service",
@@ -101,13 +136,14 @@ Large histories and provider payloads are references, not embedded collections.
   "payloadDigest": "sha256:65fe...",
   "payloadRef": "payload://encrypted/sha256/65fe...",
   "payload": {
+    "effectKind": "tool.invoke",
     "tool": "purchase-order.create@4.2.1",
     "sideEffectClass": "irreversible_write",
     "argumentsDigest": "sha256:8ea7...",
     "policyDecisionRef": "policy-decision_991",
     "budgetReservationRef": "reservation_822"
   },
-  "retentionClass": "regulated-execution-7y"
+  "retentionClass": "tenant-policy:financial-records"
 }
 ```
 
@@ -125,7 +161,7 @@ Do not force them into one retention or access model.
 
 ```text
 BEGIN
-  verify expected run version
+  verify expected stateVersion and runSequence
   append canonical events
   update run-state projection
   update effect and budget ledgers

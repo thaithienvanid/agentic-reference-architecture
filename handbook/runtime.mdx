@@ -13,7 +13,7 @@ The runtime should be a combination rather than a single library or engine:
 Framework-neutral execution-kernel library
 + horizontally scalable runtime service
 + durable-workflow adapter
-+ application-owned run journal
++ platform-owned canonical run journal
 + effect and idempotency ledger
 + optional per-run actor or lease
 ```
@@ -41,8 +41,8 @@ flowchart TB
 | Execution kernel | Legal transitions, dependency resolution, intents, completion | Workers, SDKs, queue offsets, secrets |
 | Runtime host | Admission, scheduling, leases, streaming, cancellation | Business invariants and publication |
 | Durable engine | Timers, signals, suspension, activity retry, recovery | Public domain model and audit semantics |
-| Run journal | Canonical execution facts | Token-level streaming and provider internals |
-| Effect ledger | Idempotency, attempts, ambiguous outcomes, reconciliation | Business completion decisions |
+| Platform run journal | Canonical execution facts and stable public run semantics | Token-level streaming and provider internals |
+| Effect ledger | Effect identity, invocation attempts, ambiguous outcomes, reconciliation | Business completion decisions |
 
 ## State machine
 
@@ -50,31 +50,78 @@ flowchart TB
 stateDiagram-v2
     [*] --> Created
     Created --> Admitted
+    Created --> Rejected
     Admitted --> Queued
     Queued --> Running
+
     Running --> WaitingForModel
     Running --> WaitingForTool
     Running --> WaitingForApproval
     Running --> WaitingForEvent
-    WaitingForModel --> Running
-    WaitingForTool --> Running
-    WaitingForTool --> Reconciling
-    WaitingForApproval --> Running
-    WaitingForEvent --> Running
     Running --> RetryBackoff
-    RetryBackoff --> Queued
     Running --> Paused
-    Paused --> Queued
     Running --> Cancelling
+
+    WaitingForModel --> Running
+    WaitingForModel --> RetryBackoff
+    WaitingForModel --> Cancelling
+
+    WaitingForTool --> Running
+    WaitingForTool --> RetryBackoff
+    WaitingForTool --> Reconciling
+    WaitingForTool --> Cancelling
+
+    Reconciling --> Running
+    Reconciling --> RetryBackoff
+    Reconciling --> WaitingForApproval
+    Reconciling --> Failed
+    Reconciling --> Cancelled
+
+    WaitingForApproval --> Running
+    WaitingForApproval --> PolicyStopped
+    WaitingForApproval --> Cancelling
+    WaitingForApproval --> TimedOut
+
+    WaitingForEvent --> Running
+    WaitingForEvent --> TimedOut
+    WaitingForEvent --> Cancelling
+
+    RetryBackoff --> Queued
+    RetryBackoff --> TimedOut
+    RetryBackoff --> Cancelling
+
+    Paused --> Queued
+    Paused --> Cancelling
+
     Cancelling --> Cancelled
+    Cancelling --> Reconciling
+
     Running --> Completed
     Running --> Failed
     Running --> TimedOut
     Running --> BudgetStopped
     Running --> PolicyStopped
+
+    Rejected --> [*]
+    Completed --> [*]
+    Failed --> [*]
+    Cancelled --> [*]
+    TimedOut --> [*]
+    BudgetStopped --> [*]
+    PolicyStopped --> [*]
 ```
 
 Waiting releases active compute. A terminal run cannot produce new effects.
+
+## Effect versus invocation
+
+An effect is one logical external or nondeterministic operation. An invocation attempt is one concrete adapter/provider call used to realize or reconcile that effect.
+
+```text
+ActivityRun -> 0..N EffectRecords -> 0..N InvocationAttempts
+```
+
+A transport retry keeps the same effect ID, payload digest, and idempotency key but creates a new invocation-attempt ID. A semantic retry that changes the prompt, context, arguments, or objective creates a new effect.
 
 ## Effect lifecycle
 
@@ -84,8 +131,8 @@ Effect proposed
 -> policy decision
 -> budget reservation
 -> human approval when required
--> EffectPlanned event committed
--> dispatch
+-> effect.planned event committed
+-> invocation attempt(s)
 -> result, failure, or ambiguous outcome recorded
 -> actual usage reconciled
 -> state advanced
@@ -101,14 +148,14 @@ A suitable logical idempotency key is:
 {tenant}/{run}/{activity}/{effect-ordinal}/{intent-digest}
 ```
 
-It remains stable across attempts. Do not include a random retry ID.
+It remains stable across invocation attempts. Do not include a random retry ID.
 
 | Operation | Retry rule |
 |---|---|
-| Pure calculation | Retry freely |
-| Read-only retrieval | Bounded backoff |
-| Model invocation | Preserve each semantic attempt; deduplicate transport duplicates |
-| Idempotent write | Retry with the same key |
+| Pure calculation | Retry the qualified activity attempt if needed |
+| Read-only effect | Bounded invocation backoff |
+| Model effect | Preserve each semantic effect; deduplicate transport duplicates |
+| Idempotent write | Retry invocations with the same key |
 | Reversible write | Reconcile an uncertain outcome before retry |
 | Irreversible write | Require provider idempotency or reconciliation; otherwise suspend |
 
@@ -119,7 +166,7 @@ It remains stable across attempts. Do not include a random retry ID.
 ```mermaid
 flowchart LR
     Dispatch --> Timeout["Connection fails after dispatch"]
-    Timeout --> Unknown["EffectOutcomeUnknown"]
+    Timeout --> Unknown["effect.outcome_unknown"]
     Unknown --> Reconcile["Query by operation ID or idempotency key"]
     Reconcile -->|Occurred| Success
     Reconcile -->|Absent| Retry
@@ -130,39 +177,29 @@ Blindly retrying an irreversible effect is prohibited.
 
 ## Concurrency
 
-Use one authoritative state-transition writer per run with controlled parallel effects. Enforce this through a durable workflow instance, optimistic `stateVersion`, lease/fencing token, actor, or a combination.
-
-Parallel branches are allowed only when:
-
-- No dependency edge exists between them.
-- Policy and budgets allow concurrency.
-- Results can be deterministically joined.
-- They do not mutate shared state directly.
+Use one authoritative state-transition writer per run with controlled parallel effects. Parallel branches are allowed only when no dependency edge exists, policy and budgets allow concurrency, results can be deterministically joined, and branches do not mutate shared state directly.
 
 ## Budgets and runaway detection
 
-Budgets are hierarchical: tenant, workspace, deployment, plan, run, activity, attempt, effect.
+Budgets are hierarchical: tenant, workspace, deployment, plan, run, activity, branch/trial/iteration where applicable, effect, and invocation attempt.
 
-Dimensions include money, tokens, wall time, active compute, steps, model calls, tool calls, iteration count, child depth, sandbox compute, data volume, and risk-weighted effects.
+Dimensions include money, tokens, wall time, active compute, activities, model calls, tool calls, iteration count, trial count, child depth, sandbox compute, data volume, and risk-weighted effects.
 
-Detect repeated action digests, no-progress cycles, delegation loops, escalating context without quality gain, repeated policy denials, and abnormal cost velocity. Responses may reduce capability, switch to a declared deterministic fallback, request help, or stop.
+Detect repeated action digests, no-progress cycles, delegation loops, escalating context without quality gain, repeated policy denials, and abnormal cost velocity.
 
 ## Replay
 
 | Mode | Purpose |
 |---|---|
 | Operational resume | Continue pending work without repeating completed effects |
-| Evidence replay | Reconstruct state using captured model/tool outcomes |
+| Evidence replay | Reconstruct state using captured effect outcomes |
 | Counterfactual rerun | Start a new run with historical inputs and changed versions |
 
-Workflow-engine history and checkpoints support recovery, but the application-owned journal defines stable platform semantics.
+Workflow-engine history and checkpoints support recovery, but the platform-owned journal defines stable execution semantics.
 
 ## Streaming
 
-Use two streams:
-
-- **Durable semantic events:** run and activity lifecycle, approvals, tool completion, artifacts, terminal state.
-- **Ephemeral detail:** token deltas, tool stdout, progress text. This may be sampled or compacted and is not an audit source.
+Use two streams: durable semantic events for run/activity/effect lifecycle and ephemeral detail for token deltas, tool stdout, and progress text. Ephemeral detail may be sampled and is not an audit source.
 
 ## Default engine choice
 

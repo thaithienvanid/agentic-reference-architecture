@@ -25,18 +25,22 @@ flowchart LR
 
 ```text
 Domain application
-  -> Execution plans
-    -> Workflow runs
-      -> Activity runs
-        -> Attempts
-          -> Effects
+  -> ExecutionPlanRun
+    -> WorkflowRun
+      -> ActivityRun
+        -> EffectRecord
+          -> InvocationAttempt
 ```
+
+Activities may additionally contain explicit execution branches, iterations, trials, or a qualified whole-activity retry. These are optional semantics, not mandatory hierarchy levels.
 
 - The **application** owns business outcomes.
 - An **execution plan** coordinates multiple workflow runs.
 - A **workflow** coordinates activities inside one run.
+- An **activity** owns one logical unit of work.
+- An **effect** names one logical external or nondeterministic operation.
+- An **invocation attempt** records one concrete adapter/provider call.
 - The **runtime** makes execution durable.
-- **Ports and adapters** isolate models, tools, engines, stores, and vendors.
 - **Evaluation** determines whether behavior is good enough to promote.
 
 ## Start here
@@ -45,11 +49,11 @@ Domain application
   <Card title="Architecture cheatsheet" icon="bolt" href="/cheatsheets/architecture">
     The complete model on one compact page.
   </Card>
+  <Card title="Execution ontology" icon="diagram-project" href="/handbook/execution-ontology">
+    Precise meanings for trials, iterations, effects, invocations, retries, nested execution, and child runs.
+  </Card>
   <Card title="Executive summary" icon="map" href="/handbook/executive-summary">
     Scope, conclusions, and consequential decisions.
-  </Card>
-  <Card title="Terminology" icon="book-open" href="/handbook/terminology">
-    Distinguish applications, workflows, agents, runtimes, and platforms.
   </Card>
   <Card title="Evaluation-driven development" icon="flask" href="/evaluation/evaluation-driven-development">
     Build quality gates into every version and release.

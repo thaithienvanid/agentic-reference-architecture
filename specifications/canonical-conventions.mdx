@@ -1,0 +1,99 @@
+---
+title: Canonical conventions
+description: Normative serialization, naming, identifiers, versions, money, time, event, sequence, and compatibility conventions.
+---
+
+# Canonical conventions
+
+> **Status: Normative.** Schemas, manifests, APIs, examples, and adapters must follow this representation profile.
+
+## References and versions
+
+Human-readable immutable references use:
+
+```text
+<name>@<semantic-version>
+```
+
+Example: `purchase-order.create@4.2.1`.
+
+A production deployment resolves each reference to an exact content digest. Versions communicate compatibility and release intent; digests identify exact bytes.
+
+## Identifiers
+
+Identifiers are opaque strings with a type prefix where useful:
+
+```text
+run_01K2A
+activity_run_12
+effect_01K2B
+invocation_01K2I
+```
+
+Clients must not infer tenancy, ordering, time, or authorization from an identifier.
+
+## Money and quantities
+
+Money amounts are decimal strings plus an ISO 4217 currency code in JSON and YAML:
+
+```json
+{ "amount": "8.00", "currency": "USD" }
+```
+
+Do not serialize money as binary floating-point numbers.
+
+## Time and duration
+
+- Instants use RFC 3339 UTC timestamps.
+- Durations use ISO 8601 durations.
+- Deadlines are absolute instants; timeouts are durations.
+
+## Event naming
+
+Canonical serialized event types are dotted lowercase:
+
+```text
+run.started
+activity.completed
+effect.planned
+invocation.started
+invocation.completed
+approval.requested
+```
+
+Language-level class names may be PascalCase, but adapters must map them explicitly to canonical serialized event types.
+
+## Version and sequence fields
+
+| Field | Meaning |
+|---|---|
+| `schemaVersion` | Version of the serialized event or payload contract |
+| `stateVersion` | Optimistic-concurrency version of the current run-state projection |
+| `aggregateVersion` | Version of the aggregate that emitted the event |
+| `runSequence` | Monotonic ordering of canonical events within one run |
+
+Do not use these fields interchangeably.
+
+## Enums and property names
+
+Serialized property names use `camelCase`. Serialized enum values use `snake_case` unless an external protocol mandates another form.
+
+## Context and tenancy
+
+Every execution, state, artifact, memory, audit, usage, and adapter operation carries trusted tenant/workspace context. Tenant scope is derived from authenticated identity and routing, not accepted as an untrusted payload override.
+
+## Content and payloads
+
+Large or sensitive content is stored by immutable reference and digest. Canonical events contain metadata, digests, and protected payload references rather than duplicating full content.
+
+## Optional values
+
+Omitted means not supplied or not applicable. `null` is used only when the schema assigns it a distinct meaning. APIs and schemas must state whether a field is required, optional, nullable, or conditionally present.
+
+## Compatibility and migration
+
+- Published definitions and historical events are immutable.
+- Compatible event changes use new schema versions and readers/upcasters.
+- Renames require an explicit alias/deprecation map for a bounded migration period.
+- Production manifests must not contain unresolved `latest` aliases or version ranges.
+- Examples that share an identifier represent the same scenario and must remain internally consistent.

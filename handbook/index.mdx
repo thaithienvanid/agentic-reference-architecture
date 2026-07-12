@@ -11,21 +11,19 @@ The handbook defines the stable architecture. Supporting sections provide evalua
 
 1. **Executive summary** — decisions and overall shape.
 2. **Terminology** — shared language and boundaries.
-3. **Principles** — invariants that govern every design.
-4. **Reference architecture** — layers, planes, and dependencies.
-5. **Domain and DDD** — bounded contexts, aggregates, and ownership.
-6. **Workflows and execution plans** — process composition and cross-run orchestration.
-7. **Agents and multi-agent systems** — when agent autonomy is justified.
-8. **State, context, memory, and artifacts** — information boundaries.
-9. **Runtime, ports, platform, security, and operations** — production mechanics.
+3. **Principles** — canonical invariants.
+4. **Execution ontology** — activities, trials, iterations, effects, invocations, retries, nested and child runs.
+5. **Reference architecture** — layers, planes, and dependencies.
+6. **Domain and DDD** — bounded contexts, aggregates, and ownership.
+7. **Workflows and execution plans** — process composition and cross-run orchestration.
+8. **Agents and multi-agent systems** — when agent autonomy is justified.
+9. **State, context, memory, and artifacts** — information boundaries.
+10. **Runtime, ports, platform, security, and operations** — production mechanics.
 
 ## Normative language
 
-- **Must** describes a required invariant.
-- **Should** describes the recommended default.
-- **May** describes an optional extension.
-- Product-specific entities belong in domain extensions unless the concept is reusable across agentic systems.
+Capitalized **MUST**, **SHOULD**, and **MAY** indicate requirements, recommended defaults, and optional extensions. Lowercase uses are ordinary prose. Each canonical page identifies itself as normative; examples and research pages are informative.
 
 ## Architecture status
 
-The current baseline is **ARA v2**. Published definitions and deployment snapshots are immutable; documentation changes should update affected diagrams, contracts, and ADRs together.
+The current baseline is **ARA v2**. Published definitions and deployment snapshots are immutable; documentation changes should update affected diagrams, contracts, examples, cheatsheets, and ADRs together.

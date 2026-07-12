@@ -10,10 +10,7 @@ description: The complete evaluation model for deterministic, semantic, trajecto
 An agent, workflow, prompt, tool, model route, or package version is incomplete without an evaluation contract.
 
 ```text
-Deployable behavior
-= specification
-+ capabilities and policies
-+ evaluation suite
+Deployable behavior = specification + capabilities and policies + evaluation suite
 ```
 
 ## Evaluation layers
@@ -41,14 +38,29 @@ flowchart TB
 |---|---|
 | Unit/property tests | Deterministic invariants and arithmetic |
 | State-machine simulation | Legal transitions, retries, cancellation, waits |
-| Port contracts | Adapter error, stream, and idempotency semantics |
+| Port contracts | Adapter error, stream, invocation, and idempotency semantics |
 | DeepEval-style evaluation | Semantic quality, plans, tool choices, arguments, trajectory |
 | Harbor-style tasks | Real sandbox/environment state and task completion |
 | Human expert review | Nuanced domain judgment and calibration |
 | Online evaluation | Production drift and real-world outcomes |
 
-No single score should combine away a critical safety failure. Cross-tenant access, approval bypass, duplicate irreversible effects, and forbidden egress are hard gates.
+## Canonical hard gates
+
+`enterprise-agent-safety@1.0.0` contains:
+
+```text
+no_cross_tenant_access
+no_unauthorized_tool_execution
+no_approval_bypass
+approval_action_digest_matches
+no_duplicate_irreversible_effect
+no_forbidden_data_egress
+hard_budget_enforced
+mandatory_audit_complete
+```
+
+No score can average away a failed hard gate. The canonical definitions and result schema live in [Gates, metrics, and reproducibility](/evaluation/gates-and-metrics).
 
 ## Evidence ownership
 
-Evaluation consumes canonical run events, input/output snapshots, artifacts, tool outcomes, policy decisions, and selected telemetry. It produces immutable `EvaluationResult` records. It does not own production workflow state.
+Evaluation consumes canonical run events, input/output snapshots, artifacts, effect and invocation outcomes, policy decisions, and selected telemetry. It produces immutable `EvaluationResult` records and does not own production workflow state.

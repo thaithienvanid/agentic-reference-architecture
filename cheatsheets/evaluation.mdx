@@ -10,15 +10,10 @@ description: DeepEval, Harbor, gates, CI/CD, and production feedback on one page
 ## Loop
 
 ```text
-requirement or incident
--> add deterministic and evaluation cases
--> implement smallest change
--> run unit/contract/replay tests
--> run semantic and trajectory evals
--> run environment and security tasks
--> enforce promotion gates
--> canary or shadow
--> curate production failures
+requirement or incident -> add deterministic and evaluation cases
+-> implement smallest change -> run unit/contract/replay tests
+-> run semantic and trajectory evals -> run environment/security tasks
+-> enforce promotion gates -> canary or shadow -> curate failures
 ```
 
 ## Tool split
@@ -38,15 +33,19 @@ Harbor asks: Did the environment end correctly?
 The platform asks: Was execution authorized, durable, isolated, and auditable?
 ```
 
-## Hard gates
+## Canonical hard gates
+
+Registry: `enterprise-agent-safety@1.0.0`
 
 ```text
-zero cross-tenant access
-zero approval bypass
-zero forbidden tool or egress
-zero duplicate irreversible effect
-no missing mandatory audit evidence
-hard budget enforced before dispatch
+no_cross_tenant_access
+no_unauthorized_tool_execution
+no_approval_bypass
+approval_action_digest_matches
+no_duplicate_irreversible_effect
+no_forbidden_data_egress
+hard_budget_enforced
+mandatory_audit_complete
 ```
 
 Never average a hard-gate failure into a high quality score.
@@ -54,22 +53,16 @@ Never average a hard-gate failure into a high quality score.
 ## DeepEval projection
 
 ```text
-Run events and artifacts
--> evaluation trace projector
--> agent / model / tool / context spans
--> component and end-to-end metrics
+Run events and artifacts -> evaluation trace projector
+-> agent/model/tool/context spans -> component and end-to-end metrics
 -> platform EvaluationResult
 ```
 
 ## Harbor task
 
 ```text
-instruction
-+ pinned container/environment
-+ fixtures and failure injection
-+ deterministic verifier/tests
-+ repeated trials
--> final-state evidence
+instruction + pinned environment + fixtures/failure injection
++ deterministic verifier + repeated TrialRuns -> final-state evidence
 ```
 
 ## CI tiers
@@ -85,4 +78,4 @@ instruction
 
 ## Reproducibility
 
-Pin the subject versions, deployment digest, dataset, evaluator, judge model/profile, environment digest, trial count, random controls when supported, and all evidence references.
+Pin subject versions, deployment digest, dataset, evaluator, judge profile, environment digest, trial count, random controls when supported, and all evidence references.

@@ -1,6 +1,6 @@
 ---
 title: Gates, metrics, and reproducibility
-description: Promotion logic, metric ownership, evaluation result schema, failed-run reproduction, and online feedback.
+description: Promotion logic, canonical hard gates, metric ownership, failed-run reproduction, and online feedback.
 ---
 
 # Gates, metrics, and reproducibility
@@ -12,10 +12,28 @@ Deterministic invariants pass
 AND semantic/trajectory thresholds pass
 AND environment and security tasks pass
 AND cost/latency remain within limits
+AND every canonical hard gate passes
 AND no critical regression exists
 ```
 
 Do not collapse all dimensions into one weighted average. A package with quality 0.96 and one approval bypass fails.
+
+## Canonical hard-gate registry
+
+The normative registry is `enterprise-agent-safety@1.0.0`:
+
+```text
+no_cross_tenant_access
+no_unauthorized_tool_execution
+no_approval_bypass
+approval_action_digest_matches
+no_duplicate_irreversible_effect
+no_forbidden_data_egress
+hard_budget_enforced
+mandatory_audit_complete
+```
+
+Domain suites may add stricter gates but must not remove these when the corresponding capability or risk is present. A gate that is not applicable must be explicitly marked `not_applicable` with evidence; omission is not a pass.
 
 ## Metric ownership
 
@@ -25,7 +43,7 @@ Do not collapse all dimensions into one weighted average. A package with quality
 | Workflow version | Branch frequency, failure points, duration, completion, retry burden |
 | Dataset version | Coverage, freshness, difficulty, slice distribution, label agreement |
 | Run | Terminal state, quality, policy, cost, active/suspended time, retries |
-| Activity run | Attempts, latency, usage, progress contribution, effect outcome |
+| Activity run | Branches, trials, iterations, effects, latency, usage, progress contribution |
 | Model route | Quality, schema adherence, refusal, tool accuracy, cost, latency |
 | Tool version | Success, timeout, ambiguous outcome, idempotency, authorization denial |
 | Tenant | Spend, quota, SLO, incidents, quality distribution |
@@ -44,6 +62,7 @@ Do not collapse all dimensions into one weighted average. A package with quality
   },
   "dataset": { "name": "procurement-regression", "version": "6.3.0" },
   "evaluator": { "name": "procurement-correctness", "version": "6.0.0" },
+  "hardGateRegistry": "enterprise-agent-safety@1.0.0",
   "status": "passed",
   "scores": {
     "taskCompletion": 0.94,
@@ -52,7 +71,14 @@ Do not collapse all dimensions into one weighted average. A package with quality
     "grounding": 0.88
   },
   "hardGates": [
-    { "name": "approval_binding", "passed": true }
+    { "name": "no_cross_tenant_access", "status": "passed" },
+    { "name": "no_unauthorized_tool_execution", "status": "passed" },
+    { "name": "no_approval_bypass", "status": "passed" },
+    { "name": "approval_action_digest_matches", "status": "passed" },
+    { "name": "no_duplicate_irreversible_effect", "status": "passed" },
+    { "name": "no_forbidden_data_egress", "status": "passed" },
+    { "name": "hard_budget_enforced", "status": "passed" },
+    { "name": "mandatory_audit_complete", "status": "passed" }
   ],
   "evidenceRefs": ["artifact://sha256/..."],
   "environmentDigest": "sha256:77b3..."
@@ -61,14 +87,10 @@ Do not collapse all dimensions into one weighted average. A package with quality
 
 ## Reproducing a failure
 
-Capture agent/workflow/prompt/policy/tool versions, deployment snapshot, normalized model requests/results or protected digests, context recipe and selected sources, tool arguments/results, approvals, budget state, adapter/environment versions, state-transition events, and artifacts.
+Capture subject versions, deployment snapshot, normalized model requests/results or protected digests, context recipe and selected sources, tool arguments/results, effects and invocation attempts, approvals, budget state, adapter/environment versions, state-transition events, and artifacts.
 
-Exact token regeneration is not generally guaranteed. Evidence replay can still reproduce deterministic state evolution using recorded effects. Counterfactual reruns create a new run and clearly identify which model/tool effects were reinvoked.
+Exact token regeneration is not generally guaranteed. Evidence replay can reproduce deterministic state evolution using recorded effect outcomes. Counterfactual reruns create a new run and identify which effects were reinvoked.
 
 ## Online evaluation
 
-- Evaluate all policy and security failures.
-- Sample successful runs based on risk and traffic.
-- Use shadow execution for candidate versions without applying mutating effects.
-- Monitor slice-level drift by domain, tenant tier, model route, tool version, and region.
-- Curate reviewed incidents into versioned datasets rather than blindly training on every user signal.
+Evaluate all policy/security failures, sample successful runs by risk, use shadow execution without applying mutating effects, monitor slice-level drift, and curate reviewed incidents into versioned datasets.

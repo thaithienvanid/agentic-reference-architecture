@@ -5,7 +5,7 @@ description: Inbound management, run, approval, evaluation, marketplace, event, 
 
 # API specification
 
-The API is command/query separated. Commands are idempotent and usually asynchronous; queries do not mutate state.
+The API is command/query separated. Commands are idempotent and usually asynchronous; queries do not mutate state. Representations follow the [canonical conventions](/specifications/canonical-conventions).
 
 ## Core APIs
 
@@ -44,7 +44,7 @@ Content-Type: application/json
 }
 ```
 
-The trusted tenant/workspace comes from identity context, not the request body.
+The trusted tenant/workspace comes from identity context, not the request body. The effective child budget is the most restrictive applicable limit among tenant entitlement, deployment policy, parent allocation, and valid request override.
 
 ```http
 HTTP/1.1 202 Accepted
@@ -56,6 +56,10 @@ Location: /v1/runs/run_01K2A
   "runId": "run_01K2A",
   "status": "admitted",
   "deploymentSnapshot": "sha256:394e...",
+  "effectiveBudget": {
+    "maximumCost": { "amount": "8.00", "currency": "USD" },
+    "source": "request_override"
+  },
   "eventStream": "/v1/runs/run_01K2A/events"
 }
 ```
@@ -67,7 +71,7 @@ GET /v1/runs/run_01K2A/events?after=140
 Accept: text/event-stream
 ```
 
-The durable semantic stream uses per-run sequence numbers and stable event IDs. Token deltas may use a separate ephemeral channel.
+The durable semantic stream uses `runSequence` and stable event IDs. Token deltas may use a separate ephemeral channel.
 
 ## Approval
 
@@ -80,13 +84,13 @@ Content-Type: application/json
 
 ```json
 {
-  "expectedRunVersion": 27,
+  "expectedStateVersion": 27,
   "actionDigest": "sha256:778c...",
   "comment": "Contract, vendor, and budget verified"
 }
 ```
 
-The service validates approver authority, expiry, exact action digest, and current run state before recording the decision.
+The service validates approver authority, expiry, exact action digest, and current state version before recording the decision.
 
 ## Cancel
 
@@ -98,7 +102,7 @@ Idempotency-Key: cancel-019
 ```json
 {
   "reason": "User withdrew request",
-  "expectedRunVersion": 31
+  "expectedStateVersion": 31
 }
 ```
 

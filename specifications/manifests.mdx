@@ -5,7 +5,7 @@ description: Example agent, workflow, tool, prompt, policy, evaluation, bundle, 
 
 # Manifest specification
 
-Manifests are declarative control-plane inputs. Production deployment compilation resolves all references to exact immutable versions and digests.
+Manifests are declarative control-plane inputs. Production deployment compilation resolves all references to exact immutable versions and digests. Money follows the [canonical conventions](/specifications/canonical-conventions) and is serialized as decimal strings.
 
 ## Agent version
 
@@ -46,8 +46,9 @@ spec:
   policies:
     - procurement-standard@7.0.0
     - eu-data-residency@2.0.0
+    - high-value-purchase-approval@5.0.0
   budgets:
-    maximumCost: { amount: 12.00, currency: USD }
+    maximumCost: { amount: "12.00", currency: USD }
     maximumActivities: 60
     maximumModelCalls: 18
     maximumToolCalls: 25
@@ -87,7 +88,7 @@ spec:
           from: activities.research.output
     - id: approve
       type: human
-      policy: high-value-approval@5.0.0
+      policy: high-value-purchase-approval@5.0.0
     - id: create-order
       type: tool
       tool: purchase-order.create@4.2.1
@@ -185,6 +186,29 @@ rules:
       revalidateBeforeExecution: true
 ```
 
+## Evaluation suite
+
+```yaml
+apiVersion: agentic.platform/v1
+kind: EvaluationSuite
+metadata:
+  name: procurement-agent-release
+  version: 6.0.0
+spec:
+  datasets:
+    - procurement-goldens@6.3.0
+    - procurement-sandbox@3.1.0
+    - procurement-security@2.2.0
+  hardGateRegistry: enterprise-agent-safety@1.0.0
+  metrics:
+    taskCompletion: { minimumMean: "0.90" }
+    toolCorrectness: { minimumMean: "0.98" }
+    argumentCorrectness: { minimumMean: "0.95" }
+  operational:
+    maximumP95Cost: { amount: "8.00", currency: USD }
+    maximumP95Duration: PT3M
+```
+
 ## Marketplace package
 
 ```yaml
@@ -207,9 +231,12 @@ dependencies:
   - package: com.example.document-tools
     version: ">=3.1 <4.0"
 permissions:
-  tools: [supplier.read, purchase_order.draft]
-  network: [supplier-risk.example.invalid:443]
-  secrets: [supplier-risk-api-token]
+  capabilities:
+    - contract.read
+    - vendor.read
+    - erp.purchase_order.create
+  network: [erp.private.example.invalid:443]
+  secrets: [tenant-erp-oauth]
 supplyChain:
   bundleDigest: sha256:6a14...
   signatureBundle: sigstore://bundle/sha256/8b91...
@@ -222,5 +249,5 @@ verification:
     - sandbox-smoke
 commercial:
   license: commercial-marketplace-v2
-  pricing: { model: per_successful_run, amount: 0.15, currency: USD }
+  pricing: { model: per_successful_run, amount: "0.15", currency: USD }
 ```

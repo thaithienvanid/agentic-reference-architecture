@@ -14,9 +14,11 @@ Agentic application or service
   -> ExecutionPlanRun
     -> WorkflowRun
       -> ActivityRun
-        -> AttemptRun
-          -> Effect
+        -> EffectRecord
+          -> InvocationAttempt
 ```
+
+Optional activity semantics: `ExecutionBranch`, `IterationRun`, `TrialRun`, and qualified `ActivityAttempt`. See the [canonical execution ontology](/handbook/execution-ontology).
 
 ## Definition versus execution
 
@@ -26,7 +28,7 @@ Agentic application or service
 | Activity | Activity run |
 | Agent version | Agent run |
 | Prompt version | Compiled prompt snapshot |
-| Tool version | Tool invocation |
+| Tool version | Tool effect and invocation attempts |
 | Evaluation suite | Evaluation job |
 
 ## Layers
@@ -43,26 +45,16 @@ Agentic application or service
 | Execution plane | Live runs and effects |
 | Evidence planes | Evaluation, observability, audit, metering |
 
-## Workflow concepts
+## Repetition and retry
 
-```text
-WorkflowDefinition
-  input/output/state contracts
-  activities and dependencies
-  explicit input bindings
-  policies and budgets
-  completion and evaluation contract
-```
-
-```text
-ActivityDefinition -> ActivityRun -> AttemptRun
-```
-
-- Retry = same logical activity, new attempt after failure.
-- Iteration = intentional new cycle with changed state or evidence.
-- Nested = contained in parent lifecycle.
-- Child = independent run, state, budget, and result.
-- Execution plan = orchestration across multiple workflow runs.
+| Meaning | Use |
+|---|---|
+| Independent repeated evaluation | `TrialRun` |
+| Sequential cycle with updated state | `IterationRun` |
+| Parallel candidate or model variant | `ExecutionBranch` |
+| Retry whole activity | `ActivityAttempt` |
+| Retry/poll/reconcile one effect | `InvocationAttempt` |
+| Domain discussion cycle | `DeliberationRound` mapped to `IterationRun` |
 
 ## Activity selection
 
@@ -95,26 +87,22 @@ Audit             authoritative control evidence
 
 ```text
 propose -> validate -> authorize -> reserve budget -> approve
--> persist intent -> execute -> record result -> reconcile -> advance state
+-> persist effect intent -> execute invocation attempt(s)
+-> record effect result -> reconcile -> advance state
 ```
 
 A timeout does not prove that an irreversible effect failed.
 
-## Essential ports
+## Essential port categories
 
 ```text
-ModelPort          model invocation and streaming
-ToolPort           invoke, poll, reconcile, cancel
-PolicyPort         allow, deny, require approval
-MemoryPort         search, write, revoke
-RunJournalPort     append canonical run events
-StateStorePort     versioned state update
-WorkflowEnginePort durable timers, signals, recovery
-ArtifactStorePort  immutable content
-SandboxPort        constrained code execution
-TelemetryPort      traces, metrics, logs
-MeteringPort       immutable usage records
+Execution: journal, state, workflow engine, checkpoints, effect ledger
+Capability: model, tool, memory, artifacts, sandbox, human approval
+Governance: policy, identity, secrets, entitlements
+Evidence: evaluation, telemetry, audit, metering, event bus
 ```
+
+The canonical interfaces live in [Reference interfaces](/specifications/reference-interfaces).
 
 ## Multi-agent rule
 
@@ -126,7 +114,7 @@ Use child agents only when independent state, lifecycle, budget, permissions, ca
 Modular control-plane application
 + runtime API and workers
 + durable workflow backend
-+ relational state and run journal
++ relational state and platform-owned run journal
 + object storage and event bus
 + model/tool/policy gateways
 + evaluation workers
@@ -135,13 +123,4 @@ Modular control-plane application
 
 ## Non-negotiable rules
 
-1. Published definitions are immutable.
-2. Every run pins an exact deployment snapshot.
-3. Models never directly commit business state.
-4. Every external effect has idempotency and reconciliation semantics.
-5. Inputs and outputs are typed and explicitly bound.
-6. Tenant identity exists at every boundary.
-7. Prompts guide behavior; policies enforce authority.
-8. Framework-native types stop at adapters.
-9. Traces are not the canonical journal or audit ledger.
-10. Deterministic software is the default when sufficient.
+The normative list is maintained in [Principles and invariants](/handbook/principles). In brief: immutable published definitions, pinned deployments, deterministic authorization, explicit tenant scope, typed bindings, controlled effects, qualified retry semantics, framework isolation, durable evidence, and deterministic software by default.

@@ -1,0 +1,31 @@
+---
+title: Multi-pass refinement plan
+description: Tracked remediation from the independent audit and subsequent architecture reviews.
+---
+
+# Multi-pass refinement plan
+
+This page tracks the focused refinement pass performed after the independent audit dated July 12, 2026.
+
+## Pass 1 — Normative consistency
+
+- Resolve broken manifest references and example-data contradictions.
+- Establish canonical serialization, event naming, and identifier conventions.
+- Define the execution ontology for activities, trials, iterations, effects, and invocation attempts.
+- Canonicalize ports, hard gates, and the run state machine.
+
+## Pass 2 — Security, compliance, and data rights
+
+- Extend the threat model for inter-agent messages, approver persuasion, unsafe downstream output, and evaluator manipulation.
+- Add an applicability-oriented control map for AI, privacy, security, and operational governance.
+- Define payload indirection, lineage-aware deletion, legal holds, and crypto-shredding.
+
+## Pass 3 — Operability and implementation quality
+
+- Add cost-optimization controls, model-provider lifecycle management, chaos/load/resilience testing, and a worked saga pattern.
+- Make comparison matrices include delivery speed, operational burden, and cases where simpler architectures are preferable.
+- Pin documentation tooling and add consistency checks.
+
+## Completion policy
+
+A finding is complete only when the canonical page, examples, schemas, diagrams, cheatsheets, and navigation are updated together. Remaining legal, security, and certification work must be stated as an external assurance obligation rather than implied by the reference architecture.

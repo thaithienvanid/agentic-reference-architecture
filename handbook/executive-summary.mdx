@@ -20,8 +20,8 @@ Deterministic domain and application core
 
 1. **An agent is a versioned specification; a run is an execution.** Production definitions are immutable and every run pins an exact deployment snapshot.
 2. **Models propose; deterministic software authorizes and commits.** A model may suggest an action or branch, but may not directly mutate authoritative business state.
-3. **The runtime is a combination.** Use an embeddable execution kernel, a horizontally scalable runtime service, a durable-workflow adapter, and an application-owned run journal.
-4. **Execution truth is platform-owned.** Workflow-engine history and traces support operations, but the canonical run journal defines public execution semantics.
+3. **The runtime is a combination.** Use an embeddable execution kernel, a horizontally scalable runtime service, a durable-workflow adapter, and a platform-owned canonical run journal.
+4. **Execution truth is platform-owned.** Workflow-engine history and traces support operations, but the canonical run journal defines stable execution semantics.
 5. **Control and execution planes are separated and scaled through cells.** Start with one modular control plane and one execution cell; evolve toward regional and tenant-isolated cells.
 
 ## High-level architecture
@@ -48,7 +48,7 @@ flowchart TB
 - Modular control-plane application.
 - Separately deployable runtime API and workers.
 - Temporal-class durable workflow backend for critical long-running runs.
-- Relational state store and append-only run journal.
+- Relational state store and append-only platform run journal.
 - Object storage for artifacts and protected payloads.
 - Model and tool gateways with policy and usage enforcement.
 - OpenTelemetry-compatible observability.

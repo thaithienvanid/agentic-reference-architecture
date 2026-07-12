@@ -15,9 +15,9 @@ description: Precise boundaries for applications, assistants, agents, workflows,
 | **Agent run** | One execution of an agent version. It owns runtime identity, state, budget, and result. |
 | **Deterministic workflow** | Code or rules select every legal transition. A model may still be a bounded activity. |
 | **Agentic workflow** | At least one transition, plan, delegation, or tool choice is proposed by a model. |
-| **Autonomous agent** | A bounded agent allowed to continue for multiple steps without turn-by-turn human direction. |
+| **Autonomous agent** | A bounded agent allowed to continue for multiple activities or effects without turn-by-turn human direction. |
 | **Multi-agent system** | Multiple independently governed agent runs with explicit tasks, state, permissions, budgets, and contracts. |
-| **Agent runtime** | State machines, scheduling, persistence, retries, waits, budgets, effects, and recovery. |
+| **Agent runtime** | State machines, scheduling, persistence, retries, waits, budgets, effects, invocations, and recovery. |
 | **Operating environment** | The sandbox, network, identity, secrets, compute, and endpoints available to a run. |
 | **Agentic service** | A callable capability exposing one or more workflows through APIs or events. |
 | **Agentic application** | A domain product with use cases, state, UX, policies, and workflows. |
@@ -33,22 +33,22 @@ description: Precise boundaries for applications, assistants, agents, workflows,
 | `ActivityDefinition` | `ActivityRun` |
 | `AgentVersion` | `AgentRun` |
 | `PromptVersion` | `CompiledPromptSnapshot` |
-| `ToolVersion` | `ToolInvocation` |
+| `ToolVersion` | `ToolEffect` with `InvocationAttempt`s |
 | `EvaluationSuite` | `EvaluationJob` |
 
 > A definition describes immutable behavior. A run records one durable execution of that behavior.
 
-## Node, activity, step, and attempt
+## Execution vocabulary
 
-Use **activity** for a workflow-definition element and **activity run** for its logical execution.
+- `ActivityRun` is one logical execution of workflow work.
+- `EffectRecord` is one logical external or nondeterministic operation needed by an activity.
+- `InvocationAttempt` is one concrete adapter/provider call for an effect.
+- `IterationRun` is an intentional sequential cycle using updated state or evidence.
+- `TrialRun` is an independent repetition from the same frozen baseline.
+- `ExecutionBranch` is a parallel path, candidate, or variant.
+- `ActivityAttempt` is used only when the whole logical activity restarts.
 
-```text
-WorkflowDefinition contains ActivityDefinitions
-WorkflowRun contains ActivityRuns
-ActivityRun contains AttemptRuns
-```
-
-A retry creates another `AttemptRun` under the same logical activity. An intentional cycle creates an `IterationRun`, not a retry.
+The normative core does not define unqualified `Step`, `Round`, or `AttemptRun`. Use qualified names such as `PlanStep`, `UIProgressStep`, or domain-specific `DeliberationRound`. See [Execution ontology](/handbook/execution-ontology).
 
 ## Nested versus child
 
@@ -59,15 +59,7 @@ A retry creates another `AttemptRun` under the same logical activity. An intenti
 ## Bundle, service, application, platform
 
 ```text
-WorkflowPackage
-  -> AgenticBundle
-    -> AgenticService
-      -> AgenticApplication
-        -> AgenticPlatform
+WorkflowPackage -> AgenticBundle -> AgenticService -> AgenticApplication -> AgenticPlatform
 ```
 
-- A **package** ships one primary executable and its assets.
-- A **bundle** ships related workflows, agents, prompts, policies, and evaluators.
-- A **service** runs behavior behind a contract.
-- An **application** delivers a domain outcome and user experience.
-- A **platform** supports many services, applications, teams, or tenants.
+A package ships executable content; a bundle groups related assets; a service runs behavior behind a contract; an application delivers a domain outcome and user experience; a platform supports many services, applications, teams, or tenants.
