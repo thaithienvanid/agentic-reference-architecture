@@ -1,22 +1,24 @@
 ---
 title: Architecture decision guide
-description: Practical decision trees for workflows, agents, state, execution, isolation, and platform scope.
+description: Practical decision trees for workflows, agents, retry scope, experiments, state, isolation, and platform scope.
 ---
 
 # Architecture decision guide
+
+> **Status: Informative.** Canonical names are defined by the [ARA specification](/rfc/index).
 
 ## Deterministic or agentic?
 
 ```mermaid
 flowchart TB
-    Known{"Can code or rules determine the correct next step?"}
+    Known{"Can code or rules determine the correct next action?"}
     Deterministic["Deterministic workflow"]
     Cognition{"Is one bounded model transformation sufficient?"}
-    Model["Model activity"]
+    Model["ModelActivity"]
     Choice{"Must a model choose among several legal actions?"}
-    Agent["Bounded agent activity"]
+    Agent["AgentActivity"]
     Independent{"Needs independent lifecycle or authority?"}
-    Child["Child agent run"]
+    Child["Child AgentRun"]
 
     Known -->|Yes| Deterministic
     Known -->|No| Cognition
@@ -30,18 +32,31 @@ flowchart TB
 
 ## Activity or workflow?
 
-Use an activity for one bounded unit with one input and result contract. Use a workflow when the work has internal dependencies, branches, waits, independent policies, or several activities. A referenced workflow may run nested or as a child depending on lifecycle needs.
+Use an activity for one bounded semantic unit with one input and result contract. Use a referenced workflow when internal work has dependencies, branches, waits, several activities, or separately meaningful policy/evaluation.
+
+## Inline or child?
+
+Use inline execution when work shares parent state, budget, cancellation, and lifecycle. Use a child `WorkflowRun` or `AgentRun` when it needs an independent identity, state, budget, deadline, permissions, cancellation, failure status, or evaluation.
 
 ## Workflow or execution plan?
 
-Use a workflow to coordinate activities inside one run. Use an execution plan when multiple workflow runs have separate versions, ownership, schedules, evaluations, decisions, or cross-day dependencies.
+Use a workflow to coordinate activities inside one run. Use an execution plan when separate workflow runs have independent versions, ownership, schedules, decisions, or cross-day dependencies.
 
-## Retry or iteration?
+## Which repetition or retry concept?
 
-- Retry after operational failure: same logical input and `ActivityRun`, new `AttemptRun`.
-- Iterate intentionally: new state/evidence/objective, new `IterationRun` and input snapshot.
+| Situation | Use |
+|---|---|
+| Complete activity restarts from its boundary | `ActivityAttempt` |
+| Worker resumes durable work after lease loss | New `WorkerLease` |
+| One provider call retries, polls, or reconciles | New `Invocation` for the same `Effect` |
+| Prompt/context/arguments/objective change | New `Effect` |
+| Intentional sequential cycle | `Iteration` |
+| Independent parallel candidate | `ExecutionBranch` |
+| Independent experimental replicate | `ExperimentTrial` |
+| User-visible phase | Qualified `UIProgressStep` |
+| Discussion cycle | Qualified `DeliberationRound` mapped to `Iteration` |
 
-## Inline state, artifact, or memory?
+## State, artifact, or memory?
 
 | Data | Store |
 |---|---|
@@ -50,27 +65,23 @@ Use a workflow to coordinate activities inside one run. Use an execution plan wh
 | Large/reusable content | Artifact |
 | Reusable governed knowledge | Memory record |
 | Business truth | Domain aggregate/reference |
-| Recovery optimization | Checkpoint |
+| Resume optimization | Checkpoint |
 
-## Nested or child?
+## Library, service, durable backend, or actor?
 
-Use child execution when independent run identity, state, budget, permissions, deadline, cancellation, failure, evaluation, or long suspension is required. Otherwise keep execution within the parent activity/workflow lifecycle.
-
-## Library, service, engine, or actor?
-
-- Library: local kernel and tests.
-- Runtime service: tenant-aware distributed operation.
-- Durable engine: timers, signals, retries, recovery.
-- Actor/lease: hot-state serialization.
-- Recommended production default: combine them; do not force one to own every concern.
+- Kernel library: pure state evolution and local tests.
+- Runtime Service: tenant-aware distributed coordination.
+- Durable backend: timers, signals, suspension, recovery behind `DurableExecutionPort`.
+- Lease/actor: temporary serialization and ownership.
+- Production default: combine them without making one abstraction own every concern.
 
 ## Shared or dedicated tenancy?
 
-Start shared with strong tenant keys and quotas. Move through schemas and tenant databases to dedicated cells when data risk, noisy-neighbor exposure, residency, performance, or contract justifies the added cost.
+Start shared with strict tenant keys, quotas, and gateways. Move through schemas and tenant databases to dedicated cells when risk, residency, noisy-neighbor exposure, performance, or contract justifies the cost.
 
-## Bundle, service, or application?
+## Bundle, service, application, or platform?
 
-- Multiple related definitions form an **agentic bundle**.
-- A deployed callable contract forms an **agentic service**.
-- Domain behavior and UX form an **agentic application**.
-- Shared build/run/govern infrastructure forms a **platform**.
+- A bundle groups related versioned assets.
+- A service exposes a callable operational contract.
+- An application adds domain outcomes and UX.
+- A platform supports many services, applications, teams, and tenants.
