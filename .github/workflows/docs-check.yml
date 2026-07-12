@@ -36,8 +36,16 @@ jobs:
         run: |
           MINT_VERSION="$(npm view mint version)"
           echo "Resolved Mintlify CLI version: ${MINT_VERSION}"
+          printf '%s\n' "${MINT_VERSION}" > mint-version.txt
           npm install --global "mint@${MINT_VERSION}"
           mint version || true
+
+      - name: Publish resolved CLI version
+        uses: actions/upload-artifact@v4
+        with:
+          name: mint-cli-version
+          path: mint-version.txt
+          retention-days: 1
 
       - name: Validate Mintlify configuration and content
         run: mint validate
