@@ -8,103 +8,111 @@ description: Concise ADRs for the foundational Agentic Reference Architecture ch
 ## ADR-001 — Framework-independent core
 
 **Context:** Provider and framework types change faster than business semantics.  
-**Decision:** Domain, application, and execution contracts contain no provider or framework SDK types.  
-**Alternatives:** Standardize the whole platform on one framework; expose provider DTOs.  
-**Consequences:** More adapters and contract tests; much stronger portability and isolation.  
-**Revisit:** Only if one framework becomes an intentional permanent public contract.
+**Decision:** Domain, application, and execution contracts contain no provider/framework SDK types.  
+**Alternatives:** Standardize the public architecture on one framework; expose provider DTOs.  
+**Consequences:** More adapters and contracts; stronger portability and isolation.  
+**Revisit:** Only if a framework becomes an intentional permanent public contract.
 
-## ADR-002 — Agent version versus run
+## ADR-002 — Resource, version, and run
 
-**Context:** Mutable agent objects make audit, evaluation, rollback, and long execution ambiguous.  
-**Decision:** `AgentVersion` is immutable; `AgentRun` is one execution pinned to a deployment snapshot.  
-**Alternatives:** Mutable agent configuration loaded at each step.  
-**Consequences:** More explicit version records; reliable attribution.  
-**Revisit:** Self-modification still creates a proposed new version, not silent mutation.
+**Context:** Mutable definitions make audit, rollout, and long execution ambiguous.  
+**Decision:** Use stable resources (`Agent`, `Workflow`, etc.), immutable `*Version`s, and independent `*Run`s.  
+**Alternatives:** Mutable resource configuration loaded during execution; definition-suffixed public entities.  
+**Consequences:** Explicit catalogs and version records; reliable attribution and rollback.  
+**Revisit:** A new resource family may extend the pattern but must retain the three scopes.
 
-## ADR-003 — Deterministic shell
+## ADR-003 — Canonical execution vocabulary
+
+**Context:** Generic step, round, attempt, trial, and execution terms were overloaded.  
+**Decision:** Reserve `Run` for independently durable executions. Use `ActivityRun`, `ActivityAttempt`, `ExecutionBranch`, `Iteration`, `Effect`, `Invocation`, `WorkerLease`, and experiment-scoped `ExperimentTrial`.  
+**Alternatives:** One recursive `Step`; generic attempt-run/trial-run; engine-native terms.  
+**Consequences:** More precise APIs and metrics; migration from previous aliases.  
+**Revisit:** Only with an explicit compatibility/alias plan and no semantic overlap.
+
+## ADR-004 — Deterministic shell
 
 **Context:** Model behavior is probabilistic and may be adversarial.  
 **Decision:** Models propose; deterministic validation, policy, and state machines authorize and commit.  
-**Alternatives:** Let model output directly select state and invoke tools.  
+**Alternatives:** Model output directly selects state or invokes tools.  
 **Consequences:** More schemas and guards; dependable invariants.  
-**Revisit:** Low-risk reversible behavior may use broader decision envelopes.
+**Revisit:** Low-risk reversible behavior may use broader declared decision envelopes.
 
-## ADR-004 — Hybrid runtime boundary
+## ADR-005 — Hybrid runtime boundary
 
-**Context:** Libraries lack distributed durability; centralized runtimes can become proprietary; engines do not own the business model.  
-**Decision:** Combine an embeddable kernel, runtime service, durable engine adapter, and application-owned journal.  
-**Alternatives:** Library only, workflow engine only, actor only.  
-**Consequences:** Clear semantics but multiple correlated persistence layers.  
-**Revisit:** Only if all runs become short-lived and stateless.
+**Context:** Libraries lack distributed durability; a backend should not own the public domain model.  
+**Decision:** Combine an `ExecutionKernel`, `RuntimeService`, `DurableExecutionPort`, Scheduler, Runtime Workers/WorkerLeases, and platform-owned journal.  
+**Alternatives:** Library only; durable engine only; actor only.  
+**Consequences:** Multiple correlated persistence layers and clear semantics.  
+**Revisit:** All executions become short-lived and stateless.
 
-## ADR-005 — Canonical run journal
+## ADR-006 — Platform-owned canonical run journal
 
-**Context:** Engine history and traces are implementation-specific and may be sampled.  
-**Decision:** Own a versioned append-only run-event contract and current-state projection.  
-**Alternatives:** Expose engine history or traces as public truth.  
+**Context:** Durable-backend history and traces are implementation-specific and may be sampled.  
+**Decision:** The platform owns a versioned append-only run-event contract and current-state projection.  
+**Alternatives:** Expose backend history or traces as public truth.  
 **Consequences:** Event schema/upcaster responsibility; portable replay and audit.  
-**Revisit:** If a permanent engine fully meets domain, privacy, query, and audit needs.
+**Revisit:** A permanent backend fully satisfies domain, privacy, query, migration, and audit needs.
 
-## ADR-006 — Relational canonical persistence
+## ADR-007 — Effect versus invocation
 
-**Context:** Runs need transactions, optimistic concurrency, event ordering, and outbox integration.  
-**Decision:** Use relational/distributed SQL for state, journal, ledgers; object storage for large payloads/artifacts.  
+**Context:** One logical mutation may require execute, poll, retry, or reconcile calls.  
+**Decision:** `Effect` identifies the logical operation; each concrete adapter/provider call is an `Invocation`.  
+**Alternatives:** Treat every HTTP/model call as a business effect; hide all provider retries.  
+**Consequences:** Correct idempotency, reconciliation, replay, metering, and error semantics.  
+**Revisit:** Pure local deterministic work does not require an effect.
+
+## ADR-008 — Relational canonical persistence
+
+**Context:** Runs need transactions, optimistic concurrency, event ordering, ledgers, and outbox integration.  
+**Decision:** Relational/distributed SQL for state, journal, and ledgers; object storage for large payloads/artifacts.  
 **Alternatives:** Broker, vector store, or document DB as universal source.  
 **Consequences:** Strong constraints; partitioning work at scale.  
-**Revisit:** When regional scale exceeds the chosen database model.
+**Revisit:** Regional scale exceeds the chosen database model.
 
-## ADR-007 — Model gateway
+## ADR-009 — Model gateway
 
 **Context:** Providers differ in capabilities, residency, price, safety, and failure behavior.  
-**Decision:** All model calls cross `ModelPort` and a policy-aware gateway with capability negotiation.  
+**Decision:** All model effects cross `ModelPort` and a policy-aware gateway with capability negotiation.  
 **Alternatives:** Direct SDK calls in agents.  
-**Consequences:** Central governance and possible gateway bottleneck.  
-**Revisit:** Offline/edge execution may provide a local gateway implementation.
+**Consequences:** Central governance and a possible bottleneck.  
+**Revisit:** Edge/offline deployments may implement a local gateway.
 
-## ADR-008 — Tool gateway and sandbox
+## ADR-010 — Tool gateway and sandbox
 
 **Context:** Tools create the highest-risk effects.  
-**Decision:** Validate, authorize, meter, credential, audit, and sandbox every tool through explicit gateways.  
-**Alternatives:** Framework tools directly call external systems.  
-**Consequences:** More latency and integration effort; smaller blast radius.  
-**Revisit:** A proven pure local function may be embedded.
+**Decision:** Validate, authorize, meter, credential, audit, and sandbox tools through explicit gateways.  
+**Alternatives:** Framework tools directly call systems.  
+**Consequences:** Added latency/integration effort; smaller blast radius.  
+**Revisit:** Proven pure local functions may be embedded.
 
-## ADR-009 — Governed memory
+## ADR-011 — Governed memory
 
-**Context:** Workflow state, conversation, context, and long-term memory have different semantics.  
+**Context:** Workflow state, context, conversation, and long-term memory differ.  
 **Decision:** Memory is a scoped, provenanced, revocable record; vector search is a derived adapter.  
 **Alternatives:** One vector database as universal memory.  
-**Consequences:** More explicit lifecycle and reliable deletion/governance.  
-**Revisit:** Narrow low-risk products may simplify implementations without changing the conceptual boundary.
+**Consequences:** Explicit lifecycle and reliable deletion/governance.  
+**Revisit:** Narrow low-risk products may simplify storage without changing the boundary.
 
-## ADR-010 — Progressive multi-tenancy
+## ADR-012 — Progressive multi-tenancy and cells
 
-**Context:** Tenants need different economics and isolation.  
+**Context:** Tenants need different economics, residency, and isolation.  
 **Decision:** Support shared logical isolation through dedicated cells and deployments under one routing model.  
-**Alternatives:** One tier for all or fully dedicated everything.  
-**Consequences:** Migration and routing complexity; flexible economics.  
+**Alternatives:** One tier for all; fully dedicated everything.  
+**Consequences:** Migration/routing complexity and flexible economics.  
 **Revisit:** Customer risk becomes uniformly low or uniformly regulated.
 
-## ADR-011 — Separate evaluation plane
+## ADR-013 — Separate evaluation plane and conformance profiles
 
-**Context:** Final-text scoring cannot verify trajectory, tools, policy, or environment state.  
-**Decision:** Combine deterministic, semantic, trajectory, environment, adversarial, human, and online evaluation.  
-**Alternatives:** LLM judge only or production metrics only.  
-**Consequences:** Dataset and evaluation infrastructure cost; stronger release confidence.  
-**Revisit:** Only when outcomes become completely deterministic.
+**Context:** Final-text scoring cannot verify trajectory, tools, policy, environment, or operational maturity.  
+**Decision:** Combine deterministic, semantic, trajectory, environment, adversarial, human, and online evaluation. Declare cumulative ARA Core/Durable/Enterprise/Marketplace/Regulated profiles.  
+**Alternatives:** LLM judge only; one all-or-nothing architecture.  
+**Consequences:** Evaluation infrastructure cost; practical adoption by risk level.  
+**Revisit:** Outcomes become completely deterministic or profiles prove poorly discriminating.
 
-## ADR-012 — Signed marketplace packages
+## ADR-014 — Signed marketplace packages
 
 **Context:** Third-party packages create permission and supply-chain risk.  
 **Decision:** Immutable signed releases, provenance/SBOM, exact locks, capability grants, sandbox verification, monitoring, and revocation.  
 **Alternatives:** Arbitrary plugins or repository links.  
 **Consequences:** Publisher friction and review cost; viable enterprise distribution.  
-**Revisit:** A first-party-only catalog may simplify review but retains package boundaries.
-
-## ADR-013 — Cell-based deployment
-
-**Context:** Control and execution have different latency, scaling, residency, and blast-radius requirements.  
-**Decision:** Modular control plane plus regional/shared/dedicated execution cells.  
-**Alternatives:** One global runtime or immediate service-per-context microservices.  
-**Consequences:** Configuration propagation and cell operations.  
-**Revisit:** Single-team deployments may co-locate components while preserving logical separation.
+**Revisit:** A first-party-only catalog may simplify review while retaining boundaries.
