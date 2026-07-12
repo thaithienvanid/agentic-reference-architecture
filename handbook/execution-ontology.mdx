@@ -1,114 +1,32 @@
 ---
 title: Execution ontology
-description: Normative meanings and relationships for workflows, activities, trials, iterations, effects, invocations, retries, nested execution, and child runs.
+description: Compatibility entry point for the canonical ARA execution model.
 ---
 
 # Execution ontology
 
-> **Status: Normative.** This page is the canonical vocabulary for execution identity and repetition.
-
-## Definition and execution
-
-| Definition | Execution |
-|---|---|
-| `ExecutionPlanDefinition` | `ExecutionPlanRun` |
-| `WorkflowDefinition` | `WorkflowRun` |
-| `ActivityDefinition` | `ActivityRun` |
-| `AgentVersion` | `AgentRun` |
-| `PromptVersion` | `CompiledPromptSnapshot` |
-| `ToolVersion` | `ToolEffect` and its `InvocationAttempt`s |
-| `EvaluationSuite` | `EvaluationJob` |
-
-Definitions describe immutable behavior. Executions record what happened under a pinned deployment snapshot.
-
-## Canonical execution hierarchy
+> **Status: Compatibility page.** The normative model is [RFC — Execution model](/rfc/execution-model).
 
 ```text
 ExecutionPlanRun
 └── WorkflowRun
     └── ActivityRun
-        ├── ExecutionBranch       optional parallel path or candidate
-        ├── IterationRun          optional sequential cycle using updated state
-        ├── TrialRun              optional independent repetition from a frozen baseline
-        ├── ActivityAttempt       optional restart of the whole logical activity
-        └── EffectRecord          zero or more logical external/nondeterministic operations
-            └── InvocationAttempt zero or more concrete adapter/provider calls
+        ├── ActivityAttempt
+        ├── ExecutionBranch
+        ├── Iteration
+        └── Effect
+            └── Invocation
+
+WorkerLease
+ExperimentRun -> ExperimentVariant -> ExperimentTrial -> WorkflowRunRef
 ```
 
-The optional concepts are used only when their semantics are present. A simple deterministic activity may have no effects, branches, iterations, trials, or retries.
+Key rules:
 
-## Activity
-
-An `ActivityDefinition` is one semantic unit of workflow work. An `ActivityRun` is one logical execution of that definition.
-
-An activity is atomic at the level where independent input/output contracts, policy, retry, budget, evaluation, or observability matter. If internal work has meaningful dependencies or its own activities, model it as a referenced workflow rather than as an opaque list of generic steps.
-
-## Effect and invocation
-
-An `EffectRecord` represents what an activity intends to obtain from outside deterministic state evolution. Examples include model invocation, tool execution, governed memory access, artifact write, approval request, timer, external-event wait, child-run start, and sandbox execution.
-
-An `InvocationAttempt` is one concrete call to an adapter or provider that tries to realize an effect.
-
-```text
-ActivityRun -> 0..N EffectRecords
-EffectRecord -> 0..N InvocationAttempts
-InvocationAttempt -> exactly one EffectRecord
-```
-
-One effect may need several invocations:
-
-```text
-Effect: create purchase order
-├── Invocation 1: POST order; response lost
-├── Invocation 2: reconcile by idempotency key
-└── EffectResult: succeeded; order already existed
-```
-
-An effect may have zero invocations when policy denies it, cancellation occurs before dispatch, evidence replay supplies the historical result, or an approved exact cache satisfies it.
-
-## Trial, iteration, branch, and retry
-
-| Concept | Why work repeats | Input relationship | Typical use |
-|---|---|---|---|
-| `TrialRun` | Measure stochastic variation | Same frozen baseline and configuration | Repeated evaluation or simulation |
-| `IterationRun` | Continue intentionally | Updated state, evidence, or objective | Research, reflection, deliberation |
-| `ExecutionBranch` | Explore or perform independent work in parallel | Shared or explicitly mapped input | Ensemble, fan-out, variant |
-| `ActivityAttempt` | Recover failure of the entire logical activity | Same logical activity input | Worker/activity restart |
-| `InvocationAttempt` | Recover or reconcile one effect call | Same effect intent | Transport retry, polling, reconciliation |
-
-A semantic retry that changes prompt, context, tool arguments, or objective creates a new `EffectRecord`; it is not another invocation of the old effect.
-
-## Step and round
-
-`Step` and `Round` are allowed only when qualified:
-
-- `PlanStep` — a proposed plan item.
-- `UIProgressStep` or `RunTimelineStep` — a presentation/read-model projection.
-- `DeliberationRound` — a domain name mapped to an `IterationRun`.
-- `TournamentRound` or `InterviewRound` — another domain-specific cycle.
-
-The normative core does not define unqualified `Step`, `RunStep`, `Round`, `AttemptRun`, `SubAgent`, or `SubWorkflow` entities.
-
-## Nested and child execution
-
-- **Nested** execution is structurally contained and normally shares the parent lifecycle, cancellation, budget, and state boundary.
-- **Child** execution creates a separate run ID, state, budget, result, failure status, and delegated capability set.
-
-Use child runs only when independent lifecycle or authority is required.
-
-## Survey and deliberation example
-
-```text
-AgenticResearchWorkflowRun
-├── ActivityRun: ingest-context
-├── WorkflowRun: simulate-panel
-│   ├── ExecutionBranch: model-a variant
-│   │   ├── TrialRuns
-│   │   ├── ParticipantSession ActivityRuns
-│   │   └── DeliberationRound domain views -> IterationRuns
-│   ├── ExecutionBranch: model-b variant
-│   └── ActivityRun: compare-variants
-└── ActivityRun: write-report
-```
-
-Model A versus Model B are variants or branches, not rounds. Repeated independent executions are trials. Sequential discussion cycles are iterations, optionally exposed as deliberation rounds. Provider rate-limit retries are invocation attempts.
+- `Run` is reserved for independently durable logical executions.
+- An `Effect` is one logical external or nondeterministic operation.
+- An `Invocation` is one concrete call for that effect.
+- Worker resumption creates a new `WorkerLease`, not automatically an activity retry.
+- Changed prompt, context, arguments, tool, or objective creates a new effect.
+- `DeliberationRound` is a domain label mapped to an `Iteration`.
+- Model A versus Model B is a variant comparison, not a round.
