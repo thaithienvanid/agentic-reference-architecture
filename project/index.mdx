@@ -1,32 +1,45 @@
 ---
 title: Project
-description: Architecture decisions, release governance, implementation roadmap, research evidence, review history, and documentation maintenance.
+description: Architecture decisions, release governance, contract validation, implementation roadmap, research evidence, review history, and documentation maintenance.
 ---
 
 # Project
 
-> **Status: Project governance and history.** These pages explain how ARA is maintained, justified, reviewed, released, and evolved.
+> **Status: Project governance and history.** These pages explain how ARA is maintained, justified, validated, reviewed, released, and evolved. They do not replace the normative specification or contracts.
 
 <CardGroup cols={2}>
   <Card title="Documentation architecture" icon="sitemap" href="/project/documentation-architecture">
-    Authority, page contracts, ownership, navigation, quality, redirects, and change propagation.
+    Authority, page contracts, ownership, navigation, quality, redirects, example portfolio, and change propagation.
   </Card>
   <Card title="Releases and errata" icon="tags" href="/project/releases-and-errata">
-    Publication status, versioning, compatibility, errata, and release evidence.
+    Candidate/Stable status, semantic and contract versioning, validation, independent review, compatibility, and corrections.
+  </Card>
+  <Card title="Machine contract catalog" icon="brackets-curly" href="/reference/contract-catalog">
+    Exact schemas, registries, fixtures, API/event profiles, validation, and contract-tree identity.
+  </Card>
+  <Card title="Conformance checklist" icon="list-check" href="/reference/conformance-checklist">
+    Module/profile claims, evidence, deviations, inconclusive findings, and independent assessment.
   </Card>
   <Card title="Review history" icon="clipboard-check" href="/project/review-history">
-    Consolidated architecture, terminology, documentation, and release-readiness decisions.
+    Consolidated architecture, terminology, security, documentation, and release-readiness decisions.
   </Card>
   <Card title="Decision guide" icon="signs-post" href="/decisions/decision-guide">
-    Choose deterministic versus agentic behavior, activity versus workflow, and retry scopes.
+    Choose deterministic versus agentic behavior, activity versus workflow, child execution, and retry scopes.
   </Card>
   <Card title="Architecture decisions" icon="scale-balanced" href="/decisions/adrs">
-    Context, decisions, alternatives, consequences, and revisit conditions.
+    Context, decision, alternatives, consequences, and revisit conditions.
   </Card>
   <Card title="Implementation roadmap" icon="road" href="/implementation/roadmap">
-    Incremental conformance from one production agent to an enterprise marketplace.
+    Incremental delivery from one vertical slice to durable, multi-tenant, high-assurance, and marketplace capabilities.
   </Card>
-  <Card title="Research evidence" icon="microscope" href="/research/findings">
-    Public facts, architectural inferences, comparisons, and primary sources.
+  <Card title="Enterprise use-case research" icon="building" href="/research/enterprise-use-cases">
+    Primary-source selection rationale for the software, service, incident, finance, and experiment examples.
+  </Card>
+  <Card title="Research findings" icon="microscope" href="/research/findings">
+    Traceable public facts, labeled inferences, ARA recommendations, comparisons, and primary sources.
   </Card>
 </CardGroup>
+
+## Current publication state
+
+ARA 1.0 remains a **Candidate** until the final merge reference passes contract, documentation, Mintlify, and link validation and the release record pins the publication and contract-tree identities. Stable status additionally requires the implementation and independent-review evidence defined in [Evaluation and conformance](/specification/evaluation-and-conformance).
