@@ -165,6 +165,17 @@ def frontmatter(text: str) -> dict[str, str]:
     return result
 
 
+def declares_normative_authority(text: str) -> bool:
+    """Match an actual status declaration, not quoted examples or prose."""
+    return bool(
+        re.search(
+            r"^>\s*\*\*Status:\s*Normative(?:\s+reference)?(?:\s*·[^*]*)?\*\*",
+            text,
+            flags=re.MULTILINE,
+        )
+    )
+
+
 def main() -> int:
     failures: list[str] = []
     docs = json.loads((ROOT / "docs.json").read_text(encoding="utf-8"))
@@ -234,7 +245,7 @@ def main() -> int:
     for path in files:
         rel = path.relative_to(ROOT).as_posix()
         text = path.read_text(encoding="utf-8")
-        if "Status: Normative" in text and not (
+        if declares_normative_authority(text) and not (
             rel.startswith("rfc/") or rel in NORMATIVE_REFERENCE_FILES
         ):
             fail(f"{rel}: normative authority outside RFC/reference owner", failures)
