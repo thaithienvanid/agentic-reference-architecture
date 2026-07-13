@@ -1,60 +1,55 @@
 ---
 title: Cross-run chaining and experiments
-description: Execution plans, immutable dependencies, variants, trials, selection decisions, shadow execution, and lineage.
+description: Execution plans, immutable dependencies, variants, experiment trials, selection decisions, shadow execution, and lineage.
 ---
 
 # Cross-run chaining and experiments
 
+> **Status: Informative pattern.** `Experiment`, `ExperimentVariant`, and `ExperimentTrial` belong to an experiment/evaluation bounded context.
+
 ## Cross-run chaining
 
-Use an execution plan when work spans separate workflow versions, owners, schedules, evaluations, or days.
+Use an execution plan when work spans separate workflow versions, owners, schedules, evaluations, decisions, or days.
 
 ```mermaid
 flowchart LR
-    A["Day 1: Run A"] --> ArtA["Artifact A"]
-    B["Day 1: Run B"] --> ArtB["Artifact B"]
+    A["Day 1: WorkflowRun A"] --> ArtA["Artifact A"]
+    B["Day 1: WorkflowRun B"] --> ArtB["Artifact B"]
     ArtA --> Eval
     ArtB --> Eval
     Eval --> Decision["Selection decision"]
-    Decision --> C["Day 2: Run C"]
+    Decision --> C["Day 2: WorkflowRun C"]
     ArtA --> C
 ```
 
-Run C records exact upstream run, artifact digest, decision ID, and input binding. It never reads an unspecified current-best result.
+Run C records the exact upstream run, artifact digest, decision ID, and input binding. It never reads an unspecified current-best result.
 
-## Experiment domain model
+## Experiment model
 
 ```text
 Experiment
-  hypothesis
-  variants
-  cohort/dataset and baseline snapshots
-  assignment and scheduling policy
-  TrialRuns per variant
-  primary metrics and hard gates
-  analysis method/window
-  selection decision
+└── ExperimentRun
+    ├── hypothesis and frozen baseline
+    ├── ExperimentVariant A
+    │   ├── ExperimentTrial A1 -> WorkflowRunRef
+    │   └── ExperimentTrial A2 -> WorkflowRunRef
+    ├── ExperimentVariant B
+    │   ├── ExperimentTrial B1 -> WorkflowRunRef
+    │   └── ExperimentTrial B2 -> WorkflowRunRef
+    ├── metrics and hard gates
+    ├── analysis method and window
+    └── selection decision
 ```
 
-A `SimulationVariantRun` compares a configuration such as model A versus model B. A `TrialRun` is one independent stochastic repetition from the same frozen baseline. An `IterationRun` is sequential and consumes updated state. An `InvocationAttempt` is only a concrete provider call/retry for one effect.
+An `ExperimentVariant` identifies a configuration such as model A versus model B. An `ExperimentTrial` is one independent repetition from the same frozen baseline. An `Iteration` is sequential and consumes updated state or evidence. An `Invocation` is one concrete provider call for an `Effect`.
 
-```text
-Variant A
-├── TrialRun A1
-├── TrialRun A2
-└── TrialRun A3
-
-Variant B
-├── TrialRun B1
-├── TrialRun B2
-└── TrialRun B3
-```
+A small implementation may put experiment ID, variant ID, trial ordinal, and baseline-snapshot reference directly on each `WorkflowRun` instead of creating a separate trial aggregate.
 
 ## Fair comparison
 
-Freeze the input cohort/dataset, participant state, prompts, policies, tools, budgets, cache policy, and non-experimental variables. Record every intentional difference and balance scheduling when provider capacity or time-of-day may affect results.
+Freeze the cohort/dataset, participant state, prompts, policies, tools, budgets, cache policy, scheduler policy, and every non-experimental variable where possible. Record every intentional difference and balance scheduling when capacity or time of day may affect results.
 
-If participant and deliberation models both change between A/A and B/B, the experiment compares complete configurations. Use a factorial A/A, A/B, B/A, B/B design to isolate interaction effects when required.
+If participant and deliberation models both change between A/A and B/B, the experiment compares complete configurations. Use a factorial A/A, A/B, B/A, B/B design when individual and interaction effects must be separated.
 
 ## Selection policy
 
@@ -71,7 +66,7 @@ Do not choose solely by average LLM-judge score. Include deterministic outcomes,
 
 ## Harbor terminology
 
-Harbor calls one agent execution against a task a `Trial`. The evaluation adapter maps it to a platform evaluation trial and, when it is an independent repetition from a frozen baseline, to `TrialRun` semantics. It is never mapped to an effect `InvocationAttempt`.
+Harbor calls one native evaluation execution a `Trial`. The adapter preserves that native ID. When the execution is one independent repetition from a frozen platform baseline, it maps to an `ExperimentTrial` referencing the evaluated `WorkflowRun`. It never maps to an `Invocation` retry.
 
 ## Shadow execution
 
@@ -79,4 +74,4 @@ A candidate may receive production inputs without applying production mutations.
 
 ## Plan-level observability
 
-Use separate traces per workflow run, a shared plan/experiment ID, span links, explicit variant/trial IDs, and artifact/decision lineage. Avoid one multi-day trace.
+Use a separate trace per workflow run, a shared execution-plan/experiment ID, span links, explicit variant and experiment-trial IDs, and artifact/decision lineage. Avoid one multi-day trace.
