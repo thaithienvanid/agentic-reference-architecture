@@ -1,0 +1,185 @@
+---
+title: MCP interoperability profile
+description: Reference mapping from Model Context Protocol hosts, clients, servers, tools, resources, prompts, sampling, roots, and elicitation to ARA ports, effects, policy, and evidence.
+---
+
+# MCP interoperability profile
+
+> **Status: Reference profile.** This profile becomes binding when declared by an implementation. MCP transport/session objects remain outside the ARA core.
+
+**Reviewed:** July 13, 2026. The latest published MCP specification reviewed here is version `2025-11-25`.
+
+## Protocol placement
+
+MCP standardizes communication among hosts, clients, and servers using JSON-RPC, capability negotiation, and features including resources, prompts, tools, sampling, roots, and elicitation. MCP’s authoritative protocol requirements are based on its TypeScript schema.
+
+ARA treats MCP as an edge protocol:
+
+```text
+MCP server/client/session
+    -> MCP adapter
+        -> ARA ports and trusted contexts
+            -> local policy, tenancy, budget, approval, and evidence
+```
+
+MCP does not replace local authorization, durable execution, run state, tenant isolation, or audit.
+
+## Mapping
+
+| MCP concept | ARA mapping |
+|---|---|
+| Host | Agentic application/runtime operating environment |
+| Client | MCP adapter instance owned by the host |
+| Server | External capability provider behind adapters |
+| Tool | Imported `ToolVersion` descriptor and `ToolPort` route |
+| Resource | `ContextItem`, governed read effect, or immutable `ArtifactRef` |
+| Prompt | Imported `PromptVersion`/template only after review and versioning |
+| Sampling | Server-requested model `Effect` under host policy |
+| Roots | Declared resource/filesystem boundary constraint |
+| Elicitation | Human-input/approval `Effect` through `HumanApprovalPort` or a typed input port |
+| Progress/logging | Ephemeral adapter evidence/telemetry; not canonical run truth |
+| Session | Adapter connection state; not domain or workflow state |
+
+## Tool import
+
+An MCP tool descriptor is untrusted capability metadata until qualified.
+
+The adapter MUST:
+
+1. Authenticate and identify the server.
+2. Pin server/protocol/schema and tool descriptor versions or digests.
+3. Validate tool name, description, annotations, input/output schema, and limits.
+4. Map the tool to a platform-owned `ToolVersion` or installation revision.
+5. Assign effect impact, capability scope, data policy, network destination, credential purpose, idempotency, reconciliation, and approval policy.
+6. Reject or quarantine unsupported or changed descriptors.
+
+Tool descriptions and annotations MUST NOT create authority or override platform policy.
+
+## Tool invocation
+
+```text
+Agent/model proposes MCP tool use
+-> platform validates local ToolVersion and arguments
+-> capability/policy/budget/approval checks
+-> persist Effect
+-> create Invocation through MCP adapter
+-> validate result and evidence
+-> commit Effect outcome
+```
+
+The MCP request ID, server operation reference, protocol version, session ID, and provider error are adapter evidence linked to the ARA `Invocation`.
+
+Provider/server retries MUST be disabled or surfaced. A changed tool descriptor or schema produces a new qualified tool version or blocks execution; it does not silently alter an active deployment.
+
+## Resources
+
+MCP resources map to governed context or artifact reads. The adapter records:
+
+```text
+server identity
+resource URI and version/digest where available
+media type
+classification and trust
+retrieval timestamp
+content digest/protected payload reference
+provenance and retention
+```
+
+Resource content remains untrusted data and cannot grant tools, credentials, approval, or child authority.
+
+Subscriptions and updates create explicit external-event effects or adapter events. They do not mutate memory or workflow state without validation and a committed transition.
+
+## Prompts
+
+MCP prompt templates are imported as candidate prompt assets. Before production use they require:
+
+- Publisher/server identity and provenance.
+- Review of variables, data access, tool references, and injection risk.
+- Immutable `PromptVersion` publication.
+- Evaluation and deployment-snapshot pinning.
+
+The runtime MUST NOT execute a mutable remote prompt as an unversioned source of production behavior.
+
+## Sampling
+
+An MCP sampling request is a request from a server for host-side model work. It maps to a model `Effect` only after:
+
+```text
+server identity and capability validation
+user/tenant policy and consent
+prompt/context inspection and redaction
+tool/schema restrictions
+model route, budget, and data-region policy
+result-visibility policy
+```
+
+The server does not select credentials or bypass the host’s model gateway. Sampling results expose only the material allowed by local policy.
+
+## Roots
+
+Roots are treated as least-authority resource boundaries. They MUST be intersected with local filesystem, artifact, tenant, sandbox, and data-classification policy.
+
+A root URI is not proof that access is authorized. Path traversal, symlink, mount, and case-normalization behavior require adapter and sandbox tests.
+
+## Elicitation
+
+Elicitation maps to a typed human-input effect. Sensitive forms, URLs, and external redirects require explicit UI and policy controls. An elicitation response is validated against schema and bound to the requesting effect/run.
+
+Elicitation MUST NOT be used to collect or expose credentials outside approved credential flows.
+
+## Capability negotiation
+
+Negotiated MCP capabilities are adapter capabilities, not durable business state. The selected capability set and protocol version are recorded in deployment/invocation evidence.
+
+If a required capability disappears:
+
+```text
+block admission or invocation
+-> use only an explicitly approved compatible fallback
+-> otherwise suspend/fail with dependency evidence
+```
+
+## Security
+
+MCP explicitly requires implementers to build consent, authorization, access control, privacy, and tool-safety controls because the protocol cannot enforce them by itself.
+
+ARA therefore requires:
+
+- Server identity verification and allowlisting/trust policy.
+- Per-server and per-tool capability grants.
+- Network egress policy.
+- Short-lived credential injection.
+- Result-size/schema limits and DLP.
+- Prompt/tool/resource injection testing.
+- Tenant and classification enforcement.
+- Audit of descriptor changes and every material tool invocation.
+
+## Lifecycle and revocation
+
+A qualified MCP server/tool installation may be:
+
+```text
+active -> degraded -> quarantined -> revoked -> retired
+```
+
+Revocation blocks new effects immediately. In-flight effects follow declared cancel/reconcile policy. Historical runs retain the exact server, tool descriptor, adapter, and protocol evidence used.
+
+## Contract tests
+
+```text
+capability negotiation and version mismatch
+tool schema change after deployment
+malicious tool description/annotation
+resource prompt injection and cross-tenant URI
+sampling consent and result visibility
+root traversal and sandbox escape attempts
+elicitation schema/URL abuse
+stream cancellation and duplicate messages
+server disconnect/reconnect and hidden retries
+result-size, malformed result, and sensitive-data leakage
+revocation during in-flight mutation
+```
+
+## Source
+
+See the official [Model Context Protocol specification](https://modelcontextprotocol.io/specification/2025-11-25).
