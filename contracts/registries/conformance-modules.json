@@ -1,0 +1,76 @@
+{
+  "registry": "ara.conformance-modules",
+  "registryVersion": "1.0.0",
+  "entries": [
+    {
+      "id": "core",
+      "name": "ARA Core",
+      "status": "active",
+      "dependsOn": [],
+      "semanticOwner": "specification/index",
+      "description": "Dependency boundaries, resource/version model, typed workflows, effects, ports, state/evidence separation, baseline security, and evaluation."
+    },
+    {
+      "id": "durable",
+      "name": "ARA Durable",
+      "status": "active",
+      "dependsOn": ["core"],
+      "semanticOwner": "specification/runtime",
+      "description": "Long-running execution, atomic transition commit, journal, fencing, idempotency, reconciliation, waits, resume, and replay."
+    },
+    {
+      "id": "multi_tenant",
+      "name": "ARA Multi-Tenant",
+      "status": "active",
+      "dependsOn": ["core"],
+      "semanticOwner": "specification/platform",
+      "description": "Tenant/workspace isolation, scoped identity, quotas, data governance, and isolation testing."
+    },
+    {
+      "id": "enterprise_operations",
+      "name": "ARA Enterprise Operations",
+      "status": "active",
+      "dependsOn": ["core", "durable"],
+      "semanticOwner": "specification/platform",
+      "description": "Control plane, execution cells, SLOs, disaster recovery, audit/usage completeness, and provider lifecycle."
+    },
+    {
+      "id": "marketplace",
+      "name": "ARA Marketplace",
+      "status": "active",
+      "dependsOn": ["core"],
+      "semanticOwner": "specification/platform",
+      "description": "Signed package releases, exact locks, permissions, sandboxing, installation, rollback, quarantine, and revocation."
+    },
+    {
+      "id": "high_assurance",
+      "name": "ARA High-Assurance",
+      "status": "active",
+      "dependsOn": ["core"],
+      "semanticOwner": "specification/security-and-governance",
+      "description": "Fail-closed critical gates, strong oversight, tamper evidence, independent review, and higher-assurance testing."
+    },
+    {
+      "id": "regulated",
+      "name": "ARA Regulated",
+      "status": "active",
+      "dependsOn": ["core", "high_assurance"],
+      "semanticOwner": "specification/evaluation-and-conformance",
+      "description": "Intended-purpose governance, data rights, retention, legal holds, control mapping, and regulated evidence."
+    }
+  ],
+  "bundles": [
+    {
+      "id": "enterprise",
+      "name": "ARA Enterprise",
+      "modules": ["core", "durable", "enterprise_operations"],
+      "conditionalModules": ["multi_tenant"]
+    },
+    {
+      "id": "regulated_enterprise",
+      "name": "ARA Regulated Enterprise",
+      "modules": ["core", "durable", "enterprise_operations", "high_assurance", "regulated"],
+      "conditionalModules": ["multi_tenant"]
+    }
+  ]
+}
