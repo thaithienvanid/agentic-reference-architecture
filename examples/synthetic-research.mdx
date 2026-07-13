@@ -1,150 +1,310 @@
 ---
-title: Worked example — synthetic research panel
-description: Persistent AI participants, model variants, experiment trials, deliberation iterations, rate limits, evaluation, and validity boundaries.
+title: Worked example — synthetic research experiment
+description: Persistent synthetic participants, model variants, independent trials, deliberation iterations, rate-aware scheduling, evaluation, and validity boundaries.
 ---
 
-# Worked example — synthetic research panel
+# Worked example — synthetic research experiment
 
-> **Status: Worked example.** It illustrates ARA semantics and does not make synthetic participants a core platform type.
+> **Status: Worked example.** Synthetic participants are research-domain extensions, not ARA core types and not substitutes for representative human-subject research.
 
-## Scenario
+## Why this scenario
 
-A product-research application simulates three persistent participants A, B, and C against an uploaded evidence bundle. It compares two configurations:
+The scenario exercises architecture that ordinary business workflows do not: persistent simulated identities, controlled model variants, independent repetitions, deliberation, scheduling fairness, and statistical uncertainty. It is informed by public research on generative agents, self-consistency, and multi-agent debate, while ARA adds production concerns such as tenant isolation, durable execution, budgets, provenance, and evaluation.
+
+## Business outcome
+
+Given an immutable evidence bundle and three synthetic participant definitions, compare two simulation configurations and produce a report that preserves:
 
 ```text
-ExperimentVariant A: participant model A + deliberation model A
-ExperimentVariant B: participant model B + deliberation model B
+individual positions
+supporting evidence and confidence
+changes during deliberation
+consensus, dissent, and unresolved uncertainty
+model/configuration sensitivity
+trial-level variance, cost, latency, and failure evidence
 ```
 
-This is a simulation system, not a substitute for validated human-subject research.
+A research owner approves any external claim or publication. The system does not claim that synthetic participants represent a population.
+
+## Non-goals
+
+- Simulated participants are not human respondents.
+- Persona prompts do not establish demographic validity.
+- One trial does not establish a reliable result.
+- Deliberation is not forced to reach consensus.
+- Variant B must not inherit hidden state from Variant A in an independent comparison.
+
+## Applicable ARA modules
+
+```text
+ARA Core
+ARA Durable
+ARA Enterprise Operations for shared capacity, model lifecycle, and evidence
+ARA Multi-Tenant when several research teams share the platform
+ARA High-Assurance when results influence material decisions
+```
+
+## Domain extensions and ARA mapping
+
+| Research-domain concept | ARA mechanism |
+|---|---|
+| `Study` | `ExecutionPlanRun` coordinating ingestion, experiments, report and review |
+| `SyntheticParticipant` | Stable domain identity |
+| `PersonaVersion` | Immutable participant behavior input |
+| `ParticipantStateVersion` | Immutable longitudinal domain state |
+| `ParticipantSession` | `ActivityRun` or child `AgentRun` |
+| Contribution | Immutable `Artifact` |
+| Deliberation cycle | Qualified `DeliberationRound` mapped to `Iteration` |
+| Model/configuration comparison | `ExperimentRun` and `ExperimentVariant` |
+| Independent repetition | `ExperimentTrial` referencing an execution subject |
+| Study report | Artifact plus evaluation and approval evidence |
 
 ## Top-level workflow
 
 ```mermaid
 flowchart LR
-    Ingest["Activity 1: ingest files/context"]
-    Simulate["Activity 2: synthetic-panel simulation workflow"]
-    Report["Activity 3: write report"]
-    Ingest --> Simulate --> Report
+    Ingest["Ingest and validate context"]
+    Freeze["Freeze participant and experiment baseline"]
+    Simulate["Run simulation experiment"]
+    Compare["Compare variants and uncertainty"]
+    Report["Generate bounded report"]
+    Review["Human research review"]
+
+    Ingest --> Freeze --> Simulate --> Compare --> Report --> Review
 ```
 
-Activity 2 references a workflow because its internal work has dependencies, parallelism, budgets, evaluation, and durable capacity waits.
+The simulation is a referenced child workflow because it has parallel branches, repeated trials, durable capacity waits, joins, budgets, and its own evaluation lifecycle.
 
-## Domain model
+## Experiment structure
 
 ```text
-Study
-├── SyntheticParticipantPanel
-│   └── ParticipantInstance A/B/C
-│       ├── PersonaVersion
-│       ├── ParticipantStateVersion
-│       ├── scoped MemoryRecord
-│       └── ParticipantSession
-├── SimulationExperiment
-│   ├── ExperimentVariant A
-│   ├── ExperimentVariant B
-│   └── ExperimentTrial(s)
-└── ResearchReport
+ExperimentRun: compare simulation configurations
+├── ExperimentVariant A
+│   participantModelRoute: model-a@3
+│   deliberationModelRoute: model-a@3
+│   ├── ExperimentTrial A1 -> WorkflowRun
+│   ├── ExperimentTrial A2 -> WorkflowRun
+│   └── ExperimentTrial A3 -> WorkflowRun
+└── ExperimentVariant B
+    participantModelRoute: model-b@2
+    deliberationModelRoute: model-b@2
+    ├── ExperimentTrial B1 -> WorkflowRun
+    ├── ExperimentTrial B2 -> WorkflowRun
+    └── ExperimentTrial B3 -> WorkflowRun
 ```
 
-`Panel`, `SimulationExperiment`, and `ParticipantInstance` are research-domain concepts. ARA supplies workflows, runs, activities, state, memory, artifacts, effects, invocations, and evaluation.
+Model A and Model B are **variants**, not rounds. A repeated independent execution from the same frozen baseline is an `ExperimentTrial`. A sequential discussion cycle using updated evidence is an `Iteration`. A provider retry is another `Invocation` of the same model `Effect`.
 
-## Execution model
-
-```text
-AgenticResearch WorkflowRun
-├── ActivityRun: ingest-context
-│   └── ContextBundle Artifact
-├── ActivityRun: simulate-panel
-│   └── child WorkflowRun: panel-simulation
-│       ├── ExperimentTrial A1 -> WorkflowRunRef
-│       │   ├── ExecutionBranch: participant A session
-│       │   ├── ExecutionBranch: participant B session
-│       │   ├── ExecutionBranch: participant C session
-│       │   ├── Iteration: deliberation cycle 1
-│       │   └── EvaluationResult
-│       ├── ExperimentTrial A2 -> WorkflowRunRef
-│       ├── ExperimentTrial B1 -> WorkflowRunRef
-│       ├── ExperimentTrial B2 -> WorkflowRunRef
-│       └── ActivityRun: compare variants
-└── ActivityRun: write-report
-```
-
-Model A and Model B are experiment variants, not rounds. Independent repetitions from a frozen baseline are `ExperimentTrial`s. A sequential discussion cycle is an `Iteration`, optionally presented to research users as a `DeliberationRound`. A provider 429 creates a later `Invocation` for the same model `Effect`.
-
-## Participant continuity and experimental isolation
-
-Every trial consumes the same frozen participant baseline unless the experiment explicitly studies longitudinal change:
+## Participant continuity and isolation
 
 ```yaml
 participantId: participant-A-017
 personaVersion: budget-conscious-urban-student@1.2.0
-baselineStateVersion: 2
-baselineMemorySnapshot: memory-snapshot-A@8
-contextBundle: artifact://sha256/study-context
+participantStateVersion: 2
+baselineMemorySnapshotRef: memory_snapshot_A_08
+contextBundleRef: artifact_context_01
 ```
 
-Variant and trial state is isolated:
+Each trial receives the same frozen baseline unless the study explicitly tests longitudinal change:
 
 ```text
-Participant A frozen baseline
-├── Variant A / Trial A1 branch
-├── Variant A / Trial A2 branch
-├── Variant B / Trial B1 branch
-└── Variant B / Trial B2 branch
+Participant A baseline
+├── Variant A / Trial A1 state branch
+├── Variant A / Trial A2 state branch
+├── Variant A / Trial A3 state branch
+├── Variant B / Trial B1 state branch
+├── Variant B / Trial B2 state branch
+└── Variant B / Trial B3 state branch
 ```
 
-One branch must not modify the baseline observed by another. A longitudinal workflow that intentionally carries updated participant state forward uses an `Iteration` or a later `WorkflowRun` and answers a different question from an independent model comparison.
+A branch cannot mutate the baseline or another branch. Longitudinal continuation uses a new `ParticipantStateVersion` and a later iteration or workflow run; it answers a different question from an independent model comparison.
 
-## Survey and deliberation inside one trial
+## One trial
+
+```mermaid
+flowchart TB
+    Snapshot["Frozen trial input"]
+    A["Participant A private session"]
+    B["Participant B private session"]
+    C["Participant C private session"]
+    Join["Validate and join contributions"]
+    Analyze["Identify agreement and contradictions"]
+    D1["Deliberation Iteration 1"]
+    Decide{"Another iteration justified?"}
+    D2["Deliberation Iteration 2"]
+    Synthesize["Trial synthesis: consensus, dissent, uncertainty"]
+    Evaluate["Trial evaluation"]
+
+    Snapshot --> A
+    Snapshot --> B
+    Snapshot --> C
+    A --> Join
+    B --> Join
+    C --> Join
+    Join --> Analyze --> D1 --> Decide
+    Decide -->|yes and budget remains| D2 --> Synthesize
+    Decide -->|no| Synthesize
+    Synthesize --> Evaluate
+```
+
+Initial participant responses are private. Shared deliberation content is constructed as a governed artifact containing only permitted contributions and evidence. Private memory does not become group context.
+
+## Activity and effect map
+
+| Activity | Deterministic work | Possible effects |
+|---|---|---|
+| Ingest | Malware, schema, classification, provenance and duplicate checks | Artifact and document-processing effects |
+| Freeze baseline | Resolve exact versions and snapshots | Memory/artifact reads |
+| Participant session | Validate persona, question and output schema | Model effects, governed memory reads, optional read-only tools |
+| Join | Validate trial, participant, provenance and contribution contracts | None |
+| Analyze | Compute deterministic coverage and contradiction candidates | Model analysis effect when semantic judgment is needed |
+| Deliberate | Enforce visibility, iteration, budget and stop policy | Model effects and read-only verification tools |
+| Synthesize | Preserve minority views and source references | Model generation effect |
+| Evaluate | Apply deterministic, semantic, bias and operational evaluators | Evaluation effects |
+| Compare | Validate trial inclusion and statistical method | Aggregation and optional judge effects |
+| Report/review | Apply disclosure and publication policy | Report artifact, approval request, external publication effect |
+
+## Logical parallelism and physical capacity
+
+Trials and participant sessions may be logically runnable together. The scheduler and model gateway control physical execution using:
 
 ```text
-private independent survey A/B/C
--> validate and store immutable contributions
--> identify agreement and contradictions
--> create a permitted shared-evidence artifact
--> request targeted challenges and rebuttals
--> verify disputed claims
--> synthesize consensus, dissent, and uncertainty
--> evaluate whether another Iteration is justified
+provider account and model route
+region and tenant
+requests per minute and tokens per minute
+concurrent invocations
+reserved experiment capacity
+fairness and priority
+trial deadline and budget
+cache and fallback policy
 ```
-
-Private memories are not shared. Peer contributions remain untrusted inputs and are schema-, provenance-, tenant-, and classification-validated before use.
-
-## Logical parallelism and physical throttling
-
-Experiment trials and participant branches may be logically runnable together. The scheduler and model gateway control physical concurrency by provider account, model, tenant, region, requests per minute, tokens per minute, active invocations, deadline, fairness policy, and budget.
 
 ```text
 runnable model Effects
--> provider/model capacity queue
--> reserve request/token/concurrency permit
--> create Invocation
--> reconcile actual usage
+-> capacity reservation
+-> Invocation
+-> provider response or rate-limit evidence
+-> durable wait when capacity is unavailable
+-> later Invocation for the same Effect
+-> usage reconciliation
 ```
 
-A rate limit causes a durable capacity wait and a later invocation; it is not another experiment trial. For rigorous comparisons, use balanced interleaving or phase barriers so time of day and capacity do not systematically favor a variant.
+A rate limit does not create a new trial. For controlled comparisons, use randomized or balanced interleaving, equal budgets, declared cache policy, and either independent progress or an explicit phase barrier.
 
-## Evaluation
+## Trial and iteration policy
+
+```yaml
+trialsPerVariant: 3
+trialReplacement:
+  infrastructureFailure: preserve_and_replace
+  subjectBehaviorFailure: preserve_do_not_replace
+
+deliberation:
+  maximumIterations: 2
+  continueWhen:
+    unresolvedCriticalContradictionsGreaterThan: 0
+    minimumEvidenceCoverageNotMet: true
+  stopWhen:
+    repeatedContributionDigest: 2
+    noMaterialChangeIterations: 1
+```
+
+Excluded or replacement trials remain in evidence with reason, owner, and effect on analysis.
+
+## State and evidence
+
+```text
+Study and participant state
+    research-domain authority
+
+Workflow and experiment state
+    execution control, variant/trial assignment, inclusion and status
+
+ContextSnapshot
+    exact evidence supplied to each model Effect
+
+MemoryRecord
+    scoped, provenanced, revocable participant information
+
+Artifacts
+    contributions, shared evidence, deliberation, synthesis, report
+
+Run Journal, telemetry, audit and usage
+    execution, operations, authorization and cost evidence
+
+EvaluationResult
+    participant, deliberation, trial, variant and cross-variant judgments
+```
+
+## Evaluation contract
 
 Participant level:
 
-- Persona and longitudinal consistency.
-- Memory and evidence correctness.
-- Stereotype amplification and cross-participant leakage.
+```text
+persona and longitudinal consistency
+evidence and memory correctness
+cross-participant leakage
+unsupported demographic inference
+stereotype amplification
+```
 
 Deliberation level:
 
-- Contradiction detection, evidence use, justified change, minority-view preservation, and groupthink.
+```text
+contradiction detection
+evidence use and source faithfulness
+justified opinion change
+minority-view preservation
+groupthink and repeated-action detection
+```
 
-Experiment-trial level:
+Trial and variant level:
 
-- Task quality, variance, failure rate, cost, duration, rate-limit wait, and hard gates.
+```text
+task completion and grounding
+pass rate and failure distribution
+variance and confidence/uncertainty
+cost, latency and rate-limit wait
+model sensitivity and quality/cost frontier
+scheduler, cache and fallback treatment
+```
 
-Cross-variant level:
+Hard gates include cross-tenant leakage, forbidden source access, private-memory leakage, fabricated evidence, missing provenance, budget enforcement, and incomplete disclosure.
 
-- Model sensitivity, agreement/disagreement, quality/cost frontier, and robustness across experiment trials.
+## Failure-injection cases
 
-## Limitations
+1. Uploaded evidence contains indirect prompt injection.
+2. Two participants accidentally share the same memory scope.
+3. Variant A state leaks into Variant B.
+4. Provider rate limits one model route more heavily.
+5. One trial fails from infrastructure after partial effects.
+6. A participant produces a schema-valid but stereotyped response.
+7. Deliberation suppresses a minority position.
+8. Verification tool returns contradictory evidence.
+9. Model fallback would invalidate the experiment.
+10. Report omits synthetic-participant and trial limitations.
 
-LLMs do not constitute statistically representative people. Results must disclose models, persona construction, number of experiment trials, validation method, uncertainty, scheduling/budget treatment, and the fact that participants are synthetic.
+## Limitations and publication rule
+
+Results disclose:
+
+```text
+synthetic nature of participants
+persona construction and validation
+models, prompts, tools and versions
+baseline and memory policy
+variants, number of trials and exclusions
+scheduler, cache, fallback and budget treatment
+evaluation method and uncertainty
+known gaps relative to human research
+```
+
+The report cannot be represented as statistically representative human opinion without independent domain evidence and an explicitly different research design.
+
+## What this example teaches
+
+- Experiment trials belong outside the universal runtime hierarchy and reference their execution subjects.
+- Persistent identity does not imply shared mutable state across variants.
+- Deliberation rounds are domain-qualified iterations.
+- Logical parallelism and physical provider concurrency are separate decisions.
+- Evaluation validity is part of the architecture, not an afterthought.
