@@ -1,0 +1,21 @@
+{
+  "contractVersion": "1.0.0",
+  "childRunLinkId": "child_run_link_01K2C",
+  "rootRunId": "run_01K2A",
+  "parentRunId": "run_01K2A",
+  "childRunId": "run_research_01K2B",
+  "parentActivityRunId": "activity_run_research_01",
+  "childKind": "agent_run",
+  "resourceVersionRef": "procurement-research-agent@2.0.0",
+  "deploymentSnapshotDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "taskSnapshotRef": "artifact://sha256/dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "taskSnapshotDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "capabilityGrantRef": "capability_grant_child_01",
+  "budgetAllocationRef": "budget_allocation_child_01",
+  "deadline": "2026-07-12T08:20:00Z",
+  "cancellationPolicy": "propagate",
+  "status": "completed",
+  "resultRef": "activity_result_01K2R",
+  "createdAt": "2026-07-12T08:00:05Z",
+  "completedAt": "2026-07-12T08:04:01Z"
+}
