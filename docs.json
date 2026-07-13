@@ -18,23 +18,38 @@
     },
     "tabs": [
       {
-        "tab": "Specification",
+        "tab": "Standard",
         "groups": [
           {
             "group": "Start here",
-            "pages": ["index", "cheatsheets/architecture", "rfc/index"]
+            "root": "rfc/index",
+            "directory": "card",
+            "pages": ["index", "cheatsheets/architecture"]
           },
           {
-            "group": "Normative core",
-            "pages": ["rfc/resource-model", "rfc/execution-model", "rfc/runtime", "rfc/data-and-evidence"]
+            "group": "Core semantics",
+            "pages": [
+              "rfc/resource-model",
+              "rfc/execution-model",
+              "rfc/runtime",
+              "rfc/data-and-evidence"
+            ]
           },
           {
-            "group": "Platform and conformance",
-            "pages": ["rfc/platform", "rfc/security-and-governance", "rfc/evaluation-and-conformance"]
+            "group": "Enterprise profiles",
+            "pages": [
+              "rfc/platform",
+              "rfc/security-and-governance",
+              "rfc/evaluation-and-conformance"
+            ]
           },
           {
             "group": "Normative contracts",
-            "pages": ["specifications/canonical-conventions", "specifications/reference-interfaces", "specifications/events-and-state"]
+            "pages": [
+              "reference/conventions",
+              "reference/interfaces",
+              "reference/events-and-state"
+            ]
           }
         ]
       },
@@ -42,55 +57,140 @@
         "tab": "Guides",
         "groups": [
           {
-            "group": "Application design",
-            "pages": ["handbook/workflows", "handbook/agents", "handbook/state-context-memory", "handbook/prompts"]
+            "group": "Guide overview",
+            "root": "guides/index",
+            "directory": "card",
+            "pages": []
           },
           {
-            "group": "Platform design",
-            "pages": ["handbook/control-and-execution-planes", "handbook/enterprise-saas", "handbook/marketplace", "handbook/security", "handbook/compliance-and-data-rights", "handbook/cost-governance", "handbook/model-lifecycle", "handbook/observability", "handbook/deployment-and-operations"]
+            "group": "Application design",
+            "pages": [
+              "handbook/domain-and-ddd",
+              "handbook/workflows",
+              "handbook/agents",
+              "handbook/state-context-memory",
+              "handbook/prompts"
+            ]
+          },
+          {
+            "group": "Runtime implementation",
+            "pages": [
+              "handbook/runtime",
+              "handbook/ports-and-adapters",
+              "implementation/repository-structure",
+              "implementation/testing-and-resilience"
+            ]
+          },
+          {
+            "group": "Platform governance",
+            "pages": [
+              "handbook/control-and-execution-planes",
+              "handbook/enterprise-saas",
+              "handbook/marketplace",
+              "handbook/security",
+              "handbook/compliance-and-data-rights"
+            ]
+          },
+          {
+            "group": "Platform operations",
+            "pages": [
+              "handbook/cost-governance",
+              "handbook/model-lifecycle",
+              "handbook/observability",
+              "handbook/deployment-and-operations"
+            ]
           },
           {
             "group": "Evaluation-driven development",
-            "pages": ["evaluation/index", "cheatsheets/evaluation", "evaluation/evaluation-driven-development", "evaluation/deepeval", "evaluation/harbor", "evaluation/gates-and-metrics"]
+            "root": "evaluation/index",
+            "directory": "card",
+            "pages": [
+              "cheatsheets/evaluation",
+              "evaluation/evaluation-driven-development",
+              "evaluation/deepeval",
+              "evaluation/harbor",
+              "evaluation/gates-and-metrics"
+            ]
           }
         ]
       },
       {
-        "tab": "Patterns and examples",
+        "tab": "Reference",
+        "groups": [
+          {
+            "group": "Reference overview",
+            "root": "reference/index",
+            "directory": "card",
+            "pages": []
+          },
+          {
+            "group": "Terminology and contracts",
+            "pages": [
+              "reference/glossary",
+              "reference/conventions",
+              "reference/interfaces",
+              "reference/events-and-state"
+            ]
+          },
+          {
+            "group": "Profiles and examples",
+            "pages": [
+              "reference/api",
+              "reference/manifests",
+              "diagrams/index"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Patterns & examples",
         "groups": [
           {
             "group": "Pattern catalog",
-            "pages": ["patterns/index", "patterns/agentic-control", "patterns/ensemble-and-deliberation", "patterns/child-agents", "patterns/cross-run-experiments", "patterns/longitudinal-participants", "patterns/saga-and-compensation"]
+            "root": "patterns/index",
+            "directory": "card",
+            "pages": [
+              "patterns/agentic-control",
+              "patterns/ensemble-and-deliberation",
+              "patterns/child-agents",
+              "patterns/cross-run-experiments",
+              "patterns/longitudinal-participants",
+              "patterns/saga-and-compensation"
+            ]
           },
           {
             "group": "Worked examples",
-            "pages": ["examples/procurement", "examples/synthetic-research"]
+            "pages": [
+              "examples/procurement",
+              "examples/synthetic-research"
+            ]
           }
         ]
       },
       {
-        "tab": "Implementation",
+        "tab": "Project",
         "groups": [
           {
-            "group": "Public contracts",
-            "pages": ["specifications/api", "specifications/manifests", "specifications/repository-structure"]
+            "group": "Project overview",
+            "root": "project/index",
+            "directory": "card",
+            "pages": ["project/documentation-architecture"]
           },
           {
-            "group": "Architecture decisions",
-            "pages": ["decisions/decision-guide", "decisions/adrs"]
+            "group": "Decisions and delivery",
+            "pages": [
+              "decisions/decision-guide",
+              "decisions/adrs",
+              "implementation/roadmap"
+            ]
           },
           {
-            "group": "Operations and delivery",
-            "pages": ["implementation/roadmap", "implementation/testing-and-resilience", "diagrams/index"]
-          }
-        ]
-      },
-      {
-        "tab": "Research",
-        "groups": [
-          {
-            "group": "Evidence and comparisons",
-            "pages": ["research/findings", "research/comparisons", "research/sources"]
+            "group": "Research evidence",
+            "pages": [
+              "research/findings",
+              "research/comparisons",
+              "research/sources"
+            ]
           },
           {
             "group": "Audit history",
@@ -99,5 +199,20 @@
         ]
       }
     ]
-  }
+  },
+  "redirects": [
+    { "source": "/specifications/canonical-conventions", "destination": "/reference/conventions" },
+    { "source": "/specifications/reference-interfaces", "destination": "/reference/interfaces" },
+    { "source": "/specifications/events-and-state", "destination": "/reference/events-and-state" },
+    { "source": "/specifications/api", "destination": "/reference/api" },
+    { "source": "/specifications/manifests", "destination": "/reference/manifests" },
+    { "source": "/specifications/repository-structure", "destination": "/implementation/repository-structure" },
+    { "source": "/handbook/terminology", "destination": "/reference/glossary" },
+    { "source": "/handbook/execution-ontology", "destination": "/rfc/execution-model" },
+    { "source": "/handbook/principles", "destination": "/rfc/index" },
+    { "source": "/handbook/executive-summary", "destination": "/rfc/index" },
+    { "source": "/handbook/reference-architecture", "destination": "/rfc/index" },
+    { "source": "/handbook/index", "destination": "/guides/index" },
+    { "source": "/deliverables", "destination": "/project/index" }
+  ]
 }
