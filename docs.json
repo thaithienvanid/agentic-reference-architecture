@@ -42,14 +42,6 @@
               "rfc/security-and-governance",
               "rfc/evaluation-and-conformance"
             ]
-          },
-          {
-            "group": "Normative contracts",
-            "pages": [
-              "reference/conventions",
-              "reference/interfaces",
-              "reference/events-and-state"
-            ]
           }
         ]
       },
