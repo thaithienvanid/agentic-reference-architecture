@@ -1,11 +1,11 @@
 ---
 title: API profile
-description: Reference inbound management, run, approval, evaluation, marketplace, event, and administration API conventions.
+description: Reference inbound management, run, approval, evaluation, marketplace, event, evidence-replay, and administration API conventions.
 ---
 
 # API profile
 
-> **Status: Reference profile.** This page illustrates an interoperable HTTP profile; ARA semantics do not require REST.
+> **Status: Reference profile.** This page illustrates an interoperable HTTP profile; ARA semantics do not require REST. The machine-readable OpenAPI profile lives under `/contracts/openapi`.
 
 The API is command/query separated. Commands are idempotent and usually asynchronous; queries do not mutate state. Representations follow [Canonical conventions](/reference/conventions).
 
@@ -13,14 +13,31 @@ The API is command/query separated. Commands are idempotent and usually asynchro
 
 | API | Responsibility |
 |---|---|
-| Agent Management | Create, version, publish, deprecate, and promote agents |
+| Agent Management | Create, version, publish, deprecate, and inspect agents |
 | Workflow Management | Create, validate, publish, and inspect workflows |
-| Run Command | Start, pause, resume, cancel, signal, and replay |
-| Run Query | State, timeline, artifacts, lineage, and stream cursor |
+| Deployment | Compile, promote, and roll back immutable deployment snapshots |
+| Run Command | Start, pause, resume, cancel, and signal |
+| Run Query | State, timeline, activities, effects, artifacts, lineage, and stream cursor |
+| Evidence Replay | Deterministically reconstruct state using recorded effect outcomes |
+| Counterfactual Rerun | Create a new run from selected historical inputs and new versions/routes |
 | Approval | Submit action-bound decisions |
-| Evaluation | Start runs, inspect results, and manage baselines |
-| Marketplace | Publish, install, upgrade, rollback, and revoke |
-| Administration | Tenants, workspaces, quotas, policy, model routes, and billing |
+| Evaluation | Start runs, inspect results, manage baselines, and assess conformance |
+| Marketplace | Publish, install, upgrade, rollback, quarantine, and revoke |
+| Administration | Tenants, workspaces, quotas, policy, model routes, cells, and billing |
+
+## Command conventions
+
+Every externally repeatable command carries:
+
+```text
+Idempotency-Key
+actor and tenant context from authentication/routing
+expected state/version when optimistic concurrency applies
+command schema/version
+correlation ID
+```
+
+The server stores a durable command-inbox record before returning an accepted result. Repeating the same key with a different payload returns a conflict.
 
 ## Start a run
 
@@ -33,7 +50,7 @@ Content-Type: application/json
 
 ```json
 {
-  "agent": "procurement-order-agent@5.2.0",
+  "agentVersionRef": "procurement-order-agent@5.2.0",
   "environment": "production",
   "task": {
     "type": "create_purchase_order",
@@ -46,7 +63,7 @@ Content-Type: application/json
 }
 ```
 
-Trusted tenant and workspace context comes from identity and routing, not the request body. The effective budget is the most restrictive applicable limit among tenant entitlement, deployment policy, parent allocation, and a valid request override.
+Trusted tenant and workspace context comes from identity and routing, not the request body. The effective budget is the most restrictive applicable limit among entitlement, deployment policy, parent allocation, and a valid request override.
 
 ```http
 HTTP/1.1 202 Accepted
@@ -56,8 +73,11 @@ Location: /v1/runs/run_01K2A
 ```json
 {
   "runId": "run_01K2A",
+  "agentRunId": "agent_run_01K2A",
+  "rootWorkflowRunId": "workflow_run_01K2W",
   "status": "admitted",
-  "deploymentSnapshot": "sha256:394e...",
+  "deploymentSnapshotRef": "deployment_snapshot_01K2S",
+  "deploymentSnapshotDigest": "sha256:394e...",
   "effectiveBudget": {
     "maximumCost": { "amount": "8.00", "currency": "USD" },
     "source": "request_override"
@@ -92,12 +112,33 @@ Content-Type: application/json
 }
 ```
 
-The service validates approver authority, expiry, exact action digest, policy version, and current run state before recording the decision.
+The service validates approver authority, expiry, exact action digest, policy version, capability grant, and current run state before recording the decision.
+
+## Pause and resume
+
+Operational resume continues the same run and reuses completed effects.
+
+```http
+POST /v1/runs/run_01K2A:resume
+Authorization: Bearer <token>
+Idempotency-Key: resume-019
+Content-Type: application/json
+```
+
+```json
+{
+  "expectedStateVersion": 31,
+  "reason": "Required external evidence is now available"
+}
+```
+
+Resume MUST NOT select new agent/model/tool versions. A migration requires an explicit operator migration command and recorded continuation policy.
 
 ## Cancel
 
 ```http
 POST /v1/runs/run_01K2A:cancel
+Authorization: Bearer <token>
 Idempotency-Key: cancel-019
 Content-Type: application/json
 ```
@@ -109,12 +150,37 @@ Content-Type: application/json
 }
 ```
 
-Cancellation prevents new effects, propagates to cancellable children and invocations, and reconciles ambiguous mutations. It does not erase completed effects.
+Cancellation prevents new effects, propagates to cancellable children and invocations, and reconciles ambiguous mutations. It does not erase completed effects or prove that a remote operation stopped.
 
-## Replay
+## Evidence replay
+
+Evidence replay performs deterministic reconstruction without external dispatch:
 
 ```http
-POST /v1/runs/run_01K2A:replay
+POST /v1/runs/run_01K2A:evidenceReplay
+Authorization: Bearer <reviewer-token>
+Idempotency-Key: evidence-replay-019
+Content-Type: application/json
+```
+
+```json
+{
+  "targetRunSequence": 141,
+  "runtimeContractVersion": "1.0.0",
+  "verifyProjectionDigests": true
+}
+```
+
+The result identifies reconstructed state, divergence, upcasters/readers used, and evidence gaps. It does not create new effects or change the historical run.
+
+## Counterfactual rerun
+
+A counterfactual rerun creates a new run:
+
+```http
+POST /v1/runs/run_01K2A:rerun
+Authorization: Bearer <token>
+Idempotency-Key: rerun-019
 Content-Type: application/json
 ```
 
@@ -122,8 +188,13 @@ Content-Type: application/json
 {
   "mode": "counterfactual",
   "overrides": {
-    "agentVersion": "procurement-order-agent@5.3.0",
-    "modelRoutingProfile": "eu-enterprise-models@4"
+    "agentVersionRef": "procurement-order-agent@5.3.0",
+    "modelRoutingProfileRef": "eu-enterprise-models@4.0.0"
+  },
+  "inputPolicy": {
+    "taskSnapshot": "reuse",
+    "artifacts": "reuse_exact",
+    "memory": "freeze_historical"
   },
   "effectPolicy": {
     "models": "reinvoke",
@@ -132,6 +203,13 @@ Content-Type: application/json
   }
 }
 ```
+
+```http
+HTTP/1.1 202 Accepted
+Location: /v1/runs/run_01NEW
+```
+
+The new run records `derivedFromRunId`, exact reused inputs, overridden versions, and which effects were recorded versus reinvoked.
 
 ## External event ingestion
 
@@ -154,6 +232,15 @@ Content-Type: application/json
 
 The API authenticates the sender, validates tenant and schema, persists an inbox record, deduplicates the event, and signals durable execution.
 
+## Effect and invocation query
+
+```http
+GET /v1/runs/run_01K2A/effects/effect_01K2B
+Authorization: Bearer <token>
+```
+
+The response includes logical effect identity, impact, authorization, semantic effect key, invocation history, ambiguous-outcome/reconciliation status, usage, and evidence references. Plaintext credentials and protected payloads are never returned through this endpoint.
+
 ## Error envelope
 
 ```json
@@ -164,6 +251,7 @@ The API authenticates the sender, validates tenant and schema, persists an inbox
     "message": "The run changed since the command was prepared.",
     "retryable": true,
     "safeToRetry": true,
+    "effectMayHaveOccurred": false,
     "correlationId": "corr_5501"
   }
 }
