@@ -1,0 +1,83 @@
+---
+title: Glossary
+description: Canonical short definitions for ARA product, resource, execution, runtime, data, and platform concepts.
+---
+
+# Glossary
+
+> **Status: Reference.** Detailed semantics are defined by the [ARA RFC](/rfc/index).
+
+## Product concepts
+
+| Term | Definition |
+|---|---|
+| **LLM-powered application** | An application in which a model contributes to an output while application code owns control flow. |
+| **Assistant** | A user-facing help relationship; it may be deterministic, generative, tool-using, or agentic. |
+| **Agentic service** | A callable operational capability exposed through APIs or events. |
+| **Agentic application** | A domain product with use cases, state, UX, policy, and workflows. |
+| **Agentic platform** | Shared control, execution, governance, evaluation, tenancy, and operations for multiple applications or services. |
+| **Marketplace** | Governed publication, installation, permissioning, metering, upgrade, rollback, and revocation of packages. |
+
+## Resource and version concepts
+
+| Term | Definition |
+|---|---|
+| `Agent` | Stable catalog identity for an agent capability. |
+| `AgentVersion` | Immutable executable agent behavior, including instructions, capabilities, policies, budgets, and evaluation references. |
+| `Workflow` | Stable catalog identity for an executable process. |
+| `WorkflowVersion` | Immutable process specification containing activities, control flow, contracts, policies, and completion rules. |
+| `ExecutionPlan` | Stable identity for cross-run orchestration. |
+| `DeploymentSnapshot` | Signed immutable resolution of all versions, policies, routes, packages, and compatibility needed by a run. |
+
+## Execution concepts
+
+| Term | Definition |
+|---|---|
+| `ExecutionPlanRun` | Durable execution coordinating multiple workflow runs. |
+| `WorkflowRun` | One independently addressable durable execution of a workflow version. |
+| `AgentRun` | One independently addressable durable execution of an agent version. |
+| `Activity` | Semantic unit of work inside a workflow version. |
+| `ActivityRun` | One logical execution of an activity. |
+| `ActivityAttempt` | Complete restart of an activity run from its declared retry boundary. |
+| `ExecutionBranch` | Independent parallel path, candidate, or local variant. |
+| `Iteration` | Intentional sequential cycle using updated state, evidence, or objectives. |
+| `Effect` | One logical external or nondeterministic operation requested by execution. |
+| `Invocation` | One concrete adapter or provider call used to realize or reconcile an effect. |
+| `WorkerLease` | Temporary, expiring, fenced authorization for a worker to process a run or activity. |
+| `ExperimentTrial` | Independent experiment/evaluation repetition from a frozen baseline, referencing a workflow run. |
+
+`Run` is reserved for independently addressable durable execution. The core does not define unqualified `Step`, `Round`, `AttemptRun`, `TrialRun`, `SubAgent`, or `SubWorkflow` entities.
+
+## Runtime concepts
+
+| Term | Definition |
+|---|---|
+| **Execution Kernel** | Pure deterministic state evolution, legal transitions, dependency resolution, completion, and execution intents. |
+| **Runtime Service** | Admission, coordination, scheduling, persistence, cancellation, streaming, and recovery. |
+| **Scheduler** | Runnable-work ordering, capacity, fairness, priority, and placement. |
+| **Runtime Worker** | Process that performs bounded assigned activity or effect work. |
+| **DurableExecutionPort** | Backend-neutral boundary for timers, signals, suspension, cancellation, and durable recovery. |
+| **Platform Run Journal** | Append-only ordered record of canonical execution facts. |
+| **Effect Ledger** | Durable effect identity, invocation history, idempotency, ambiguous outcomes, and reconciliation. |
+
+## Data and evidence concepts
+
+| Term | Definition |
+|---|---|
+| **Domain state** | Authoritative business truth. |
+| **Workflow state** | Control data that determines legal execution transitions. |
+| **Input snapshot** | Immutable exact input supplied to an activity run. |
+| **Context snapshot** | Immutable exact content assembled for a model effect. |
+| **Memory record** | Scoped, provenanced, revocable information that may be reused later. |
+| **Artifact** | Immutable content produced or consumed by execution. |
+| **Checkpoint** | Resume optimization; not execution truth. |
+| **Trace** | Operational causality and latency evidence; may be sampled. |
+| **Audit record** | Authoritative evidence of identity, authorization, policy, and execution. |
+| **Evaluation result** | Versioned judgment of quality, safety, correctness, or efficiency. |
+| **Usage record** | Immutable attributable consumption and cost evidence. |
+
+## Composition concepts
+
+- **Inline execution** shares the parent lifecycle and creates no independent run identity.
+- **Child execution** creates a separate run with its own state, result, budget, deadline, failure, cancellation, and capability grant.
+- `PlanStep`, `UIProgressStep`, and `DeliberationRound` are qualified domain or presentation terms; they do not redefine the runtime core.
