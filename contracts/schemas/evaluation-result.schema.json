@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ara.dev/contracts/1.0/schemas/evaluation-result.schema.json",
+  "title": "ARA EvaluationResult",
+  "type": "object",
+  "required": [
+    "contractVersion",
+    "evaluationResultId",
+    "subject",
+    "evaluationSuiteVersionRef",
+    "hardGateRegistryVersionRef",
+    "status",
+    "scores",
+    "hardGates",
+    "evidenceRefs",
+    "environmentDigest",
+    "completedAt"
+  ],
+  "properties": {
+    "contractVersion": { "const": "1.0.0" },
+    "evaluationResultId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "subject": {
+      "type": "object",
+      "required": ["type", "id", "deploymentSnapshotDigest"],
+      "properties": {
+        "type": { "type": "string", "enum": ["agent_run", "workflow_run", "execution_plan_run", "resource_version", "package_release"] },
+        "id": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+        "deploymentSnapshotDigest": { "$ref": "common.schema.json#/$defs/ContentDigest" },
+        "derivedFromRunId": { "$ref": "common.schema.json#/$defs/OpaqueId" }
+      },
+      "additionalProperties": false
+    },
+    "evaluationSuiteVersionRef": { "type": "string", "minLength": 1 },
+    "datasetVersionRefs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "hardGateRegistryVersionRef": { "type": "string", "minLength": 1 },
+    "experiment": {
+      "type": "object",
+      "properties": {
+        "experimentRunId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+        "variantId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+        "trialId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+        "trialOrdinal": { "type": "integer", "minimum": 1 },
+        "baselineSnapshotRef": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "status": { "type": "string", "enum": ["passed", "failed", "inconclusive", "cancelled"] },
+    "scores": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+      }
+    },
+    "hardGates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["gateId", "status", "applicable"],
+        "properties": {
+          "gateId": { "type": "string", "pattern": "^[a-z][a-z0-9_.-]*$" },
+          "status": { "type": "string", "enum": ["passed", "failed", "inconclusive", "not_applicable"] },
+          "applicable": { "type": "boolean" },
+          "evidenceRefs": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "reason": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "statistics": {
+      "type": "object",
+      "properties": {
+        "trialCount": { "type": "integer", "minimum": 1 },
+        "passRate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "mean": { "type": "number" },
+        "standardDeviation": { "type": "number", "minimum": 0 },
+        "confidenceInterval": {
+          "type": "array",
+          "prefixItems": [{ "type": "number" }, { "type": "number" }],
+          "items": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "environmentDigest": { "$ref": "common.schema.json#/$defs/ContentDigest" },
+    "completedAt": { "$ref": "common.schema.json#/$defs/Instant" },
+    "extensions": { "$ref": "common.schema.json#/$defs/Extensions" }
+  },
+  "additionalProperties": false
+}
