@@ -4,7 +4,7 @@
   "runId": "run_01K2A",
   "activityRunId": "activity_run_create_order_01",
   "effectId": "effect_01K2B",
-  "actionDigest": "sha256:778c...",
+  "actionDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
   "policyVersionRef": "high-value-purchase-approval@5.0.0",
   "capabilityGrantRef": "capability_grant_01K2G",
   "expectedStateVersion": 27,
