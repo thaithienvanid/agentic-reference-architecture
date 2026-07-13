@@ -5,21 +5,23 @@ description: Versioned prompt assets, deterministic compilation, typed variables
 
 # Prompt and context management
 
-Prompts are versioned behavioral assets, not anonymous strings embedded in code.
+> **Status: Informative guide.** Prompts are versioned behavioral assets, not anonymous strings embedded in code.
 
 ```text
-PromptDefinition
-  -> PromptVersion
-       message templates and ordered sections
-       typed variables
-       context contract
-       output contract
-       model requirements
-       policy references
-       evaluation suite
+Prompt
+└── PromptVersion
+    ├── message templates and ordered sections
+    ├── typed variables
+    ├── context contract
+    ├── output contract
+    ├── model requirements
+    ├── policy references
+    └── evaluation suite references
 ```
 
-## Definition and runtime snapshot
+`Prompt` is the stable catalog identity. A published `PromptVersion` is immutable. A model effect records a `CompiledPromptSnapshot` containing the exact resolved material used at runtime.
+
+## Version and runtime snapshot
 
 ```typescript
 interface PromptVersion {
@@ -32,7 +34,7 @@ interface PromptVersion {
   outputContract?: SchemaRef;
   modelRequirements?: ModelRequirements;
   policyRefs: readonly PolicyVersionRef[];
-  evaluationSuiteRefs: readonly EvaluationSuiteRef[];
+  evaluationSuiteRefs: readonly EvaluationSuiteVersionRef[];
 }
 
 interface CompiledPromptSnapshot {
@@ -41,6 +43,7 @@ interface CompiledPromptSnapshot {
   messagesRef: PayloadRef;
   contextItemRefs: readonly ContextItemRef[];
   authorizedToolSchemaRefs: readonly ToolSchemaRef[];
+  outputSchemaRef?: SchemaRef;
   digest: ContentDigest;
   estimatedTokens: number;
   dataClassification: DataClassification;
@@ -52,7 +55,7 @@ interface CompiledPromptSnapshot {
 Prefer composable sections over one giant prompt:
 
 ```text
-Platform behavioral base
+platform behavioral base
 + tenant restrictions
 + agent role and purpose
 + activity-specific instructions
@@ -62,48 +65,49 @@ Platform behavioral base
 + output schema
 ```
 
-Merge rules prevent a lower-authority layer from weakening a higher-authority restriction. Safety/tenant notices are additive, capability limits intersect, output schemas are pinned, and tool descriptions are generated only from authorized definitions.
+Merge rules prevent a lower-authority layer from weakening a higher-authority restriction. Safety and tenant notices are additive, capability limits intersect, output schemas are pinned, and tool descriptions are generated only from authorized versions.
 
 ## Typed variables and context
 
-Variables declare schema, source, sensitivity, and limits. They must not resolve arbitrary global state or secrets. The prompt states what context it needs; a versioned context recipe selects, orders, compacts, and redacts actual records with provenance.
+Variables declare schema, source, sensitivity, and limits. They must not resolve arbitrary global state or secrets. A context contract states what is needed; a versioned context recipe selects, orders, compacts, and redacts actual records with provenance.
 
 ## Compilation pipeline
 
 ```mermaid
 flowchart LR
-    Version["Prompt versions"] --> Compiler["Prompt compiler"]
+    Version["PromptVersion(s)"] --> Compiler["Prompt compiler"]
     Variables["Typed variables"] --> Compiler
     Context["Selected trusted/untrusted context"] --> Compiler
-    Tools["Authorized tools"] --> Compiler
-    Policies["Human-readable policy notices"] --> Compiler
+    Tools["Authorized ToolVersions"] --> Compiler
+    Notices["Human-readable policy notices"] --> Compiler
     Compiler --> Validate["Schema, classification, token checks"]
     Validate --> PreGuard["Optional probabilistic input guardrails"]
-    PreGuard --> Snapshot["Compiled prompt snapshot"]
-    Snapshot --> Model["ModelPort"]
-    Model --> PostGuard["Output guardrails and DLP"]
-    PostGuard --> Sink["Schema validation, policy, or safe sink adapter"]
+    PreGuard --> Snapshot["CompiledPromptSnapshot"]
+    Snapshot --> Effect["Model Effect"]
+    Effect --> Invoke["Invocation(s)"]
+    Invoke --> PostGuard["Output guardrails and DLP"]
+    PostGuard --> Sink["Schema validation, policy, safe sink adapter"]
 ```
 
 The compiler records exact source references, trust labels, section versions, compaction decisions, output schema, and final digest.
 
-## Untrusted content rule
+## Untrusted content
 
-User content, retrieval, memories, tool results, and peer-agent output remain data even when they contain imperative language. Context items carry source, trust, classification, and provenance. A model must not gain capabilities because untrusted text claims that a tool or policy is authorized.
+User content, retrieval, memories, tool results, and peer-agent output remain data even when they contain imperative language. Context items carry source, trust, classification, and provenance. Untrusted text cannot expand capabilities or establish authorization.
 
-## Guardrail rule
+## Guardrails
 
-Probabilistic guardrails may classify, redact, deny, or escalate inputs and outputs. They are versioned and evaluated, and their decisions are recorded. They do not grant authorization, replace output-schema validation, or make unsafe sink interpolation acceptable.
+Probabilistic guardrails may classify, redact, deny, or escalate inputs and outputs. They are versioned, evaluated, and recorded. They do not grant authorization, replace output-schema validation, or make unsafe sink interpolation acceptable.
 
 ## Lifecycle
 
 ```text
-draft -> review -> offline evaluation -> publish immutable version
--> include in deployment snapshot -> monitor -> create a new version
+draft -> review -> offline evaluation -> publish immutable PromptVersion
+-> include in DeploymentSnapshot -> monitor -> create a new version
 ```
 
 Never resolve `latest` during a run. A prompt change is a behavioral code change and should pass regression, safety, cost, injection, output-handling, and tool-use gates.
 
 ## Security rule
 
-Prompts communicate behavior and context. They do not grant permission, enforce tenant boundaries, protect credentials, authorize tools, authenticate peer agents, or sanitize output for a downstream interpreter. Those controls live at deterministic identity, policy, capability, and sink boundaries.
+Prompts communicate behavior and context. They do not grant permission, enforce tenant boundaries, protect credentials, authorize tools, authenticate peer agents, or sanitize output for downstream interpreters. Those controls live at deterministic identity, policy, capability, and sink boundaries.
