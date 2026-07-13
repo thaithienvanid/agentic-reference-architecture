@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ara.dev/contracts/1.0/schemas/effect.schema.json",
+  "title": "ARA Effect",
+  "type": "object",
+  "required": [
+    "contractVersion",
+    "effectId",
+    "semanticEffectKey",
+    "rootRunId",
+    "runId",
+    "activityRunId",
+    "executionScopePath",
+    "kind",
+    "impact",
+    "inputDigest",
+    "authorityScopeDigest",
+    "status",
+    "invocationIds"
+  ],
+  "properties": {
+    "contractVersion": { "const": "1.0.0" },
+    "effectId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "semanticEffectKey": { "type": "string", "minLength": 8 },
+    "rootRunId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "parentRunId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "runId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "activityRunId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "activityAttemptId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "branchId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "iterationId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "executionScopePath": { "type": "string", "minLength": 1 },
+    "kind": { "type": "string", "pattern": "^[a-z][a-z0-9_.-]*$" },
+    "componentRef": { "type": "string", "minLength": 1 },
+    "toolRef": { "type": "string", "minLength": 1 },
+    "modelRouteRef": { "type": "string", "minLength": 1 },
+    "impact": { "$ref": "common.schema.json#/$defs/EffectImpact" },
+    "inputDigest": { "$ref": "common.schema.json#/$defs/ContentDigest" },
+    "authorityScopeDigest": { "$ref": "common.schema.json#/$defs/ContentDigest" },
+    "idempotencyKey": { "type": "string", "minLength": 1, "maxLength": 512 },
+    "capabilityGrantRef": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "policyDecisionRefs": {
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+      "uniqueItems": true
+    },
+    "approvalIds": {
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+      "uniqueItems": true
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "proposed",
+        "denied",
+        "awaiting_approval",
+        "authorized",
+        "planned",
+        "dispatching",
+        "in_progress",
+        "outcome_unknown",
+        "reconciling",
+        "retryable_absent",
+        "manual_resolution",
+        "succeeded",
+        "failed",
+        "cancelled",
+        "expired",
+        "satisfied_without_invocation"
+      ]
+    },
+    "invocationIds": {
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+      "uniqueItems": true
+    },
+    "resultRef": { "type": "string", "minLength": 1 },
+    "errorRef": { "type": "string", "minLength": 1 },
+    "extensions": { "$ref": "common.schema.json#/$defs/Extensions" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "impact": {
+            "properties": {
+              "mutation": { "enum": ["idempotent", "reversible", "irreversible"] }
+            },
+            "required": ["mutation"]
+          }
+        }
+      },
+      "then": { "required": ["idempotencyKey"] }
+    }
+  ],
+  "additionalProperties": false
+}
