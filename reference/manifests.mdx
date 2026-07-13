@@ -1,18 +1,18 @@
 ---
 title: Manifest profile
-description: Reference agent, workflow, tool, prompt, policy, evaluation, and marketplace package manifests.
+description: Reference agent, workflow, tool, prompt, policy, evaluation, hard-gate, package-release, lock, and installation manifests.
 ---
 
 # Manifest profile
 
-> **Status: Reference profile.** Manifests are declarative control-plane inputs. Production compilation resolves references to exact immutable versions and digests.
+> **Status: Reference profile.** Manifests are declarative control-plane inputs. Production compilation resolves references to exact immutable versions, locks, and digests. Machine-readable schemas live under `/contracts/schemas`.
 
 Money follows [Canonical conventions](/reference/conventions) and is serialized as decimal strings.
 
 ## Agent version
 
 ```yaml
-apiVersion: agentic.platform/v1
+apiVersion: ara.dev/v1
 kind: AgentVersion
 metadata:
   name: procurement-order-agent
@@ -20,11 +20,7 @@ metadata:
   owner: team-procurement
 spec:
   purpose: Create policy-compliant purchase-order drafts
-  execution:
-    mode: durable_agentic_workflow
-    entrypoint: procurement-order@3.0.0
-    maximumParallelActivities: 4
-    maximumChildDepth: 1
+  entryWorkflow: procurement-order@3.0.0
   instructions:
     - procurement-agent-base@4.2.0
   modelRequirements:
@@ -32,7 +28,7 @@ spec:
     toolCalling: true
     minimumContextTokens: 64000
     allowedRegions: [eu-west]
-    routingProfile: eu-enterprise-models@3
+    routingProfile: eu-enterprise-models@3.0.0
   capabilities:
     tools:
       - contract.read@2.1.0
@@ -41,33 +37,34 @@ spec:
     childAgents:
       - procurement-research-agent@2.0.0
       - procurement-compliance-agent@2.3.0
+    maximumChildDepth: 1
   context:
     recipe: procurement-context@4.0.0
     memoryReadScopes: [workspace, agent]
     memoryWriteScopes: [agent]
-  policies:
-    - procurement-standard@7.0.0
-    - eu-data-residency@2.0.0
-    - high-value-purchase-approval@5.0.0
+  policyBundle: procurement-production-policy@7.0.0
   budgets:
     maximumCost: { amount: "12.00", currency: USD }
     maximumActivities: 60
-    maximumModelCalls: 18
-    maximumToolCalls: 25
+    maximumModelEffects: 18
+    maximumToolEffects: 25
     maximumWallTime: PT30M
     maximumSuspendedTime: P7D
   termination:
-    repeatedActionDigest: 3
+    repeatedActionDigestLimit: 3
     maximumNoProgressCycles: 5
+  resultSchema: ProcurementAgentResult@3
   evaluations:
     - procurement-correctness@6.0.0
     - tool-policy-compliance@4.0.0
 ```
 
+An independent `AgentRun` created from this version owns one root `WorkflowRun` of `entryWorkflow`.
+
 ## Workflow version
 
 ```yaml
-apiVersion: agentic.platform/v1
+apiVersion: ara.dev/v1
 kind: WorkflowVersion
 metadata:
   name: procurement-order
@@ -75,7 +72,7 @@ metadata:
 spec:
   inputSchema: ProcurementTask@2
   outputSchema: ProcurementResult@3
-  stateSchema: ProcurementRunState@2
+  stateSchema: ProcurementRunState@3
   activities:
     - id: load-context
       type: task
@@ -83,28 +80,36 @@ spec:
     - id: research
       type: agent
       agent: procurement-research-agent@2.0.0
+      executionMode: child
     - id: validate
       type: task
       input:
         research:
-          from: activities.research.output
+          fromActivityRun:
+            activityId: research
+            selection: single_required
     - id: approve
       type: human
       policy: high-value-purchase-approval@5.0.0
     - id: create-order
       type: tool
       tool: purchase-order.create@4.2.1
+      semanticEffectSlot: create-purchase-order
   dependencies:
     - [load-context, research]
     - [research, validate]
     - [validate, approve]
     - [approve, create-order]
+  completion:
+    requiredActivities: [load-context, research, validate, approve, create-order]
 ```
+
+Bindings identify exact execution instances or declared join/selection policies; they do not read an arbitrary latest activity output.
 
 ## Tool version
 
 ```yaml
-apiVersion: agentic.platform/v1
+apiVersion: ara.dev/v1
 kind: ToolVersion
 metadata:
   name: purchase-order.create
@@ -112,8 +117,14 @@ metadata:
 spec:
   inputSchema: PurchaseOrderCreate@4
   outputSchema: PurchaseOrderCreated@2
-  sideEffects:
-    classification: irreversible_write
+  effect:
+    kind: tool.invoke
+    impact:
+      determinism: externally_determined
+      dataAccess: write
+      mutation: irreversible
+      externality: external_service
+      compensability: mitigatable
     idempotency:
       supported: true
       header: Idempotency-Key
@@ -122,7 +133,7 @@ spec:
       operation: purchase-order.status-by-idempotency-key
   security:
     requiredScopes: [erp.purchase_order.create]
-    credentialProfile: tenant-erp-oauth
+    credentialPurpose: tenant-erp-purchase-order-writer
     networkPolicy: erp-private-endpoint
     allowedDataClassifications: [internal, confidential]
   execution:
@@ -133,7 +144,7 @@ spec:
 ## Prompt version
 
 ```yaml
-apiVersion: agentic.platform/v1
+apiVersion: ara.dev/v1
 kind: PromptVersion
 metadata:
   name: procurement-research
@@ -164,7 +175,7 @@ spec:
 ## Policy version
 
 ```yaml
-apiVersion: agentic.platform/v1
+apiVersion: ara.dev/v1
 kind: PolicyVersion
 metadata:
   name: high-value-purchase-approval
@@ -181,9 +192,11 @@ rules:
       bindTo:
         - tenantId
         - runId
+        - activityRunId
         - effectId
         - toolVersion
         - normalizedArgumentsDigest
+        - capabilityGrantVersion
         - policyVersion
       expiresAfter: PT48H
       revalidateBeforeExecution: true
@@ -192,7 +205,7 @@ rules:
 ## Evaluation suite version
 
 ```yaml
-apiVersion: agentic.platform/v1
+apiVersion: ara.dev/v1
 kind: EvaluationSuiteVersion
 metadata:
   name: procurement-agent-release
@@ -203,6 +216,10 @@ spec:
     - procurement-sandbox@3.1.0
     - procurement-security@2.2.0
   hardGateRegistry: enterprise-agent-safety@1.0.0
+  experiment:
+    minimumTrialsPerVariant: 3
+    schedulerTreatment: balanced_interleaving
+    cacheTreatment: disabled
   metrics:
     taskCompletion: { minimumMean: "0.90" }
     toolCorrectness: { minimumMean: "0.98" }
@@ -210,12 +227,38 @@ spec:
   operational:
     maximumP95Cost: { amount: "8.00", currency: USD }
     maximumP95Duration: PT3M
+  inconclusivePolicy: fail_closed
 ```
+
+## Hard-gate registry version
+
+```yaml
+apiVersion: ara.dev/v1
+kind: HardGateRegistryVersion
+metadata:
+  name: enterprise-agent-safety
+  version: 1.0.0
+gates:
+  - id: no_cross_tenant_access
+    applicability: multi_tenant_or_shared_data_plane
+    evidenceSchema: TenantIsolationEvidence@1
+    evaluator: deterministic
+    unknownPolicy: fail
+  - id: no_duplicate_irreversible_effect
+    applicability: irreversible_effect_present
+    evidenceSchema: EffectLedgerEvidence@1
+    evaluator: deterministic
+    unknownPolicy: fail
+```
+
+The complete registry is machine-readable under `/contracts/registries/hard-gates.json`.
 
 ## Marketplace package release
 
+A package release MAY declare dependency constraints because it is a distributable source artifact, not an activated installation.
+
 ```yaml
-apiVersion: agentic.marketplace/v1
+apiVersion: ara.marketplace/v1
 kind: PackageRelease
 metadata:
   package: com.example.procurement-suite
@@ -224,22 +267,30 @@ publisher:
   id: publisher_example
   verification: organization_verified
 contents:
-  workflows: [procurement-order@3.0.0]
   agents: [procurement-order-agent@5.2.0]
+  workflows: [procurement-order@3.0.0]
+  tools: []
+  connectors: []
+  skills: []
+  prompts: [procurement-research@4.2.0]
+  policies: [high-value-purchase-approval@5.0.0]
   evaluators: [procurement-correctness@6.0.0]
+  datasets: [procurement-goldens@6.3.0]
+  uiExtensions: []
 compatibility:
   platformApi: ">=1.4 <2.0"
   runtimeApi: ">=1.4 <2.0"
-dependencies:
+dependencyConstraints:
   - package: com.example.document-tools
     version: ">=3.1 <4.0"
-permissions:
+requestedPermissions:
   capabilities:
     - contract.read
     - vendor.read
     - erp.purchase_order.create
   network: [erp.private.example.invalid:443]
-  secrets: [tenant-erp-oauth]
+  secretPurposes: [tenant-erp-purchase-order-writer]
+  childDelegation: [procurement-research-agent]
 supplyChain:
   bundleDigest: sha256:6a14...
   signatureBundle: sigstore://bundle/sha256/8b91...
@@ -254,3 +305,84 @@ commercial:
   license: commercial-marketplace-v2
   pricing: { model: per_successful_run, amount: "0.15", currency: USD }
 ```
+
+## Package lock
+
+A resolver creates an exact immutable lock:
+
+```yaml
+apiVersion: ara.marketplace/v1
+kind: PackageLock
+metadata:
+  id: package_lock_01K2P
+  root: com.example.procurement-suite@2.4.0
+resolved:
+  - package: com.example.procurement-suite
+    version: 2.4.0
+    digest: sha256:6a14...
+  - package: com.example.document-tools
+    version: 3.4.2
+    digest: sha256:3d91...
+resolver:
+  version: ara-package-resolver@1.0.0
+  generatedAt: 2026-07-13T10:00:00Z
+lockDigest: sha256:package-lock...
+```
+
+An activated installation MUST use a `PackageLock`; unresolved ranges are prohibited.
+
+## Package installation revision
+
+```yaml
+apiVersion: ara.marketplace/v1
+kind: PackageInstallationRevision
+metadata:
+  id: package_installation_01K2I
+  tenantId: tenant_acme_eu
+  revision: 7
+packageRelease: com.example.procurement-suite@2.4.0
+packageLockRef: package_lock_01K2P
+grantedPermissions:
+  capabilities:
+    - contract.read
+    - vendor.read
+    - erp.purchase_order.create
+  network: [erp.private.example.invalid:443]
+  secretPurposes: [tenant-erp-purchase-order-writer]
+configurationRef: config://tenant_acme_eu/procurement-suite/revision/7
+verificationEvidenceRefs:
+  - evaluation_result_01K2E
+  - sandbox_report_01K2S
+status: active
+installationDigest: sha256:installation...
+```
+
+Granted permissions MUST be a subset of requested permissions and tenant/platform authority.
+
+## Deployment snapshot excerpt
+
+```yaml
+apiVersion: ara.dev/v1
+kind: DeploymentSnapshot
+metadata:
+  id: deployment_snapshot_01K2S
+  environment: production
+resources:
+  agent: procurement-order-agent@5.2.0
+  workflow: procurement-order@3.0.0
+  modelRoutingProfile: eu-enterprise-models@3.0.0
+  policyBundle: procurement-production-policy@7.0.0
+  hardGateRegistry: enterprise-agent-safety@1.0.0
+packageInstallations:
+  - id: package_installation_01K2I
+    revision: 7
+    digest: sha256:installation...
+contractVersions:
+  runtime: 1.0.0
+  events: 1.0.0
+  manifests: 1.0.0
+digest: sha256:deployment...
+signatureRef: sigstore://bundle/sha256/deployment-signature...
+```
+
+Production compilation resolves every transitive dependency to an exact version and digest.
