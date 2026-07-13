@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministic consistency checks for ARA documentation and contracts."""
+"""Deterministic consistency checks for ARA documentation architecture."""
 
 from __future__ import annotations
 
@@ -21,6 +21,7 @@ EXPECTED_TABS = [
 
 REQUIRED_SPECIFICATION_PAGES = [
     "specification/index",
+    "specification/boundaries-and-use-cases",
     "specification/resource-model",
     "specification/execution-model",
     "specification/runtime",
@@ -35,10 +36,24 @@ REQUIRED_REFERENCE_PAGES = [
     "reference/glossary",
     "reference/conventions",
     "reference/interfaces",
+    "reference/lifecycles",
     "reference/events-and-state",
+    "reference/contract-catalog",
+    "reference/durable-backend-profile",
+    "reference/mcp-profile",
+    "reference/a2a-profile",
     "reference/conformance-checklist",
     "reference/api",
     "reference/manifests",
+]
+
+REQUIRED_EXAMPLE_PAGES = [
+    "examples/index",
+    "examples/software-delivery",
+    "examples/customer-service",
+    "examples/incident-response",
+    "examples/procure-to-pay",
+    "examples/synthetic-research",
 ]
 
 REQUIRED_PATHWAY_AND_GOVERNANCE_PAGES = [
@@ -51,6 +66,26 @@ REQUIRED_PATHWAY_AND_GOVERNANCE_PAGES = [
     "project/documentation-architecture",
     "project/releases-and-errata",
     "project/review-history",
+    "research/enterprise-use-cases",
+]
+
+REQUIRED_CONTRACT_FILES = [
+    "requirements-docs.txt",
+    "scripts/check_contracts.py",
+    "contracts/README.md",
+    "contracts/openapi/ara-api-profile.yaml",
+    "contracts/asyncapi/ara-events-profile.yaml",
+    "contracts/schemas/activity-result.schema.json",
+    "contracts/schemas/child-run-link.schema.json",
+    "contracts/schemas/experiment-trial.schema.json",
+    "contracts/schemas/hard-gate-registry.schema.json",
+    "contracts/schemas/package-installation-revision.schema.json",
+    "contracts/examples/activity-result.example.json",
+    "contracts/examples/child-run-link.example.json",
+    "contracts/examples/experiment-trial.example.json",
+    "contracts/examples/hard-gate-registry.example.json",
+    "contracts/examples/package-installation-revision.example.json",
+    "contracts/examples/worker-lease.example.json",
 ]
 
 CANONICAL_GATES = [
@@ -69,6 +104,7 @@ GATE_FILES = [
     "evaluation/gates-and-metrics.mdx",
     "evaluation/evaluation-driven-development.mdx",
     "cheatsheets/evaluation.mdx",
+    "specification/evaluation-and-conformance.mdx",
 ]
 
 HOW_TO_CONTRACTS: dict[str, dict[str, Any]] = {
@@ -110,9 +146,12 @@ CONFORMANCE_CHECKLIST_HEADINGS = [
     "## Assessment record",
     "## ARA Core",
     "## ARA Durable",
-    "## ARA Enterprise",
+    "## ARA Multi-Tenant",
+    "## ARA Enterprise Operations",
     "## ARA Marketplace",
+    "## ARA High-Assurance",
     "## ARA Regulated",
+    "## Interoperability profiles",
     "## Evidence package structure",
     "## Review procedure",
     "## Validation",
@@ -147,7 +186,9 @@ CANONICAL_EXECUTION_TERMS = [
 NORMATIVE_REFERENCE_FILES = {
     "reference/conventions.mdx",
     "reference/interfaces.mdx",
+    "reference/lifecycles.mdx",
     "reference/events-and-state.mdx",
+    "reference/contract-catalog.mdx",
     "evaluation/gates-and-metrics.mdx",
 }
 
@@ -163,6 +204,7 @@ NEGATIVE_CONTEXT_MARKERS = (
     "alternatives:",
     "never generic",
     "core does not define",
+    "not used",
 )
 
 REQUIRED_REDIRECTS = {
@@ -172,6 +214,7 @@ REQUIRED_REDIRECTS = {
     "/rfc/runtime": "/specification/runtime",
     "/audits/documentation-architecture-2026-07-13": "/project/review-history",
     "/audits/refinement-report-2026-07-12": "/project/review-history",
+    "/examples/procurement": "/examples/procure-to-pay",
 }
 
 
@@ -262,17 +305,6 @@ def check_how_to(rel: str, text: str, contract: dict[str, Any], failures: list[s
         )
 
 
-def parse_json_fences(path: Path, text: str, failures: list[str]) -> int:
-    count = 0
-    for index, body in enumerate(re.findall(r"```json\s*\n(.*?)\n```", text, flags=re.S), 1):
-        count += 1
-        try:
-            json.loads(body)
-        except json.JSONDecodeError as error:
-            fail(f"{path.relative_to(ROOT)}: invalid JSON fence {index}: {error}", failures)
-    return count
-
-
 def main() -> int:
     failures: list[str] = []
 
@@ -304,7 +336,6 @@ def main() -> int:
     if orphans:
         fail(f"public MDX pages not in navigation: {orphans}", failures)
 
-    json_fence_count = 0
     for path in files:
         rel = path.relative_to(ROOT).as_posix()
         text = path.read_text(encoding="utf-8")
@@ -312,6 +343,11 @@ def main() -> int:
         for field in ("title", "description"):
             if not metadata.get(field):
                 fail(f"{rel}: missing frontmatter field {field}", failures)
+        frontmatter_end = text.find("\n---\n", 4)
+        if frontmatter_end >= 0:
+            header = text[4:frontmatter_end]
+            if re.search(r"^\s+(?:title|description):", header, flags=re.MULTILINE):
+                fail(f"{rel}: title/description frontmatter key is unexpectedly indented", failures)
 
         if declares_normative_authority(text) and not (
             rel.startswith("specification/") or rel in NORMATIVE_REFERENCE_FILES
@@ -329,8 +365,6 @@ def main() -> int:
             for line_number, line in enumerate(text.splitlines(), 1):
                 if regex.search(line) and not is_explicit_negative_guidance(line):
                     fail(f"{rel}:{line_number}: retired term; {guidance}", failures)
-
-        json_fence_count += parse_json_fences(path, text, failures)
 
     for retired_dir in ("rfc", "audits", "specifications", "standard"):
         if (ROOT / retired_dir).exists():
@@ -383,14 +417,22 @@ def main() -> int:
     for page in (
         REQUIRED_SPECIFICATION_PAGES
         + REQUIRED_REFERENCE_PAGES
+        + REQUIRED_EXAMPLE_PAGES
         + REQUIRED_PATHWAY_AND_GOVERNANCE_PAGES
     ):
         if page not in page_set:
             fail(f"required public page not in navigation: {page}", failures)
 
+    for rel in REQUIRED_CONTRACT_FILES:
+        if not (ROOT / rel).exists():
+            fail(f"required contract/build file missing: {rel}", failures)
+
     manifests = (ROOT / "reference/manifests.mdx").read_text(encoding="utf-8")
     if re.search(r"\bamount:\s+[0-9]+(?:\.[0-9]+)?\b", manifests):
         fail("unquoted monetary amount in manifests", failures)
+    for phrase in ("PackageLock", "PackageInstallationRevision", "HardGateRegistryVersion"):
+        if phrase not in manifests:
+            fail(f"reference/manifests.mdx missing {phrase}", failures)
 
     for rel in GATE_FILES:
         text = (ROOT / rel).read_text(encoding="utf-8")
@@ -408,15 +450,30 @@ def main() -> int:
     for term in CANONICAL_EXECUTION_TERMS:
         if term not in execution:
             fail(f"execution model missing {term}", failures)
+    for phrase in ("RuntimeControlOperation", "semanticEffectKey", "ActivityAttempt is not part"):
+        if phrase not in execution:
+            fail(f"execution model missing hardening phrase: {phrase}", failures)
+
+    boundaries = (ROOT / "specification/boundaries-and-use-cases.mdx").read_text(encoding="utf-8")
+    for phrase in ("Domain core", "Shared Kernel", "Application layer", "Execution Kernel", "Runtime Service"):
+        if phrase not in boundaries:
+            fail(f"architecture boundaries page missing {phrase}", failures)
+
+    runtime = (ROOT / "specification/runtime.mdx").read_text(encoding="utf-8")
+    for phrase in ("ExecutionCommitPort", "fencingToken", "Platform Run Journal", "Effect Ledger"):
+        if phrase not in runtime:
+            fail(f"runtime specification missing {phrase}", failures)
 
     specification = (ROOT / "specification/index.mdx").read_text(encoding="utf-8")
     for phrase in (
         "Normative candidate",
         "not an RFC Series publication",
         "commit or digest",
+        "ARA Multi-Tenant",
+        "ARA High-Assurance",
     ):
         if phrase not in specification:
-            fail(f"specification/index.mdx missing publication phrase: {phrase}", failures)
+            fail(f"specification/index.mdx missing publication/module phrase: {phrase}", failures)
 
     for rel, contract in HOW_TO_CONTRACTS.items():
         path = ROOT / rel
@@ -429,11 +486,20 @@ def main() -> int:
     for heading in CONFORMANCE_CHECKLIST_HEADINGS:
         if heading not in checklist:
             fail(f"conformance checklist missing section: {heading}", failures)
-    for status in ("passed", "failed", "not_assessed", "not_applicable", "deviation_accepted"):
+    for status in (
+        "passed",
+        "failed",
+        "not_assessed",
+        "not_applicable",
+        "deviation_accepted",
+        "inconclusive",
+    ):
         if f"`{status}`" not in checklist:
             fail(f"conformance checklist missing status: {status}", failures)
     if "does not replace the normative" not in checklist:
         fail("conformance checklist must defer to the normative specification", failures)
+    if "not full conformance" not in checklist:
+        fail("conformance checklist must state that accepted deviations are not full conformance", failures)
 
     architecture = (ROOT / "project/documentation-architecture.mdx").read_text(encoding="utf-8")
     for heading in DOCUMENTATION_ARCHITECTURE_HEADINGS:
@@ -461,9 +527,35 @@ def main() -> int:
         if target not in guides_index:
             fail(f"guides/index.mdx missing task entry: {target}", failures)
 
+    examples_index = (ROOT / "examples/index.mdx").read_text(encoding="utf-8")
+    for target in (
+        "/examples/software-delivery",
+        "/examples/customer-service",
+        "/examples/incident-response",
+        "/examples/procure-to-pay",
+        "/examples/synthetic-research",
+    ):
+        if target not in examples_index:
+            fail(f"examples/index.mdx missing portfolio entry: {target}", failures)
+
+    use_cases = (ROOT / "research/enterprise-use-cases.mdx").read_text(encoding="utf-8")
+    for source in (
+        "docs.github.com/en/copilot/concepts/agents/cloud-agent/about-cloud-agent",
+        "servicenow.com/products/ai-agents.html",
+        "sap.com/products/artificial-intelligence/ai-assistant.html",
+    ):
+        if source not in use_cases:
+            fail(f"enterprise-use-case research missing primary source: {source}", failures)
+
     sources = (ROOT / "research/sources.mdx").read_text(encoding="utf-8")
-    if "RFC Editor — What is an RFC?" not in sources:
-        fail("research sources missing RFC Series terminology source", failures)
+    for phrase in (
+        "RFC Editor — What is an RFC?",
+        "JSON Schema",
+        "OpenAPI",
+        "AsyncAPI",
+    ):
+        if phrase not in sources:
+            fail(f"research sources missing {phrase}", failures)
 
     if failures:
         print("Documentation consistency checks failed:")
@@ -473,8 +565,7 @@ def main() -> int:
 
     print(
         "Documentation consistency checks passed for "
-        f"{len(pages)} navigation/root pages, {len(files)} public MDX pages, "
-        f"and {json_fence_count} JSON code fences."
+        f"{len(pages)} navigation/root entries and {len(files)} public MDX pages."
     )
     return 0
 
