@@ -9,14 +9,14 @@ description: Authority, document types, information architecture, status labels,
 
 ## Goal
 
-ARA documentation must let a reader answer four different questions without searching through competing explanations:
+ARA documentation lets a reader answer four different questions without searching through competing explanations:
 
 1. **What does ARA require?** — the normative RFC.
 2. **What is the exact contract or representation?** — reference material.
 3. **How and why should an implementation apply it?** — guides and decisions.
 4. **What does it look like in practice?** — patterns and worked examples.
 
-The site follows these user needs rather than treating every page as an equal “handbook chapter.”
+The site follows these user needs rather than treating every page as an equal handbook chapter.
 
 ## Authority order
 
@@ -29,7 +29,7 @@ Normative RFC
           -> research and audit history
 ```
 
-A lower-authority page may explain or illustrate a higher-authority rule, but **MUST NOT** redefine it.
+A lower-authority page may explain or illustrate a higher-authority rule, but it must not redefine it.
 
 | Content class | Authority | Purpose | Requirement language |
 |---|---|---|---|
@@ -47,6 +47,7 @@ A lower-authority page may explain or illustrate a higher-authority rule, but **
 ```text
 rfc/             normative semantic architecture and conformance
 reference/       exact contracts, glossary, API and manifest profiles
+guides/          reader pathways and guide landing pages
 handbook/        informative design and operations guides
 patterns/        reusable composition patterns
 examples/        end-to-end worked systems
@@ -58,19 +59,19 @@ project/         documentation governance and release history
 audits/          historical audits
 ```
 
-`rfc/` is the single semantic authority. `reference/` describes the machinery and representations that implement that authority. The repository does not maintain a second “specifications” tree.
+`rfc/` is the single semantic authority. `reference/` describes exact machinery and representations that realize that authority. The repository does not maintain a second specifications tree.
 
 ## Reader-facing architecture
 
 The Mintlify site separates:
 
-- **Standard** — normative RFC and contracts.
+- **Standard** — normative RFC semantics.
 - **Guides** — design, implementation, operations, and evaluation guidance.
-- **Reference** — glossary, API/profile lookup, manifests, schemas, and diagrams.
+- **Reference** — glossary, exact contracts, API/profile lookup, manifests, schemas, and diagrams.
 - **Patterns & examples** — reusable compositions and complete scenarios.
 - **Project** — decisions, roadmap, research, audits, and contribution governance.
 
-Every major section has an overview page. Navigation groups should remain small and task-oriented; a long flat list is split into meaningful subgroups.
+Every major section has an overview page. Navigation groups remain small and task-oriented; long flat lists are split into meaningful groups.
 
 ## Page contract
 
@@ -83,7 +84,7 @@ description: One-sentence purpose
 ---
 ```
 
-The first screen should also make the page’s authority clear when ambiguity is possible:
+The first screen also makes authority clear when ambiguity is possible:
 
 ```text
 Status: Normative
@@ -95,7 +96,7 @@ Status: Research
 Status: Historical audit
 ```
 
-A page should have one primary job. Reference pages describe; guides teach or explain; examples demonstrate. Long explanatory detours do not belong in contract pages.
+A page has one primary job. Reference pages describe; guides teach or explain; examples demonstrate. Long rationale does not belong in contract pages, and exact field definitions do not belong only in narrative guides.
 
 ## Canonical ownership
 
@@ -112,7 +113,7 @@ A page should have one primary job. Reference pages describe; guides teach or ex
 | Port signatures | `reference/interfaces.mdx` |
 | State and event representation | `reference/events-and-state.mdx` |
 
-Summaries link to these owners instead of reproducing independent rule lists.
+Summaries link to these owners instead of maintaining independent rule lists.
 
 ## Change propagation
 
@@ -120,12 +121,12 @@ A semantic change is complete only when all affected artifacts agree:
 
 ```text
 RFC rule
--> reference contract/schema
+-> reference contract or schema
 -> ADR when consequential
 -> guides and decision tables
 -> diagrams
 -> examples and manifests
--> evaluation gates/tests
+-> evaluation gates and tests
 -> compatibility notes and redirects
 -> deterministic documentation checks
 ```
@@ -134,20 +135,20 @@ A representation-only change normally updates reference contracts and schema ver
 
 ## Compatibility and redirects
 
-Moved public pages retain explicit redirects. Historical identifiers and event meanings are never silently rewritten. Deprecated terminology may remain only in migration notes or audits and must point to the canonical replacement.
+Moved public pages retain explicit redirects. Historical identifiers and event meanings are never silently rewritten. Deprecated terminology may remain only in migration notes or audits and points to the canonical replacement.
 
 ## Quality gates
 
 Documentation CI verifies:
 
-- Navigation targets and root pages exist.
-- Public pages are not orphaned unintentionally.
+- Navigation targets and roots exist.
+- Public pages are not unintentionally orphaned.
 - Retired canonical terms do not reappear.
-- Normative authority is limited to designated locations.
+- Normative authority remains in designated RFC and reference owners.
 - Shared hard gates and state-machine transitions remain consistent.
-- JSON/YAML examples parse where mechanically testable.
+- JSON and YAML examples parse where mechanically testable.
 - Mintlify configuration and internal links validate.
 
 ## Maintenance principle
 
-> Prefer one authoritative definition plus several purposeful views over several nearly identical “complete” documents.
+> Prefer one authoritative definition plus several purposeful views over several nearly identical complete documents.
