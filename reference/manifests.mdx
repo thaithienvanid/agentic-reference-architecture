@@ -1,0 +1,256 @@
+---
+title: Manifest profile
+description: Reference agent, workflow, tool, prompt, policy, evaluation, and marketplace package manifests.
+---
+
+# Manifest profile
+
+> **Status: Reference profile.** Manifests are declarative control-plane inputs. Production compilation resolves references to exact immutable versions and digests.
+
+Money follows [Canonical conventions](/reference/conventions) and is serialized as decimal strings.
+
+## Agent version
+
+```yaml
+apiVersion: agentic.platform/v1
+kind: AgentVersion
+metadata:
+  name: procurement-order-agent
+  version: 5.2.0
+  owner: team-procurement
+spec:
+  purpose: Create policy-compliant purchase-order drafts
+  execution:
+    mode: durable_agentic_workflow
+    entrypoint: procurement-order@3.0.0
+    maximumParallelActivities: 4
+    maximumChildDepth: 1
+  instructions:
+    - procurement-agent-base@4.2.0
+  modelRequirements:
+    structuredOutput: true
+    toolCalling: true
+    minimumContextTokens: 64000
+    allowedRegions: [eu-west]
+    routingProfile: eu-enterprise-models@3
+  capabilities:
+    tools:
+      - contract.read@2.1.0
+      - vendor.read@3.0.0
+      - purchase-order.create@4.2.1
+    childAgents:
+      - procurement-research-agent@2.0.0
+      - procurement-compliance-agent@2.3.0
+  context:
+    recipe: procurement-context@4.0.0
+    memoryReadScopes: [workspace, agent]
+    memoryWriteScopes: [agent]
+  policies:
+    - procurement-standard@7.0.0
+    - eu-data-residency@2.0.0
+    - high-value-purchase-approval@5.0.0
+  budgets:
+    maximumCost: { amount: "12.00", currency: USD }
+    maximumActivities: 60
+    maximumModelCalls: 18
+    maximumToolCalls: 25
+    maximumWallTime: PT30M
+    maximumSuspendedTime: P7D
+  termination:
+    repeatedActionDigest: 3
+    maximumNoProgressCycles: 5
+  evaluations:
+    - procurement-correctness@6.0.0
+    - tool-policy-compliance@4.0.0
+```
+
+## Workflow version
+
+```yaml
+apiVersion: agentic.platform/v1
+kind: WorkflowVersion
+metadata:
+  name: procurement-order
+  version: 3.0.0
+spec:
+  inputSchema: ProcurementTask@2
+  outputSchema: ProcurementResult@3
+  stateSchema: ProcurementRunState@2
+  activities:
+    - id: load-context
+      type: task
+      outputSchema: ProcurementContextRefs@1
+    - id: research
+      type: agent
+      agent: procurement-research-agent@2.0.0
+    - id: validate
+      type: task
+      input:
+        research:
+          from: activities.research.output
+    - id: approve
+      type: human
+      policy: high-value-purchase-approval@5.0.0
+    - id: create-order
+      type: tool
+      tool: purchase-order.create@4.2.1
+  dependencies:
+    - [load-context, research]
+    - [research, validate]
+    - [validate, approve]
+    - [approve, create-order]
+```
+
+## Tool version
+
+```yaml
+apiVersion: agentic.platform/v1
+kind: ToolVersion
+metadata:
+  name: purchase-order.create
+  version: 4.2.1
+spec:
+  inputSchema: PurchaseOrderCreate@4
+  outputSchema: PurchaseOrderCreated@2
+  sideEffects:
+    classification: irreversible_write
+    idempotency:
+      supported: true
+      header: Idempotency-Key
+    reconciliation:
+      supported: true
+      operation: purchase-order.status-by-idempotency-key
+  security:
+    requiredScopes: [erp.purchase_order.create]
+    credentialProfile: tenant-erp-oauth
+    networkPolicy: erp-private-endpoint
+    allowedDataClassifications: [internal, confidential]
+  execution:
+    timeout: PT30S
+    maximumOutputBytes: 1048576
+```
+
+## Prompt version
+
+```yaml
+apiVersion: agentic.platform/v1
+kind: PromptVersion
+metadata:
+  name: procurement-research
+  version: 4.2.0
+spec:
+  messages:
+    - role: system
+      sections:
+        - platform-base@3.0.0
+        - procurement-rules@7.1.0
+    - role: user
+      template: |
+        Research this request: {{ request }}
+        Return only the required structured result.
+  variables:
+    - name: request
+      source: task
+      schemaRef: ProcurementResearchRequest@2
+      sensitivity: confidential
+  context:
+    recipe: procurement-research-context@2.3.0
+    maximumTokens: 24000
+    requireProvenance: true
+  outputSchema: ProcurementResearchResult@3
+  evaluations: [procurement-research-prompt@6.0.0]
+```
+
+## Policy version
+
+```yaml
+apiVersion: agentic.platform/v1
+kind: PolicyVersion
+metadata:
+  name: high-value-purchase-approval
+  version: 5.0.0
+rules:
+  - id: require-dual-approval
+    action: tool.invoke
+    resource: purchase-order.create
+    when:
+      totalValueEur: { greaterThanOrEqual: 100000 }
+    decision: require_approval
+    approval:
+      allRoles: [procurement_manager, finance_controller]
+      bindTo:
+        - tenantId
+        - runId
+        - effectId
+        - toolVersion
+        - normalizedArgumentsDigest
+        - policyVersion
+      expiresAfter: PT48H
+      revalidateBeforeExecution: true
+```
+
+## Evaluation suite version
+
+```yaml
+apiVersion: agentic.platform/v1
+kind: EvaluationSuiteVersion
+metadata:
+  name: procurement-agent-release
+  version: 6.0.0
+spec:
+  datasets:
+    - procurement-goldens@6.3.0
+    - procurement-sandbox@3.1.0
+    - procurement-security@2.2.0
+  hardGateRegistry: enterprise-agent-safety@1.0.0
+  metrics:
+    taskCompletion: { minimumMean: "0.90" }
+    toolCorrectness: { minimumMean: "0.98" }
+    argumentCorrectness: { minimumMean: "0.95" }
+  operational:
+    maximumP95Cost: { amount: "8.00", currency: USD }
+    maximumP95Duration: PT3M
+```
+
+## Marketplace package release
+
+```yaml
+apiVersion: agentic.marketplace/v1
+kind: PackageRelease
+metadata:
+  package: com.example.procurement-suite
+  version: 2.4.0
+publisher:
+  id: publisher_example
+  verification: organization_verified
+contents:
+  workflows: [procurement-order@3.0.0]
+  agents: [procurement-order-agent@5.2.0]
+  evaluators: [procurement-correctness@6.0.0]
+compatibility:
+  platformApi: ">=1.4 <2.0"
+  runtimeApi: ">=1.4 <2.0"
+dependencies:
+  - package: com.example.document-tools
+    version: ">=3.1 <4.0"
+permissions:
+  capabilities:
+    - contract.read
+    - vendor.read
+    - erp.purchase_order.create
+  network: [erp.private.example.invalid:443]
+  secrets: [tenant-erp-oauth]
+supplyChain:
+  bundleDigest: sha256:6a14...
+  signatureBundle: sigstore://bundle/sha256/8b91...
+  sbom: { format: cyclonedx-json, digest: sha256:d491... }
+  provenance: { format: slsa-v1, digest: sha256:9e20... }
+verification:
+  requiredTests:
+    - tenant-isolation
+    - no-secret-exfiltration
+    - sandbox-smoke
+commercial:
+  license: commercial-marketplace-v2
+  pricing: { model: per_successful_run, amount: "0.15", currency: USD }
+```

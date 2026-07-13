@@ -1,0 +1,134 @@
+---
+title: Cost governance and optimization
+description: Budgeting, attribution, routing, caching, context reduction, adaptive execution, and cost-per-outcome governance.
+---
+
+# Cost governance and optimization
+
+> **Status: Informative guide.** Optimize cost per successful evaluated outcome, not merely cost per token or request.
+
+A cheaper run that fails, requires human repair, violates policy, or produces unusable output is not an optimization.
+
+## Cost lifecycle
+
+```text
+estimate -> reserve -> dispatch -> measure -> reconcile
+-> attribute -> evaluate outcome -> optimize the next version
+```
+
+Hard budgets are enforced before dispatch. Provider usage is reconciled against internal reservations and invoices.
+
+## Attribution hierarchy
+
+```text
+Tenant
+└── Workspace
+    └── Application / DeploymentSnapshot
+        └── ExecutionPlanRun
+            └── WorkflowRun
+                └── ActivityRun
+                    ├── ActivityAttempt (when the activity restarts)
+                    ├── ExecutionBranch / Iteration (when present)
+                    └── Effect
+                        └── Invocation
+```
+
+Experiment cost adds domain context without changing the runtime hierarchy:
+
+```text
+ExperimentRun
+└── ExperimentVariant
+    └── ExperimentTrial -> WorkflowRunRef
+```
+
+Record provider cost, internal cost, customer-rated cost, marketplace attribution, region, cache/fallback status, and whether the outcome passed its evaluation contract.
+
+## Optimization levers
+
+| Lever | Appropriate use | Main risk |
+|---|---|---|
+| Capability-based model routing | Least-cost route satisfying capability and policy | Quality or feature mismatch |
+| Prompt/prefix caching | Reuse stable instruction prefixes supported by a provider | Provider semantics and privacy |
+| Exact result cache | Pure, sufficiently stable model activities with exact identity | Stale behavior or hidden policy change |
+| Semantic cache | Low-risk advisory content with explicit similarity/freshness rules | Incorrect reuse and cross-tenant leakage |
+| Context pruning | Remove irrelevant or duplicate items with provenance | Lost critical evidence |
+| Context compaction | Summarize older context while retaining protected originals | Summary distortion |
+| Retrieval optimization | Better filters, ranking, batching, source selection | Reduced recall |
+| Adaptive Best-of-N | Stop branches when declared confidence/quality is reached | Premature stopping |
+| Iteration early stop | Stop on no-progress or completion conditions | Missed late improvement |
+| Batch inference | Offline evaluation and homogeneous high-volume work | Latency and failure-domain coupling |
+| Scheduling | Honor rate limits, fairness, placement, reserved capacity | Priority inversion |
+
+## Cache identity
+
+A reusable result is keyed by every behaviorally and legally material dimension:
+
+```text
+tenant/workspace and subject scope
+deployment digest
+agent/workflow/prompt/context-recipe versions
+model route and material inference controls
+normalized input and context digests
+authorized tool-schema set
+output schema
+policy/data classification/region
+cache version and expiry
+```
+
+Never use a shared semantic cache without tenant and classification enforcement. Never cache a mutating effect as though the mutation can be skipped; cache only authoritative result/reconciliation evidence with explicit semantics.
+
+## Routing policy
+
+```typescript
+interface CostAwareRouteDecision {
+  requiredCapabilities: ModelCapabilities;
+  allowedRoutes: readonly ModelRouteRef[];
+  policyAndResidencyConstraints: readonly Constraint[];
+  qualityFloor: number;
+  latencyObjective: Duration;
+  remainingBudget: Money;
+  selectedRoute: ModelRouteRef;
+  reason: string;
+}
+```
+
+Cost is a tie-breaker after capability, policy, residency, and declared quality requirements—not a way to bypass them.
+
+## Experimental fairness
+
+Do not let adaptive caching, fallback, unequal budgets, or unequal capacity treatment corrupt an experiment. Pin cache, route, budget, context, and scheduler policies for every `ExperimentTrial`. Record cache hits and fallbacks as experimental variables.
+
+## Metrics
+
+```text
+cost per admitted run
+cost per completed run
+cost per successful evaluated outcome
+cost per tenant / workflow / activity / effect
+cost per experiment variant and trial
+wasted cost from retries, abandoned branches, and failed gates
+cache hit and cache error rates
+quality/cost frontier by model route
+human-review and correction cost
+cost velocity during loops
+```
+
+## Controls
+
+- Hierarchical budgets and reservations.
+- Tenant and provider spend limits.
+- Per-activity limits for branches and iterations.
+- Per-experiment limits for variants and trials.
+- Alerts on cost without progress.
+- Explicit approval for budget increases.
+- Provider-invoice reconciliation.
+- Versioned routing and cache policies.
+- Counterfactual evaluation before major route changes.
+
+## Anti-patterns
+
+- Optimize token price while ignoring retries and failure rate.
+- Route sensitive work to an unapproved cheaper region or provider.
+- Use semantic caching for high-risk decisions without deterministic validation.
+- Hide fallback or cache use from lineage and evaluation.
+- Let Best-of-N, debate, or research loops expand without marginal-value checks.

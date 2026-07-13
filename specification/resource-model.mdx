@@ -1,0 +1,138 @@
+---
+title: Resource and version model
+description: Canonical stable identities, immutable versions, deployment snapshots, references, compatibility, and lifecycle.
+---
+
+# Resource and version model
+
+> **Status: Normative**
+
+ARA uses one naming pattern for design-time assets:
+
+```text
+stable resource -> immutable resource version -> runtime execution or outcome
+```
+
+## Canonical resource families
+
+| Stable resource | Immutable version | Runtime use |
+|---|---|---|
+| `Agent` | `AgentVersion` | `AgentRun` when an independent lifecycle exists |
+| `Workflow` | `WorkflowVersion` | `WorkflowRun` |
+| `ExecutionPlan` | `ExecutionPlanVersion` | `ExecutionPlanRun` |
+| `Prompt` | `PromptVersion` | `CompiledPromptSnapshot` |
+| `Tool` | `ToolVersion` | `Effect` and `Invocation` |
+| `Policy` | `PolicyVersion` | `PolicyDecision` |
+| `ContextRecipe` | `ContextRecipeVersion` | `ContextSnapshot` |
+| `EvaluationSuite` | `EvaluationSuiteVersion` | `EvaluationRun` and `EvaluationResult` |
+| `Package` | `PackageRelease` | `PackageInstallationRevision` |
+
+The retired `AgentDefinition` name is not used. The public vocabulary uses `Agent` for stable identity; “definition” remains a generic design-time category rather than a required suffix.
+
+## Stable resource
+
+A stable resource owns identity and lifecycle metadata:
+
+```typescript
+interface Resource {
+  id: ResourceId;
+  kind: ResourceKind;
+  name: string;
+  owner: OwnerRef;
+  lifecycle: "active" | "deprecated" | "retired";
+}
+```
+
+A stable resource is not executable. It groups versions, ownership, discovery metadata, and lifecycle decisions.
+
+## Immutable version
+
+A resource version contains behaviorally relevant configuration:
+
+```typescript
+interface ResourceVersion {
+  resourceId: ResourceId;
+  version: SemanticVersion;
+  digest: ContentDigest;
+  status: "draft" | "published" | "deprecated" | "revoked";
+  compatibility: CompatibilityContract;
+}
+```
+
+A published version:
+
+- **MUST** be immutable.
+- **MUST** have a content digest.
+- **MUST NOT** contain plaintext secrets.
+- **MUST** resolve production dependencies to exact versions and digests.
+- **SHOULD** reference an evaluation suite appropriate to its risk.
+
+Changes produce a new version. Self-modifying agents produce proposed versions; they do not silently mutate the executing version.
+
+## Activity identity
+
+An `Activity` is an element inside a `WorkflowVersion`. It has a stable ID within that workflow version but does not require an independent global version:
+
+```typescript
+interface Activity {
+  id: ActivityId;
+  kind: ActivityKind;
+  inputSchema: SchemaRef;
+  outputSchema: SchemaRef;
+  retryPolicy?: ActivityRetryPolicy;
+  policyRefs: PolicyVersionRef[];
+  budget?: BudgetPolicy;
+}
+```
+
+Changing an activity changes the containing `WorkflowVersion`.
+
+## Deployment snapshot
+
+A `DeploymentSnapshot` is the immutable, signed resolution of everything required to execute:
+
+```text
+workflow and agent versions
+prompt and context-recipe versions
+tool and policy versions
+model-routing profile
+evaluation-suite versions
+package-installation revisions
+runtime compatibility
+content digests
+```
+
+A production run **MUST** reference one exact deployment snapshot and **MUST NOT** resolve `latest` during execution.
+
+## References
+
+Human-readable references use:
+
+```text
+<resource-name>@<semantic-version>
+```
+
+Execution uses the reference plus an exact content digest. SemVer communicates compatibility intent; the digest identifies exact content.
+
+## Lifecycle
+
+```text
+draft -> validated -> evaluated -> published -> deployed
+      -> deprecated -> revoked or retired
+```
+
+Deprecation blocks neither historical interpretation nor necessarily new runs. Revocation policy determines whether to block new admission, pause active runs, revoke capabilities, or require emergency migration.
+
+## Compatibility
+
+Compatibility is explicit across:
+
+- Runtime contract version.
+- Event and state schemas.
+- Required model capabilities.
+- Tool input/output contracts.
+- Region and data-classification support.
+- Package dependencies.
+- Sandbox and operating-environment requirements.
+
+Adapters **MUST NOT** pretend incompatible provider capabilities are interchangeable. Typed extensions may expose provider-specific features while preserving the portable core.

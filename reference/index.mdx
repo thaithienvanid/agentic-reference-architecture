@@ -1,0 +1,43 @@
+---
+title: Reference
+description: Authoritative lookup for ARA terminology, contracts, schemas, conformance evidence, API and manifest profiles, and diagrams.
+---
+
+# Reference
+
+> **Status: Reference.** Use this section while designing, implementing, integrating, testing, assessing, or reviewing an ARA system.
+
+Reference pages describe machinery and evidence expectations precisely. They complement the semantic rules in the [ARA specification](/specification/index) and should be consulted by task rather than read linearly.
+
+<CardGroup cols={2}>
+  <Card title="Glossary" icon="book-open" href="/reference/glossary">
+    Canonical names and short definitions.
+  </Card>
+  <Card title="Conventions" icon="ruler" href="/reference/conventions">
+    Naming grammar, identifiers, money, time, events, and compatibility.
+  </Card>
+  <Card title="Interfaces" icon="code" href="/reference/interfaces">
+    Framework-neutral ports and trusted contexts.
+  </Card>
+  <Card title="Events and state" icon="database" href="/reference/events-and-state">
+    Run state, effects, invocations, leases, and event envelopes.
+  </Card>
+  <Card title="Conformance checklist" icon="list-check" href="/reference/conformance-checklist">
+    Profile-by-profile implementation and evidence review for technical conformance claims.
+  </Card>
+  <Card title="API profile" icon="plug" href="/reference/api">
+    Optional inbound command, query, approval, event, and replay conventions.
+  </Card>
+  <Card title="Manifest profile" icon="file-code" href="/reference/manifests">
+    Optional agent, workflow, tool, prompt, policy, evaluation, and package representations.
+  </Card>
+  <Card title="Diagram pack" icon="diagram-project" href="/diagrams/index">
+    Standalone architectural views.
+  </Card>
+</CardGroup>
+
+## Authority rule
+
+Pages marked **Normative reference** define required names, representations, or interfaces. Pages marked **Reference profile** provide an optional concrete profile and become binding only when an implementation declares that profile. A **Reference checklist** maps canonical requirements to assessment evidence without creating semantic requirements.
+
+Reference material states exact names, fields, interfaces, statuses, constraints, and evidence expectations. Design rationale belongs in guides or ADRs; implementation procedure belongs in how-to guides; end-to-end behavior belongs in worked examples.

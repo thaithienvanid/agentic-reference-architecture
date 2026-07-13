@@ -1,0 +1,102 @@
+---
+title: State, context, memory, and artifacts
+description: Information boundaries, data flow, provenance, retention, and replay.
+---
+
+# State, context, memory, and artifacts
+
+## Never conflate these stores
+
+| Information | Question answered | Authority |
+|---|---|---|
+| Domain state | What is true for the business? | Domain bounded context |
+| Workflow state | What transition is legal next? | Execution kernel and state store |
+| Activity result | What did one logical activity produce? | Run journal/result store |
+| Conversation | What did participants communicate? | Conversation context |
+| Working context | What exact input is sent to the model now? | Runtime context compiler |
+| Memory | What reusable information may inform future work? | Context and Memory context |
+| Artifact | What immutable content was produced? | Artifact and Lineage context |
+| Checkpoint | Where can execution resume efficiently? | Runtime infrastructure |
+| Trace | Where did time, errors, and resources go? | Observability system |
+| Audit record | What was authorized and executed? | Audit ledger |
+
+A trace may be sampled. Workflow state cannot be sampled. A vector index may be rebuilt. An approval decision cannot disappear with the index.
+
+## Workflow state
+
+Keep workflow state compact and typed. It should contain control values and references, not unbounded provider payloads.
+
+```typescript
+interface WorkflowState {
+  runId: RunId;
+  stateVersion: number;
+  eventSequence: number;
+  status: RunStatus;
+  variables: Readonly<Record<string, unknown>>;
+  activityResults: ReadonlyMap<ActivityId, ActivityResultRef>;
+  pendingApprovals: readonly ApprovalRef[];
+  budget: BudgetState;
+  terminalResult?: ExecutionResultRef;
+}
+```
+
+State evolves from committed events using expected-version checks.
+
+## Activity results and input snapshots
+
+An `ActivityResult` is immutable. Before the next activity starts, the runtime resolves declared bindings and creates a frozen `ActivityInputSnapshot` with source references and a content digest. Operational retries use that same snapshot.
+
+## Artifacts
+
+Use artifacts for reports, evidence sets, code patches, datasets, generated media, and other large or reusable outputs.
+
+```text
+Artifact ID and digest
+Media type and schema version
+Producer run and activity
+Input lineage
+Data classification and region
+Retention policy
+Storage reference
+```
+
+Artifacts are immutable. A changed payload creates a new digest.
+
+## Memory
+
+A memory record requires:
+
+```text
+Tenant and workspace
+Subject identity and scope
+Type and content reference
+Provenance and confidence
+Sensitivity and region
+Validity and retention
+Active, superseded, revoked, or expired status
+```
+
+Memory is not automatically authoritative truth. A vector store is a derived retrieval adapter, not the memory domain model.
+
+## Working context
+
+A context recipe determines which state, messages, memories, artifacts, evidence, tool schemas, and policy notices may enter a model request. The compiler records:
+
+- Exact source references and versions.
+- Selection and ordering rules.
+- Redaction or compaction decisions.
+- Token estimate.
+- Data-classification and residency checks.
+- Final compiled-context digest.
+
+## Replay and privacy
+
+Use three distinct modes:
+
+| Mode | Behavior |
+|---|---|
+| Operational resume | Continue pending work without repeating completed effects |
+| Evidence replay | Re-evolve state using captured model/tool results |
+| Counterfactual rerun | Create a new run with selected historical inputs and new components |
+
+Separate long-lived non-sensitive metadata from encrypted payload content so privacy deletion can remove content without falsifying retained execution evidence.

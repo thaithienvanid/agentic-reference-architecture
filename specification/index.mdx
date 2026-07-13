@@ -1,0 +1,86 @@
+---
+title: ARA specification
+description: Normative scope, requirement language, conformance profiles, and reading order for the Agentic Reference Architecture.
+---
+
+# Agentic Reference Architecture specification
+
+> **Status: Normative candidate · Target: ARA 1.0**
+
+The Agentic Reference Architecture (ARA) specifies the minimum concepts, boundaries, and contracts required to build production agentic applications, services, runtimes, platforms, and marketplaces without coupling the core to one model provider, agent framework, durable backend, database, cloud, or observability vendor.
+
+> **Models propose. Deterministic software, policy, and humans authorize. The runtime executes, persists, and records.**
+
+ARA is an independent technical specification. It is not an RFC Series publication, a formal standards-body standard, legal certification, or security attestation.
+
+## Requirement language
+
+The key words **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, and **MAY** are interpreted as described by BCP 14, RFC 2119, and RFC 8174 when they appear in uppercase.
+
+Normative semantic requirements live under `/specification`. Exact naming, interface, and representation rules live in explicitly marked pages under `/reference`. Guides, patterns, examples, research, and product adapters are informative unless they quote a normative rule.
+
+## Scope
+
+ARA covers:
+
+- Stable resources and immutable versions.
+- Workflows, activities, agents, runs, state, effects, and invocations.
+- Durable execution, scheduling, retries, reconciliation, cancellation, and replay.
+- Ports and adapters for models, tools, memory, policy, storage, sandboxes, evaluation, and evidence.
+- Control, execution, governance, evaluation, and evidence planes.
+- Multi-tenancy, security, audit, cost, data rights, and marketplace controls.
+- Evaluation-driven development and production conformance.
+
+ARA does not mandate one deployment topology, storage engine, durable backend, agent framework, model provider, prompt style, or autonomous-agent pattern.
+
+## Conformance profiles
+
+An implementation declares the profiles it conforms to.
+
+| Profile | Purpose | Depends on |
+|---|---|---|
+| **ARA Core** | Resource/version model, typed workflows, effect boundary, ports, state/evidence separation | None |
+| **ARA Durable** | Long-running runs, journal, idempotency, reconciliation, leases, resume, replay | ARA Core |
+| **ARA Enterprise** | Tenant isolation, identity, policy, audit, quotas, SLOs, regional execution cells | ARA Durable |
+| **ARA Marketplace** | Signed packages, provenance, permissions, sandboxing, install/upgrade/revocation | ARA Enterprise |
+| **ARA Regulated** | Human oversight, data rights, retention, tamper evidence, control mapping | ARA Enterprise |
+
+Conformance is a technical architecture claim, not a legal certification or security attestation.
+
+## Normative reading order
+
+1. [Resource and version model](/specification/resource-model)
+2. [Execution model](/specification/execution-model)
+3. [Runtime and kernel](/specification/runtime)
+4. [State, data, and evidence](/specification/data-and-evidence)
+5. [Platform architecture](/specification/platform)
+6. [Security and governance](/specification/security-and-governance)
+7. [Evaluation and conformance](/specification/evaluation-and-conformance)
+8. [Canonical conventions](/reference/conventions)
+9. [Reference interfaces](/reference/interfaces)
+10. [State and event schemas](/reference/events-and-state)
+
+## Architectural invariants
+
+An ARA-conforming implementation:
+
+1. **MUST** separate stable resource identity, immutable resource version, and runtime execution.
+2. **MUST** pin every production run to an immutable deployment snapshot.
+3. **MUST NOT** allow model output to mutate authoritative business state directly.
+4. **MUST** represent each external or nondeterministic operation as an authorized, durable effect.
+5. **MUST** distinguish a logical effect from each concrete invocation used to realize it.
+6. **MUST** define idempotency or reconciliation for mutating effects.
+7. **MUST** keep domain state, workflow state, context, memory, artifacts, checkpoints, telemetry, audit, and usage as distinct models.
+8. **MUST** carry trusted tenant and actor context across every protected boundary.
+9. **MUST** constrain child runs with explicit task, capability, budget, deadline, and result contracts.
+10. **MUST** treat evaluation gates as part of deployable behavior.
+11. **SHOULD** prefer deterministic software whenever it can safely determine the result or transition.
+12. **SHOULD** expose provider-specific features through typed capability extensions rather than leaking provider DTOs into the core.
+
+## Publication and errata
+
+A conformance statement identifies both the ARA semantic version and the exact publication commit or digest. Mutable references such as “latest ARA” are not reproducible. See [Releases, versions, and errata](/project/releases-and-errata).
+
+## Extension rule
+
+New domain concepts—such as `Study`, `Participant`, `Case`, `Campaign`, or `Experiment`—belong in bounded contexts. They map to ARA resources, runs, activities, artifacts, memory, and evaluation without expanding the shared core unless the concept is reusable across materially different domains.

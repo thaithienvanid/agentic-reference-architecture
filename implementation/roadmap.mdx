@@ -1,0 +1,149 @@
+---
+title: Implementation roadmap and variants
+description: Build sequence, validation exits, practical variants, team maturity, migration, risks, and build-versus-buy decisions.
+---
+
+# Implementation roadmap and variants
+
+> **Status: Informative explanation and planning guide.** Use [Adopt ARA](/guides/adoption) for the task procedure and the [Conformance checklist](/reference/conformance-checklist) for profile evidence.
+
+The stages are capability milestones, not a mandate to build the entire platform. Stop at the lowest stage that satisfies the product’s real failure, risk, tenancy, and operating requirements.
+
+## Stage 0 — Architecture foundation
+
+Build terminology, execution ontology, run state machine, effect/invocation error model, event envelope, threat model, one high-risk scenario, canonical gates, and a port-contract harness.
+
+**Exit evidence:**
+
+- Canonical-owner and dependency-boundary map.
+- One workflow/effect trace with explicit state and evidence ownership.
+- Deterministic state-machine and error-classification tests.
+- Architecture decisions and unresolved-risk register.
+
+The team can identify the owner and evidence for every transition, effect, invocation, retry, iteration, trial, and lease.
+
+## Stage 1 — One production agent
+
+Build immutable versions, deployment snapshot, start/query/cancel APIs, model/tool gateways, SQL journal, artifact store, policy, telemetry, deterministic tests, and adapter contracts.
+
+**Exit evidence:**
+
+- ARA Core checklist completed for the deployed vertical slice.
+- Every model/tool interaction is attributable, budgeted, tenant-scoped, and auditable.
+- Provider/framework DTOs remain inside qualified adapters.
+- Evaluation contract and release gate cover the production configuration.
+
+Follow [Implement an ARA adapter](/handbook/ports-and-adapters) for each provider boundary.
+
+## Stage 2 — Durable execution
+
+Add durable backend adapter, approvals, timers/events, effect ledger, invocation reconciliation, checkpoints, leases/fencing, resume, evidence replay, loop detection, and hard budgets.
+
+**Exit evidence:**
+
+- ARA Durable checklist completed.
+- A run survives worker loss and multi-day suspension.
+- Stale workers cannot commit.
+- Completed effects are not repeated after recovery.
+- Ambiguous mutations reconcile before retry.
+
+Follow [Build an ARA Durable runtime](/handbook/runtime).
+
+## Stage 3 — Evaluation and resilience
+
+Add canonical hard gates, DeepEval/Harbor adapters, historical replay corpus, fault injection, load/soak testing, model lifecycle qualification, security red-team cases, and recovery game days.
+
+**Exit evidence:**
+
+- Release evidence demonstrates quality, security, capacity, replay compatibility, and recovery objectives.
+- Critical slices and repeated stochastic failures are reported, not hidden by averages.
+- Provider withdrawal, sandbox isolation, data deletion/restore, and regional failure paths are exercised where applicable.
+- Residual risks have named owners and expiry dates.
+
+## Stage 4 — Internal platform
+
+Add catalogs, deployment compiler, promotion, shared policy/model gateways, evaluation service, workspace isolation, developer portal/SDK, shared connectors, cost governance, and route deprecation management.
+
+**Exit evidence:**
+
+- Several teams share the platform without sharing domain code, provider SDKs, or unsafe mutable configuration.
+- Catalog, deployment, policy, routing, and evaluation ownership are explicit.
+- Tenant/workspace isolation and quota behavior pass negative and load tests.
+- Platform teams can support a new provider through an adapter rather than a core-model change.
+
+## Stage 5 — Enterprise SaaS
+
+Add regional cells, isolation tiers, SSO/RBAC/ABAC, BYOM/BYOS, private networking, usage/billing, tenant migration, data-rights workflows, compliance evidence, SLOs, and disaster recovery.
+
+**Exit evidence:**
+
+- ARA Enterprise checklist completed for each deployment/isolation tier claimed.
+- A tenant can move isolation tier and exercise export, deletion, restore, and recovery without changing agent definitions.
+- Mandatory audit and usage ledgers reconcile under failure.
+- Cell fencing, regional routing, model lifecycle, and recovery objectives are demonstrated.
+
+## Stage 6 — Marketplace
+
+Add publisher identity, exact dependency locks, signatures/provenance/SBOM, security/evaluation review, installation grants, upgrade/rollback/revocation, licensing, and revenue sharing.
+
+**Exit evidence:**
+
+- ARA Marketplace checklist completed.
+- Third-party content installs and executes without direct platform-internal access.
+- Capability expansion requires explicit approval.
+- Exact releases can be activated, rolled back, deprecated, and revoked while preserving history and usage attribution.
+
+Regulated deployments additionally complete the applicable ARA Regulated evidence path; legal applicability remains deployment-specific.
+
+## Variant A — Agentic application
+
+| Dimension | Recommendation |
+|---|---|
+| Scope | One product team and a small number of agents |
+| Components | Modular app, execution kernel, worker, SQL journal, object store, model/tool gateways, basic policy/OTel |
+| Omit | Public marketplace, global control plane, complex isolation and commerce |
+| Deployment | One region and shared infrastructure |
+| Main risks | Provider coupling, weak replay, unsafe tools |
+| Team | Roughly 4–8 strong backend/AI engineers plus security support |
+| Next step | Add durability, shared evaluation, resilience, and policy only under measured pressure |
+
+## Variant B — Internal agent platform
+
+| Dimension | Recommendation |
+|---|---|
+| Scope | Multiple internal product teams |
+| Components | Shared control plane, regional cells, catalogs, model/tool/policy gateways, evaluation, developer portal |
+| Omit initially | External package commerce and public publishers |
+| Main risks | Central bottleneck, over-generic APIs, platform owning domain correctness |
+| Team | Roughly 10–25 across platform, SRE, security, evaluation, and developer experience |
+| Next step | Add external tenancy, billing, data rights, publisher governance, and dedicated cells only when required |
+
+## Variant C — Enterprise SaaS and marketplace
+
+| Dimension | Recommendation |
+|---|---|
+| Scope | External tenants, regulated workloads, publishers, billing |
+| Components | Regional/global control, shared/dedicated cells, BYOM/BYOS, private networking, marketplace, commerce |
+| Main risks | Cross-tenant leakage, supply chain, billing disputes, regional consistency |
+| Team | Multiple specialized teams; often 30+ across the complete capability set |
+| Rule | Do not build before journal, policy, evaluation, security, adapter, and recovery boundaries are reliable |
+
+## Build versus buy
+
+| Capability | Default posture |
+|---|---|
+| Domain/execution contracts | Build and own |
+| Durable workflow engine | Adopt or use managed behind `DurableExecutionPort` |
+| Policy engine | Adopt behind platform contract |
+| Identity, secrets, KMS | Integrate mature services |
+| Sandbox foundation | Adopt proven isolation technology |
+| OpenTelemetry pipeline | Adopt |
+| Evaluation frameworks | Integrate; own datasets, gates, evidence, and results |
+| Provider adapters | Build/qualify against canonical contract tests |
+| Marketplace and capability grants | Build as platform/domain capability |
+| Billing attribution | Build core usage ledger; integrate invoicing |
+| Vector/search | Adopt as derived, rebuildable indexes |
+
+## Main unresolved risks
+
+Provider drift, evaluator correlation, privacy deletion, policy staleness, workflow-engine migration, malicious packages, synthetic-persona validity, legal applicability, and documentation/conformance evidence drift remain explicit workstreams. Track owners, evidence, review dates, acceptance expiry, and the release in which each risk will be revisited.

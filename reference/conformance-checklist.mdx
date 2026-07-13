@@ -1,0 +1,175 @@
+---
+title: Conformance checklist
+description: Profile-by-profile implementation and evidence checklist for assessing ARA Core, Durable, Enterprise, Marketplace, and Regulated conformance.
+---
+
+# Conformance checklist
+
+> **Status: Reference checklist.** This page maps specification requirements to review evidence. It does not replace the normative [ARA specification](/specification/index); when wording differs, the specification controls.
+
+## Purpose
+
+Use this checklist to prepare or review a technical conformance claim:
+
+1. Select the cumulative profile being claimed.
+2. Link every applicable requirement to implementation and test evidence.
+3. Record failures, accepted deviations, and non-applicability explicitly.
+
+Conformance is a technical architecture claim. It is not a legal certification, penetration-test result, security attestation, or proof of operational effectiveness.
+
+## Assessment record
+
+```yaml
+araVersion: 1.0.0
+publicationCommit: <full-git-sha>
+claimedProfiles: [core, durable]
+implementation:
+  name: <system-name>
+  version: <release-or-deployment-version>
+  deploymentDigest: <content-digest>
+assessment:
+  date: 2026-07-13
+  assessors: [<name-or-team>]
+  evidencePackage: <immutable-reference>
+  knownDeviations: []
+```
+
+Use one closed status for every item:
+
+| Status | Meaning |
+|---|---|
+| `passed` | Evidence demonstrates the requirement for the assessed scope |
+| `failed` | Evidence demonstrates non-conformance or an absent required control |
+| `not_assessed` | Sufficient evidence was not reviewed |
+| `not_applicable` | The capability or risk is absent and rationale is recorded |
+| `deviation_accepted` | A named owner accepted a documented deviation; the item is not fully conforming |
+
+Omission is not a pass. `not_applicable` includes scope, rationale, evidence, owner, and review expiry.
+
+## ARA Core
+
+Canonical owners: [Resource and version model](/specification/resource-model), [Execution model](/specification/execution-model), [State, data, and evidence](/specification/data-and-evidence), and normative reference contracts.
+
+| Review item | Expected evidence | Typical verification |
+|---|---|---|
+| Stable identity is separate from immutable behavior versions | Catalog model, versions, digests | Create a new version without mutating the published predecessor |
+| Production execution pins an immutable deployment snapshot | Run record and resolver output | Resolve every behaviorally material dependency from a completed run |
+| Workflow work uses typed activities and explicit bindings | Workflow schema and contracts | Reject undeclared or invalid bindings |
+| Model output cannot directly mutate authoritative state | Command validation and effect gateway | Attempt mutation using unvalidated model output |
+| External or nondeterministic operations are effects | Effect schema and journal records | Trace model, tool, memory, human, sandbox, and artifact operations |
+| Provider calls are invocations of one effect | Invocation ledger | Retry or reconcile without creating a second logical effect |
+| Mutating effects define idempotency or reconciliation | Tool contracts and failure policy | Lose a response after external commit |
+| State, context, memory, artifacts, checkpoints, telemetry, audit, and usage are distinct | Data ownership map and schemas | Show replay, deletion, billing, and audit do not rely on sampled telemetry |
+| Protected operations carry trusted tenant and actor context | Context types and tests | Attempt caller-supplied tenant substitution |
+| Evaluation gates are part of deployable behavior | Deployment and evaluation references | Compare promoted deployment with release evidence |
+
+## ARA Durable
+
+ARA Durable includes every applicable Core item. Canonical owner: [Runtime and kernel](/specification/runtime).
+
+| Review item | Expected evidence | Typical verification |
+|---|---|---|
+| Execution Kernel evolves state deterministically | Kernel contract and tests | Replay the same state/event sequence repeatedly |
+| Journal and current state commit consistently | Transaction boundary, journal, projection, outbox | Kill the process at each commit boundary and rebuild |
+| Effect intent is durable before dispatch | Journal and Effect Ledger sequence | Crash immediately before and after dispatch |
+| One authoritative transition writer exists per run | Concurrency and fencing design | Race two workers against one expected version |
+| Worker ownership is temporary and fenced | `WorkerLease` records | Expire a lease and attempt a stale commit |
+| Durable backend history does not replace the Run Journal | Adapter boundary | Change durable backend while preserving public run semantics |
+| Retry, restart, resume, iteration, and experiment repetition are distinct | Error taxonomy and records | Classify representative failures at each scope |
+| Ambiguous mutations reconcile before retry | Effect state and workflow | Lose a response after an irreversible commit |
+| Waiting releases workers and survives restart | Timer, signal, approval tests | Suspend, terminate, and resume |
+| Resume reuses completed effects | Replay and ledger behavior | Resume without repeating committed mutations |
+| Evidence replay and counterfactual rerun are distinct | API/operator workflow and lineage | Show only counterfactual rerun creates new effects |
+| Cancellation stops new work and reconciles ambiguity | Cancellation policy and tests | Cancel during child work, waits, and uncertain mutation |
+
+## ARA Enterprise
+
+ARA Enterprise includes applicable Core and Durable items. Canonical owners: [Platform architecture](/specification/platform) and [Security and governance](/specification/security-and-governance).
+
+| Review item | Expected evidence | Typical verification |
+|---|---|---|
+| Tenant context comes from identity and trusted routing | Identity and routing design | Attempt cross-tenant identifier injection |
+| Tenant scope covers state, caches, queues, search, artifacts, memory, secrets, telemetry, audit, usage, and packages | Boundary inventory and isolation tests | Run synthetic cross-tenant canaries |
+| Runs receive capability grants and children receive a subset | Grant and delegation records | Attempt undeclared capabilities |
+| Model and tool access crosses governed gateways | Gateway architecture | Detect direct provider access from core modules |
+| Approval binds the exact action and material changes invalidate it | Approval schema and digest | Modify arguments, policy, state, or expiry after approval |
+| Peer and child messages are authenticated and replay-protected | Message envelope and channel controls | Replay, forge, delay, and misroute messages |
+| Generated output is safe at the destination sink | Encoding and parameterization controls | Exercise HTML, SQL, shell, code, and message injection |
+| Mandatory audit is independently protected and complete | Audit schema and delivery SLO | Fail telemetry while preserving required audit |
+| Hard budgets are enforced before invocation | Budget reservation tests | Race effects against remaining budget |
+| Cells declare failure, residency, and recovery behavior | Topology and RTO/RPO evidence | Run cell-loss and regional failover exercises |
+| Provider withdrawal and fallback are explicit | Routing lifecycle and tests | Remove a model during admission and a long-running run |
+| Data rights and retention follow lineage and legal holds | Deletion/export/hold records | Delete, restore backup, and verify tombstones |
+
+## ARA Marketplace
+
+ARA Marketplace includes applicable Enterprise items.
+
+| Review item | Expected evidence | Typical verification |
+|---|---|---|
+| Package releases are immutable and content-addressed | Manifest, digest, signature, provenance, SBOM | Detect byte changes after publication |
+| Publisher identity and review status are explicit | Publisher/review records | Attempt publication from revoked identity |
+| Requested and tenant-granted capabilities are distinct | Package and installation records | Deny unapproved capability expansion |
+| Dependencies resolve to an exact lock | Installation lock and digests | Rebuild without mutable ranges |
+| Package execution is isolated behind approved gateways | Sandbox and network policy | Attempt host, secret, DB, bus, and unrestricted network access |
+| Tenant-specific verification precedes activation | Evaluation and installation records | Attempt activation without required checks |
+| Upgrade, rollback, deprecation, and revocation preserve history | Installation lifecycle | Revoke an active release and verify policy |
+| Usage and commerce identify exact package releases | Usage and rating records | Reconcile provider cost, customer charge, and publisher share |
+
+## ARA Regulated
+
+ARA Regulated includes applicable Enterprise items. Law, role, and intended purpose remain deployment-specific.
+
+| Review item | Expected evidence | Typical verification |
+|---|---|---|
+| Intended purpose, prohibited use, owner, and risk class are versioned | Deployment governance records | Compare approved purpose with live use |
+| Human oversight defines authority, timing, information, escalation, and fallback | Oversight procedure and tests | Exercise unavailable, conflicting, expired, and compromised approvers |
+| Data provenance, quality, classification, purpose, and retention are reviewable | Dataset/context/memory lineage | Trace output to source and processing decisions |
+| Required records have retention, tamper evidence, and access controls | Retention schedule and integrity tests | Detect gaps, edits, and expired holds |
+| Erasure, export, restriction, legal hold, and restore are exercised | Data-rights evidence | Perform a full request through derived stores and backups |
+| Accuracy, robustness, cybersecurity, and residual risk have versioned evidence | Evaluation and security records | Reproduce critical slices and accepted risks |
+| Control mappings identify mechanism, owner, evidence, and gap | Control matrix | Sample controls from requirement to runtime evidence |
+| Claims avoid legal-certification overstatement | Customer-facing statements | Review product, sales, and assurance language |
+
+## Evidence package structure
+
+A reproducible package contains immutable references to:
+
+```text
+assessment metadata and profiles
+architecture and trust-boundary diagrams
+resource, version, deployment, and package inventories
+workflow, activity, effect, invocation, state, and event schemas
+port and adapter contracts and test results
+state-machine, replay, failure-injection, load, and recovery results
+threat model, security tests, hard gates, and residual risks
+evaluation suites, datasets, environments, thresholds, and distributions
+tenant isolation, audit, usage, approval, and data-rights evidence
+deviations, owners, expiry dates, and remediation plans
+ARA version plus publication commit or digest
+implementation release plus deployment digest
+```
+
+Sensitive evidence may remain in governed stores; record immutable references, digests, access requirements, and retention policy.
+
+## Review procedure
+
+1. Freeze the implementation release, deployment digest, ARA version, and publication identity.
+2. Select the highest profile actually required or claimed.
+3. Evaluate every item in that profile and prerequisite profiles.
+4. Link each result to direct implementation, test, or operational evidence.
+5. Record `not_applicable` and accepted deviations explicitly.
+6. Re-run hard gates and representative recovery cases in the assessed environment.
+7. Have an independent reviewer sample evidence from requirement to outcome.
+8. Publish scope, date, topology, profiles, deviations, and evidence-package digest.
+
+## Validation
+
+A review is complete only when:
+
+- Every applicable row has a closed status and evidence reference.
+- No failed hard gate is averaged into a passing score.
+- Deviations identify owner, impact, compensating control, remediation, and expiry.
+- Evidence describes the deployed configuration.
+- Historical runs remain attributable to the versions actually used.
+- The claim can be reproduced without mutable `latest` references.

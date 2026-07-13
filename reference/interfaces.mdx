@@ -1,0 +1,212 @@
+---
+title: Reference interfaces
+description: Canonical framework-neutral ports for execution, capabilities, governance, evidence, and integration.
+---
+
+# Reference interfaces
+
+> **Status: Normative reference.** TypeScript-like pseudocode expresses semantics, not a required implementation language.
+
+## Shared types
+
+```typescript
+type Result<T, E = PortError> =
+  | { ok: true; value: T }
+  | { ok: false; error: E };
+
+type SideEffectClass =
+  | "pure"
+  | "read_only"
+  | "idempotent_write"
+  | "reversible_write"
+  | "irreversible_write";
+
+interface ExecutionContext {
+  tenant: TenantScope;
+  actor: ActorIdentity;
+  runId?: RunId;
+  activityRunId?: ActivityRunId;
+  activityAttemptId?: ActivityAttemptId;
+  correlationId: string;
+  deadline: Instant;
+  dataClassification: DataClassification;
+  residencyRegion: Region;
+  capabilityGrant: CapabilityGrant;
+}
+
+interface InvocationContext extends ExecutionContext {
+  effectId: EffectId;
+  invocationId: InvocationId;
+}
+
+interface PortError {
+  category: ErrorCategory;
+  code: string;
+  message: string;
+  retryable: boolean;
+  safeToRetry: boolean;
+  effectMayHaveOccurred: boolean;
+  retryAfter?: Duration;
+  externalReference?: string;
+}
+```
+
+## Execution Kernel
+
+```typescript
+interface ExecutionKernel {
+  evolve(state: RunState, event: RunEvent): RunState;
+  decide(
+    state: RunState,
+    workflow: WorkflowVersion,
+    deployment: DeploymentSnapshot
+  ): readonly ExecutionIntent[];
+}
+
+type ExecutionIntent =
+  | { type: "start_activity"; activityId: ActivityId; input: InputSnapshotRef }
+  | { type: "retry_activity"; activityRunId: ActivityRunId; at: Instant }
+  | { type: "request_effect"; effect: EffectDraft }
+  | { type: "request_approval"; request: ApprovalRequest }
+  | { type: "wait_for_event"; wait: ExternalEventWait }
+  | { type: "start_child_run"; request: ChildRunRequest }
+  | { type: "write_checkpoint" }
+  | { type: "complete"; result: ExecutionResultDraft }
+  | { type: "fail"; failure: RunFailure };
+```
+
+## Capability ports
+
+```typescript
+interface ModelPort {
+  capabilities(ctx: ExecutionContext, model: ModelRef): Promise<Result<ModelCapabilities>>;
+  invoke(ctx: InvocationContext, request: ModelRequest): AsyncIterable<ModelEvent>;
+  cancel(ctx: InvocationContext, invocationId: InvocationId): Promise<Result<void>>;
+}
+
+interface ToolPort {
+  describe(ctx: ExecutionContext, tool: ToolRef): Promise<Result<ToolDescriptor>>;
+  invoke(ctx: InvocationContext, request: ToolRequest): Promise<Result<ToolResponse>>;
+  status(ctx: InvocationContext, operation: ExternalOperationRef): Promise<Result<OperationStatus>>;
+  cancel(ctx: InvocationContext, operation: ExternalOperationRef): Promise<Result<void>>;
+}
+
+interface MemoryPort {
+  search(ctx: InvocationContext, query: MemoryQuery): Promise<Result<readonly MemoryHit[]>>;
+  put(ctx: InvocationContext, record: NewMemoryRecord, idempotencyKey: string): Promise<Result<MemoryRef>>;
+  revoke(ctx: InvocationContext, record: MemoryRef, reason: string): Promise<Result<void>>;
+}
+
+interface ArtifactStorePort {
+  put(ctx: InvocationContext, artifact: ArtifactDraft): Promise<Result<ArtifactRef>>;
+  get(ctx: ExecutionContext, artifact: ArtifactRef): Promise<Result<ArtifactDescriptor>>;
+  open(ctx: ExecutionContext, artifact: ArtifactRef): AsyncIterable<Uint8Array>;
+}
+
+interface SandboxPort {
+  execute(ctx: InvocationContext, request: SandboxExecution): Promise<Result<SandboxResult>>;
+  cancel(ctx: InvocationContext, execution: SandboxExecutionRef): Promise<Result<void>>;
+}
+
+interface HumanApprovalPort {
+  deliver(ctx: InvocationContext, request: ApprovalRequest): Promise<Result<ApprovalDeliveryRef>>;
+  revoke(ctx: ExecutionContext, approval: ApprovalRef, reason: string): Promise<Result<void>>;
+}
+```
+
+## Governance ports
+
+```typescript
+interface PolicyPort {
+  evaluate(ctx: ExecutionContext, request: PolicyRequest): Promise<Result<PolicyDecision>>;
+}
+
+interface IdentityPort {
+  authenticate(credential: PresentedCredential): Promise<Result<ActorIdentity>>;
+}
+
+interface SecretStorePort {
+  resolve(ctx: ExecutionContext, secret: SecretRef): Promise<Result<ShortLivedCredential>>;
+}
+
+interface EntitlementPort {
+  authorize(ctx: ExecutionContext, request: EntitlementRequest): Promise<Result<EntitlementDecision>>;
+}
+```
+
+## Execution infrastructure ports
+
+```typescript
+interface StateStorePort {
+  load(ctx: ExecutionContext, runId: RunId): Promise<Result<RunState>>;
+  compareAndSet(ctx: ExecutionContext, runId: RunId, expectedVersion: number, state: RunState): Promise<Result<void>>;
+}
+
+interface RunJournalPort {
+  load(ctx: ExecutionContext, runId: RunId, fromSequence?: number): Promise<Result<readonly RunEventEnvelope[]>>;
+  append(ctx: ExecutionContext, runId: RunId, expectedSequence: number, events: readonly NewRunEvent[]): Promise<Result<AppendResult>>;
+}
+
+interface DurableExecutionPort {
+  start(ctx: ExecutionContext, runId: RunId, deployment: DeploymentSnapshotRef): Promise<Result<DurableExecutionRef>>;
+  signal(ctx: ExecutionContext, execution: DurableExecutionRef, signal: RuntimeSignal, idempotencyKey: string): Promise<Result<void>>;
+  cancel(ctx: ExecutionContext, execution: DurableExecutionRef, reason: string): Promise<Result<void>>;
+  query(ctx: ExecutionContext, execution: DurableExecutionRef): Promise<Result<DurableExecutionStatus>>;
+}
+
+interface WorkerLeasePort {
+  acquire(ctx: ExecutionContext, request: LeaseRequest): Promise<Result<WorkerLease>>;
+  renew(ctx: ExecutionContext, lease: WorkerLeaseRef, expiresAt: Instant): Promise<Result<WorkerLease>>;
+  release(ctx: ExecutionContext, lease: WorkerLeaseRef): Promise<Result<void>>;
+}
+
+interface CheckpointStorePort {
+  put(ctx: ExecutionContext, checkpoint: CheckpointDraft): Promise<Result<CheckpointRef>>;
+  latest(ctx: ExecutionContext, runId: RunId): Promise<Result<CheckpointRef | null>>;
+}
+
+interface EffectLedgerPort {
+  register(ctx: ExecutionContext, effect: Effect): Promise<Result<void>>;
+  appendInvocation(ctx: InvocationContext, invocation: Invocation): Promise<Result<void>>;
+  complete(ctx: ExecutionContext, result: EffectResult): Promise<Result<void>>;
+  get(ctx: ExecutionContext, effectId: EffectId): Promise<Result<Effect>>;
+}
+```
+
+## Evidence and integration ports
+
+```typescript
+interface EvaluationPort {
+  start(ctx: ExecutionContext, subject: EvaluationSubject, suite: EvaluationSuiteVersionRef): Promise<Result<EvaluationRunRef>>;
+  result(ctx: ExecutionContext, run: EvaluationRunRef): Promise<Result<EvaluationResult | null>>;
+}
+
+interface TelemetryPort {
+  emit(ctx: ExecutionContext, signal: TelemetrySignal): void;
+}
+
+interface AuditPort {
+  append(ctx: ExecutionContext, record: AuditRecord): Promise<Result<void>>;
+}
+
+interface MeteringPort {
+  append(ctx: ExecutionContext, record: UsageRecord): Promise<Result<void>>;
+}
+
+interface EventBusPort {
+  publish(ctx: ExecutionContext, events: readonly IntegrationEvent[]): Promise<Result<void>>;
+}
+```
+
+## Port registry
+
+| Category | Ports |
+|---|---|
+| Execution | State, journal, durable execution, worker lease, checkpoint, effect ledger |
+| Capability | Model, tool, memory, artifact, sandbox, human approval |
+| Governance | Policy, identity, secrets, entitlements |
+| Evidence/integration | Evaluation, telemetry, audit, metering, event bus |
+
+## Contract tests
+
+Adapters prove error classification, timeout and cancellation semantics, idempotency, reconciliation, tenant isolation, content redaction, usage accuracy, streaming completion, capability negotiation, duplicate delivery handling, and required durability.

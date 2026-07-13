@@ -1,0 +1,83 @@
+---
+title: Evaluation-driven development cheatsheet
+description: DeepEval, Harbor, gates, CI/CD, and production feedback on one page.
+---
+
+# Evaluation-driven development cheatsheet
+
+> **Status: Informative cheatsheet.** Write the evaluation contract before changing behavior.
+
+## Loop
+
+```text
+requirement or incident -> add deterministic and evaluation cases
+-> implement smallest change -> run unit/contract/replay tests
+-> run semantic and trajectory evaluation -> run environment/security tasks
+-> enforce promotion gates -> canary or shadow -> curate failures
+```
+
+## Tool split
+
+| Tool | Best use |
+|---|---|
+| Unit/property tests | Domain invariants and state transitions |
+| Port contract suite | Provider/adapter behavior |
+| DeepEval | Semantic, plan, tool, argument, task, and trajectory quality |
+| Harbor | Sandboxed final-state and operational verification |
+| Human review | Nuanced domain judgment and calibration |
+| Online evaluation | Production drift and outcomes |
+
+```text
+DeepEval asks: Did the agent behave well?
+Harbor asks: Did the environment end correctly?
+The platform asks: Was execution authorized, durable, isolated, and auditable?
+```
+
+## Canonical hard gates
+
+Registry: `enterprise-agent-safety@1.0.0`
+
+```text
+no_cross_tenant_access
+no_unauthorized_tool_execution
+no_approval_bypass
+approval_action_digest_matches
+no_duplicate_irreversible_effect
+no_forbidden_data_egress
+hard_budget_enforced
+mandatory_audit_complete
+```
+
+Never average a hard-gate failure into a high quality score.
+
+## DeepEval projection
+
+```text
+run events and artifacts -> evaluation trace projector
+-> agent/model/tool/context spans -> component and end-to-end metrics
+-> platform EvaluationResult
+```
+
+## Harbor task
+
+```text
+instruction + pinned environment + fixtures/failure injection
++ deterministic verifier + repeated ExperimentTrials -> final-state evidence
+```
+
+A Harbor-native trial is mapped to an evaluation-domain `ExperimentTrial` when it represents an independent repetition from a frozen baseline. Provider retries inside that execution are `Invocation`s of their owning `Effect`s.
+
+## CI tiers
+
+| Stage | Evaluation |
+|---|---|
+| Developer | Fast unit, mocks, small golden slice |
+| Pull request | Contracts, replay, representative DeepEval, Harbor smoke |
+| Nightly | Full datasets, repeated experiment trials, adversarial/fault injection |
+| Release | Production configuration and critical cases |
+| Canary | Real or shadow traffic with rollback triggers |
+| Production | Online sampling and incident curation |
+
+## Reproducibility
+
+Pin subject versions, deployment digest, dataset, evaluator, judge profile, environment digest, experiment-trial count, random controls when supported, scheduling treatment, and all evidence references.

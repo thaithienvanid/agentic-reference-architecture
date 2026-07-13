@@ -1,0 +1,103 @@
+---
+title: Repository and module structure
+description: Recommended monorepo layout, module rules, test organization, and deployment packaging.
+---
+
+# Repository and module structure
+
+> **Status: Informative implementation guide.** Preserve the boundaries even when the physical repository differs.
+
+```text
+agentic-platform/
+├── contracts/
+│   ├── api/
+│   ├── events/
+│   ├── manifests/
+│   └── json-schema/
+├── shared-kernel/
+│   ├── identity/
+│   ├── tenancy/
+│   ├── versioning/
+│   ├── capabilities/
+│   ├── money-time/
+│   └── errors/
+├── contexts/
+│   ├── agent-catalog/
+│   ├── workflow-catalog/
+│   ├── deployment/
+│   ├── execution/
+│   ├── capability-catalog/
+│   ├── conversation/
+│   ├── context-memory/
+│   ├── policy-governance/
+│   ├── evaluation/
+│   ├── tenant-entitlements/
+│   ├── marketplace/
+│   ├── artifacts-lineage/
+│   └── metering-billing/
+├── runtime/
+│   ├── kernel/
+│   │   ├── state-machine/
+│   │   ├── effects/
+│   │   ├── budgets/
+│   │   └── simulation/
+│   ├── service/
+│   │   ├── admission/
+│   │   ├── scheduling/
+│   │   ├── workers/
+│   │   ├── leases/
+│   │   ├── streaming/
+│   │   └── reconciliation/
+│   └── durable-adapters/
+│       ├── temporal/
+│       ├── actor/
+│       └── database-scheduler/
+├── adapters/
+│   ├── models/
+│   ├── tools/
+│   ├── memory/
+│   ├── policy/
+│   ├── identity/
+│   ├── storage/
+│   ├── event-bus/
+│   ├── telemetry/
+│   └── sandbox/
+├── apps/
+│   ├── control-api/
+│   ├── runtime-api/
+│   ├── runtime-worker/
+│   ├── evaluation-worker/
+│   ├── marketplace-api/
+│   ├── admin-console/
+│   └── developer-cli/
+├── tests/
+│   ├── domain/
+│   ├── contracts/
+│   ├── state-machine/
+│   ├── replay/
+│   ├── fault-injection/
+│   ├── security/
+│   ├── evaluation-datasets/
+│   └── end-to-end/
+└── deployment/
+    ├── local/
+    ├── shared-cell/
+    ├── dedicated-cell/
+    └── observability/
+```
+
+## Module rules
+
+1. Domain packages depend only on the shared kernel.
+2. Application packages depend on domain packages and port interfaces.
+3. The Execution Kernel depends on execution-domain types and outbound interfaces, not adapters.
+4. Adapters implement ports and translate external DTOs at the boundary.
+5. Apps compose modules and own process startup and configuration.
+6. Tests may depend inward; production core never depends on tests or adapters.
+7. No bounded context reads another context’s database tables directly.
+8. Integration crosses published API or event contracts.
+9. Provider, durable-backend, cloud, and telemetry types do not cross into core modules.
+
+## Initial physical deployment
+
+Do not deploy every directory as a service. Start with a modular control-plane application, runtime API and workers, sandbox workers, evaluation workers, and managed infrastructure. Extract services only for measured scale, security, availability, residency, team ownership, or independent commercial lifecycle.

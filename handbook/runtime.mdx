@@ -1,0 +1,195 @@
+---
+title: Build an ARA Durable runtime
+description: A procedural implementation guide for the execution kernel, runtime service, journal, effect ledger, worker leases, durable backend, recovery, and replay.
+---
+
+# Build an ARA Durable runtime
+
+> **Status: Informative how-to guide.** Normative ownership and semantics are in [Runtime and kernel](/specification/runtime). Exact ports and representations are in [Reference](/reference/index).
+
+## Outcome
+
+The completed runtime survives worker loss, durable waits, provider failures, rate limits, cancellation, and ambiguous mutations without losing canonical evidence or repeating completed effects.
+
+```text
+pure Execution Kernel
+Runtime Service and Scheduler
+atomic state/journal/ledger transaction
+platform-owned Run Journal
+Effect Ledger with visible Invocations
+WorkerLease fencing
+DurableExecutionPort adapter
+governed capability adapters
+policy, budget, approval, audit, usage, and telemetry boundaries
+operational resume, evidence replay, and counterfactual rerun
+```
+
+## Prerequisites
+
+Freeze one thin `WorkflowVersion`, its deployment snapshot, state machine, terminal states, effect/invocation semantics, trusted execution context, error model, and required evidence. Do not build a generic runtime before one real workflow proves the boundaries.
+
+## 1. Implement the pure Execution Kernel
+
+```typescript
+interface ExecutionKernel {
+  evolve(state: RunState, event: RunEvent): RunState;
+  decide(
+    state: RunState,
+    workflow: WorkflowVersion,
+    deployment: DeploymentSnapshot
+  ): readonly ExecutionIntent[];
+}
+```
+
+Keep provider clients, clocks, randomness, queues, secrets, database sessions, workers, and telemetry exporters outside the kernel. Test legal transitions, terminal-state safety, monotonic sequence fields, cancellation, budgets, approvals, no-progress rules, joins, and repeated replay.
+
+## 2. Commit execution truth atomically
+
+Use one consistency boundary for every accepted transition:
+
+```text
+BEGIN
+  verify expected stateVersion and runSequence
+  verify current fencing token when worker-owned
+  append canonical run events
+  update current-state projection
+  update effect, invocation, approval, and budget ledgers
+  insert integration outbox records
+COMMIT
+```
+
+Acknowledge only after durable commit. Rebuild projections from the journal in tests. State tables and checkpoints are optimizations, not execution truth.
+
+## 3. Persist effects before dispatch
+
+Convert an authorized `request_effect` intent into one durable logical effect:
+
+```text
+validate schema and domain preconditions
+-> evaluate policy and capability grant
+-> reserve budget
+-> obtain action-bound approval when required
+-> commit effect.planned
+-> dispatch zero or more Invocations
+-> reconcile result, usage, and evidence
+-> commit effect outcome
+-> evolve run state
+```
+
+Store effect identity, activity, kind, side-effect class, input digest, component versions, idempotency key, authorization references, ambiguity state, invocations, external operation references, and result evidence. Keep the idempotency key stable across invocations.
+
+## 4. Fence workers with leases
+
+A `WorkerLease` is temporary infrastructure ownership, not logical work. Acquisition returns lease ID, run/activity scope, worker ID, monotonic fencing token, acquisition time, and expiry. Every commit verifies the current token.
+
+Exercise worker death, lease expiry, transfer, late stale commits, and durable resume. A new lease normally resumes the same `ActivityRun`; create `ActivityAttempt` only when the complete activity restarts from its declared boundary.
+
+## 5. Integrate durability behind `DurableExecutionPort`
+
+```typescript
+interface DurableExecutionPort {
+  start(...): Promise<Result<DurableExecutionRef>>;
+  signal(...): Promise<Result<void>>;
+  cancel(...): Promise<Result<void>>;
+  query(...): Promise<Result<DurableExecutionStatus>>;
+}
+```
+
+Keep backend-native history distinct from the platform Run Journal. Record the backend reference, determinism/replay restrictions, timer/signal semantics, duplicate delivery, cancellation, migration, and recovery ownership. Do not expose backend event types as ARA’s public model.
+
+## 6. Separate logical concurrency from physical capacity
+
+The kernel determines what is runnable. The Scheduler decides when and where it executes using dependency readiness, priority, deadline, tenant fairness, provider request/token/concurrency limits, sandbox and worker capacity, region, isolation, budget reservation, backpressure, and circuit breakers.
+
+A rate limit is a durable capacity wait followed by another `Invocation`. It is not a new effect, activity attempt, iteration, or experiment trial. Waiting releases active workers.
+
+## 7. Handle failure by scope
+
+| Situation | Response |
+|---|---|
+| Safe provider-call failure | New `Invocation` for the same `Effect` |
+| Provider `Retry-After` | Durable wait, then new `Invocation` |
+| Mutation response lost | Mark unknown and reconcile the same `Effect` |
+| Prompt, context, arguments, tool, objective, or authority changes | New `Effect` |
+| Complete activity restart | New `ActivityAttempt` |
+| Durable worker resume | New `WorkerLease`, same logical work |
+| Intentional sequential continuation | New `Iteration` |
+| Independent frozen-baseline repetition | New `ExperimentTrial` referencing a new `WorkflowRun` |
+
+For uncertain mutations:
+
+```text
+planned effect
+-> invocation outcome unknown
+-> Reconciling
+-> query by idempotency key or provider operation ID
+-> occurred: commit authoritative result
+-> absent: retry only when safe
+-> unknowable: operator or domain resolution
+```
+
+Fallback routes are declared in the deployment snapshot and rechecked for capabilities, policy, residency, cost, and experimental validity.
+
+## 8. Separate resume and replay
+
+- **Operational resume:** continue the same run and reuse completed effects.
+- **Evidence replay:** re-evolve deterministic state using recorded effect results without external calls.
+- **Counterfactual rerun:** create a new run with explicit historical inputs and new versions/routes.
+
+Checkpoints accelerate resume but are not canonical truth. Fall back to journal reconstruction when incompatible or missing.
+
+## 9. Add operational controls
+
+Implement idempotent run commands, durable streams, hierarchical budgets, no-progress and repeated-action detection, structured terminal results, mandatory audit and usage delivery, correlated telemetry, payload protection, model/tool health, controlled fallback, projection rebuild, schema migration, backup/restore, regional fencing, deletion tombstones, and legal holds.
+
+Separate platform availability objectives from provider availability and model quality.
+
+## Failure-injection suite
+
+Automate at least:
+
+```text
+worker death before effect dispatch
+worker death after external commit but before local commit
+stale worker commit after lease transfer
+duplicate command, event, signal, and callback
+truncated model stream and invalid structure
+provider 429, 5xx, timeout, and forced route withdrawal
+approval expiry and action-digest mismatch
+late, duplicated, malicious, or wrong-audience child result
+control-plane outage while admitted runs continue
+regional failure during irreversible effect
+data deletion followed by backup restore
+journal replay across schema/runtime upgrades
+```
+
+See [Testing and resilience](/implementation/testing-and-resilience).
+
+## Validation
+
+The runtime is ready for ARA Durable review only when:
+
+- Kernel replay is deterministic.
+- No acknowledged command or committed event is lost.
+- Journal, projections, ledgers, and outbox remain consistent.
+- Stale leases cannot commit.
+- Effect intent always precedes external invocation.
+- Completed mutations are not repeated after recovery.
+- Ambiguous mutations reconcile before retry.
+- Waiting survives restart without holding workers.
+- Resume, evidence replay, and counterfactual rerun have distinct evidence.
+- Cancellation and child propagation preserve completed effects.
+- Budget, approval, audit, usage, tenancy, and data-policy gates pass.
+- Every adapter passes [Implement an ARA adapter](/handbook/ports-and-adapters).
+
+Attach results to the [Conformance checklist](/reference/conformance-checklist).
+
+## Avoid
+
+- Letting a framework graph, provider SDK, or backend history become the public model.
+- Storing authoritative state only in worker memory or checkpoints.
+- Treating traces or broker delivery as the Run Journal.
+- Hiding retries, usage, fallback, or ambiguous outcomes.
+- Equating worker restart with activity retry.
+- Retrying an ambiguous mutation without reconciliation.
+- Adding services before a measured boundary justifies them.

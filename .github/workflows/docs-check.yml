@@ -2,12 +2,13 @@ name: Documentation checks
 
 on:
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  mintlify:
+  documentation:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository

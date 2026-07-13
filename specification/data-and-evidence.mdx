@@ -1,0 +1,146 @@
+---
+title: State, data, and evidence
+description: Normative boundaries for domain state, workflow state, inputs, context, memory, artifacts, events, checkpoints, telemetry, audit, lineage, and usage.
+---
+
+# State, data, and evidence
+
+> **Status: Normative**
+
+## Information boundaries
+
+| Concept | Authoritative question |
+|---|---|
+| **Domain state** | What is true in the business domain? |
+| **Workflow state** | What transition is legal next? |
+| **Activity input snapshot** | What exact values did this activity receive? |
+| **Activity result** | What typed output did the activity commit? |
+| **Conversation** | What messages were exchanged? |
+| **Working context** | What exact content was assembled for a model invocation? |
+| **Memory record** | What governed information may be reused later? |
+| **Artifact** | What immutable content was produced or consumed? |
+| **Checkpoint** | Where can execution resume efficiently? |
+| **Run journal** | What authoritatively happened during execution? |
+| **Trace/log/metric** | How did the system behave operationally? |
+| **Audit record** | Who authorized and executed what under which policy? |
+| **Evaluation result** | Was behavior correct, safe, useful, and efficient? |
+| **Usage record** | What consumption and cost are attributable to whom? |
+
+These concepts **MUST NOT** be collapsed into a single generic state object, transcript, or vector store.
+
+## Workflow state
+
+Workflow state SHOULD be compact, typed, versioned, and limited to control-relevant data:
+
+```typescript
+interface RunState {
+  runId: RunId;
+  stateVersion: number;
+  runSequence: number;
+  status: RunStatus;
+  variables: Readonly<Record<string, unknown>>;
+  activityResults: ReadonlyMap<ActivityId, ActivityResultRef>;
+  pendingEffects: ReadonlyMap<EffectId, EffectRef>;
+  pendingApprovals: readonly ApprovalRef[];
+  budget: BudgetState;
+}
+```
+
+Large histories and provider payloads belong behind references.
+
+## Activity data flow
+
+```text
+Activity A output
+-> validate output schema
+-> validate domain constraints
+-> commit ActivityResult and events
+-> evolve workflow state
+-> resolve Activity B bindings
+-> create immutable input snapshot
+-> start Activity B
+```
+
+An activity **MUST NOT** read arbitrary mutable output from another activity. Explicit bindings and source references make replay, authorization, and evaluation possible.
+
+## Context
+
+A `ContextRecipeVersion` defines selection, ordering, compaction, redaction, token budget, provenance, and classification rules. A `ContextSnapshot` records the exact items selected for a model effect.
+
+Prompt text, authorized tool schemas, and context sources are distinct inputs to compilation.
+
+## Memory
+
+A `MemoryRecord` includes:
+
+```text
+tenant and subject scope
+type and content reference
+provenance and confidence
+classification and purpose
+validity and retention
+supersession/revocation status
+```
+
+A vector index is a derived retrieval view, not the memory source of truth. Memory does not determine legal workflow transitions.
+
+## Artifacts
+
+Artifacts are immutable and content-addressed where practical. Metadata includes producer run/activity, digest, media type, schema, lineage, region, classification, and retention.
+
+Cross-run chaining **MUST** use exact artifact references and explicit decisions, not “latest output.”
+
+## Canonical events
+
+Serialized event types use dotted lowercase, for example:
+
+```text
+run.started
+activity.completed
+effect.planned
+invocation.started
+invocation.completed
+approval.requested
+artifact.produced
+```
+
+The event envelope includes stable ID, schema version, run sequence, tenant/workspace, aggregate identity/version, actor, correlation, causation, classification, payload digest, and protected payload reference.
+
+CloudEvents MAY be used as an integration envelope. The ARA run journal remains the authoritative execution contract.
+
+## Journal, projection, and outbox
+
+A state transition SHOULD commit atomically:
+
+```text
+verify expected state version
+append run events
+update current-state projection
+update effect and budget ledgers
+insert integration outbox records
+```
+
+Integration buses are at-least-once delivery mechanisms, not the canonical source of run truth.
+
+## Lineage
+
+Lineage connects inputs, context items, effects, invocations, activity results, artifacts, evaluations, and downstream runs. Implementations SHOULD be able to answer:
+
+- Which exact versions and deployment produced this artifact?
+- Which sources and effect outcomes influenced it?
+- Which policy and approval decisions applied?
+- Which downstream runs consumed it?
+
+W3C PROV concepts MAY be used by lineage adapters.
+
+## Telemetry
+
+OpenTelemetry-compatible traces, metrics, and logs SHOULD correlate on run, activity, effect, invocation, and deployment identifiers. Telemetry may be sampled and MUST NOT be the only source for audit, billing, or replay.
+
+Raw secrets, authorization headers, private hidden reasoning, and sensitive payloads MUST NOT be exported by default.
+
+## Privacy and erasure
+
+Sensitive content SHOULD be stored behind encrypted payload references rather than duplicated in immutable event metadata. Erasure workflows resolve lineage, honor legal holds, remove eligible payloads and derived indexes, and preserve only the minimum non-sensitive deletion evidence required by policy.
+
+Crypto-shredding is a mechanism, not a universal legal determination.

@@ -1,0 +1,87 @@
+---
+title: Saga and compensation
+description: Coordinate multi-system effects with explicit reconciliation, compensation, and manual resolution.
+---
+
+# Saga and compensation
+
+> **Status: Informative pattern.** Use a saga when one business process spans multiple transactional systems and a single distributed ACID transaction is unavailable or undesirable.
+
+A compensation is a new semantic `Effect`. It does not erase the original event or guarantee exact restoration of the prior world state.
+
+## Example — provision a paid subscription
+
+```mermaid
+flowchart LR
+    Reserve["Reserve inventory"] --> Charge["Charge payment"]
+    Charge --> Provision["Provision service"]
+    Provision --> Notify["Notify customer"]
+    Provision -->|fails| Refund["Refund payment"]
+    Refund --> Release["Release inventory"]
+    Refund -->|outcome unknown| Resolve["Reconcile / manual resolution"]
+```
+
+## Workflow definition
+
+```yaml
+activities:
+  - id: reserve-inventory
+    type: tool
+    sideEffectClass: reversible_write
+    compensateWith: release-inventory
+  - id: charge-payment
+    type: tool
+    sideEffectClass: irreversible_write
+    reconcileWith: payment-status
+    compensateWith: refund-payment
+  - id: provision-service
+    type: tool
+    sideEffectClass: reversible_write
+    compensateWith: deprovision-service
+```
+
+Every forward and compensation activity declares its own input/output schema, effect classification, idempotency, reconciliation, policy, budget, retry, and approval semantics.
+
+## Runtime model
+
+```text
+Saga WorkflowRun
+├── Effect: reserve inventory
+├── Effect: charge payment
+├── Effect: provision service -> failed
+├── Effect: refund payment
+└── Effect: release inventory
+```
+
+Each effect may contain one or more `Invocation`s. Both the original charge and the refund remain visible in journal, audit, lineage, and usage.
+
+## Compensation policy
+
+| Question | Required decision |
+|---|---|
+| Trigger | Downstream failure, cancellation, policy reversal, or manual request |
+| Order | Reverse order, dependency order, or domain-specific order |
+| Preconditions | Resource still compensatable, legal/time window, current state |
+| Failure | Retry invocation, reconcile effect, alternate mitigation, or manual resolution |
+| Concurrency | Prevent forward and compensating effects from racing |
+| Approval | Whether compensation itself requires authorization |
+| Completion | Fully compensated, partially compensated, mitigated, or unresolved |
+
+## Irreversible effects
+
+Some effects have no true compensation: external publication, legal filing, disclosed secret, physical shipment, or completed payment. Define mitigation such as retraction, correction, refund, notification, credential rotation, or manual case handling. Do not label mitigation as a rollback guarantee.
+
+## Cancellation
+
+Cancellation stops new forward effects and starts compensation only when policy requires it. It must not compensate an effect whose outcome is unknown; reconcile first.
+
+## Evaluation and testing
+
+- Forward-path correctness.
+- Every failure point and compensation branch.
+- Duplicate forward and compensation delivery.
+- Ambiguous forward and compensation outcomes.
+- Compensation ordering and idempotency.
+- Manual-resolution evidence.
+- Time to stable business outcome.
+- Residual state after partial compensation.

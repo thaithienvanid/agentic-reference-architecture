@@ -1,0 +1,118 @@
+---
+title: Evaluation and conformance
+description: Normative evaluation-driven development, hard gates, conformance evidence, resilience testing, and extension requirements.
+---
+
+# Evaluation and conformance
+
+> **Status: Normative**
+
+## Evaluation contract
+
+Every deployable `AgentVersion`, `WorkflowVersion`, `PromptVersion`, high-risk `ToolVersion`, model-routing profile, and package release SHOULD reference a versioned evaluation contract appropriate to its risk.
+
+```text
+deployable behavior
+= immutable specification
++ capabilities and policies
++ evaluation suite
+```
+
+## Evaluation layers
+
+| Layer | Strongest evidence |
+|---|---|
+| Unit/property tests | Domain invariants, arithmetic, pure state evolution |
+| State-machine simulation | Legal transitions, waits, cancellation, retries |
+| Port contracts | Adapter errors, streaming, idempotency, tenant scope |
+| Semantic/trajectory evaluation | Quality, plan, tool choice, argument correctness |
+| Environment verification | Actual filesystem, database, API, and sandbox state |
+| Adversarial evaluation | Policy, injection, exfiltration, delegation, sink safety |
+| Human review | Nuanced domain judgment and evaluator calibration |
+| Canary/shadow | Production configuration, drift, cost, and rollback behavior |
+
+DeepEval and Harbor are adapters behind `EvaluationPort`; they do not own production state, authorization, or the canonical run model.
+
+## Hard-gate registry
+
+The canonical enterprise hard gates are:
+
+```text
+no_cross_tenant_access
+no_unauthorized_tool_execution
+no_approval_bypass
+approval_action_digest_matches
+no_duplicate_irreversible_effect
+no_forbidden_data_egress
+hard_budget_enforced
+mandatory_audit_complete
+```
+
+A hard-gate failure MUST NOT be averaged into a passing quality score.
+
+## Stochastic evaluation
+
+Independent repetitions belong to the evaluation/experiment domain:
+
+```text
+ExperimentRun
+└── ExperimentVariant
+    └── ExperimentTrial
+        └── WorkflowRunRef
+```
+
+Report pass rate, distribution, dispersion, critical slices, cost, latency, and repeated failure modes. One passing sample is weak evidence.
+
+## Release flow
+
+```text
+requirement or incident
+-> deterministic and evaluation cases
+-> smallest behavior change
+-> fast tests
+-> offline semantic/trajectory evaluation
+-> environment and security verification
+-> promotion gates
+-> canary or shadow
+-> production feedback curation
+```
+
+Production failures are reviewed before becoming dataset cases. Do not blindly train on every user signal.
+
+## Resilience assurance
+
+ARA Durable and higher profiles SHOULD test:
+
+- Worker loss and fencing.
+- Duplicate commands/events.
+- Ambiguous effects and reconciliation.
+- Load, soak, backpressure, and quota behavior.
+- Regional failover and restoration.
+- Model/provider withdrawal and fallback.
+- Sandbox isolation.
+- Data deletion and backup restoration.
+
+## Conformance claim
+
+A conformance claim identifies:
+
+```text
+ARA version and exact publication commit or digest
+profiles implemented, including prerequisite profiles
+optional extensions and declared reference profiles
+known deviations and not-applicable rationale
+deployment topology and implementation release/digest
+evidence package and assessment date
+```
+
+The evidence package SHOULD include architecture diagrams, schemas, port-contract results, state-machine tests, security threat model, evaluation reports, SLO results, recovery exercises, and unresolved risks.
+
+The [Conformance checklist](/reference/conformance-checklist) provides the non-normative assessment record, profile-by-profile evidence mapping, closed status vocabulary, and review procedure. It MUST NOT be used to weaken or replace a requirement in this specification or a normative reference contract.
+
+## Extension compatibility
+
+Extensions use namespaced types and typed capability declarations. An extension MUST NOT weaken core invariants, bypass gateways, redefine canonical identifiers, or silently change the meaning of existing events.
+
+## Future-proofing rule
+
+The portable core represents required semantics. Provider/framework-specific features are explicit typed extensions captured in the deployment snapshot, telemetry, evaluation, and compatibility declarations.

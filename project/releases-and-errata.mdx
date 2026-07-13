@@ -1,0 +1,139 @@
+---
+title: Releases, versions, and errata
+description: Specification status, versioning, change classification, errata handling, compatibility, and release evidence for ARA.
+---
+
+# Releases, versions, and errata
+
+> **Status: Project governance.** This page governs publication of the ARA specification; it does not add runtime requirements.
+
+## Publication status
+
+| Status | Meaning |
+|---|---|
+| **Draft** | Active design work; semantics may change without compatibility guarantees |
+| **Candidate** | Feature-complete proposal under architecture, implementation, and assurance review |
+| **Stable** | Published baseline suitable for scoped technical conformance claims |
+| **Deprecated** | Retained, but new implementations should use a newer baseline |
+| **Superseded** | Replaced by an identified version and retained for history and migration |
+
+A pull-request branch is not a stable publication merely because it uses normative language. A release record identifies the authoritative version, commit or digest, status, date, evidence, and known deviations.
+
+ARA 1.0 remains **Candidate** until final merge-ref validation and publication evidence are recorded.
+
+## Versioning policy
+
+ARA uses semantic release intent:
+
+```text
+MAJOR.MINOR.PATCH
+```
+
+| Change | Version effect | Example |
+|---|---|---|
+| Breaking semantic change | Major | Redefine `Effect`, remove an invariant, alter profile dependency |
+| Backward-compatible semantic addition | Minor | Add an optional capability or non-conflicting profile requirement |
+| Editorial or compatible contract correction | Patch | Clarify prose or correct a schema/example without changing meaning |
+
+A semantic version communicates compatibility intent. A content digest identifies exact published bytes; neither replaces the other.
+
+## Change classes
+
+### Semantic
+
+Changes what a conforming implementation must mean or do. Update the specification, normative references, checklist and tests, consequential ADRs, guides, diagrams, examples, migration guidance, and release record.
+
+### Representation or profile
+
+Changes a field, event, interface, serialization, REST profile, or manifest profile without changing architectural meaning. Version the contract and add aliases, readers, upcasters, or migration rules where both forms may exist.
+
+### Procedural or explanatory
+
+Changes how a reader performs or understands a task without changing normative semantics. It must not introduce an implicit requirement.
+
+### Editorial
+
+Improves wording, navigation, or examples without changing semantics or representation. If reasonable implementers could behave differently after the edit, classify it more strongly.
+
+## Errata
+
+An erratum records a defect in a published baseline.
+
+| Class | Treatment |
+|---|---|
+| Editorial | Correct in the next patch and identify the affected section |
+| Contract ambiguity | Publish a bounded interpretation and compatibility guidance |
+| Incorrect example | Correct it and add a regression check when mechanically detectable |
+| Security or safety defect | Publish an advisory, affected profiles, mitigations, and urgency |
+| Breaking semantic defect | Publish an explicit replacement version; do not rewrite history |
+
+An erratum records:
+
+```text
+ARA version and publication commit/digest
+affected page and section
+problem and correct interpretation
+compatibility and security impact
+workaround or migration
+verification evidence
+status and resolution version
+```
+
+The current site may show corrected text, but the release record and errata history preserve what changed and why.
+
+## Stable release package
+
+A stable release publishes:
+
+1. Semantic version and exact Git commit or content digest.
+2. Normative page inventory and digests.
+3. Normative reference and schema versions.
+4. Conformance-profile definitions.
+5. Change log and migration notes.
+6. Accepted ADR changes.
+7. Documentation, schema, and conformance validation results.
+8. Open errata and known deviations.
+9. Primary-source retrieval dates.
+10. Signature or provenance evidence when distributed as an artifact.
+
+## Compatibility promises
+
+A patch release should not intentionally break a conforming implementation of the same minor version. A minor release preserves previous core meaning while adding compatible behavior. A major release may break compatibility but provides migration guidance and documentation redirects.
+
+A reproducible conformance statement identifies:
+
+```text
+ARA semantic version
+ARA publication commit or content digest
+implementation release and deployment digest
+claimed profiles and declared optional profiles
+assessment date, deviations, and evidence package
+```
+
+“Latest ARA” is not a reproducible identity.
+
+## Change proposal workflow
+
+```text
+problem or evidence
+-> identify canonical owner
+-> write semantic and contract diff
+-> assess compatibility and migration
+-> update ADR when consequential
+-> update tests, examples, and checklist
+-> independent review
+-> candidate publication
+-> validation and conformance evidence
+-> stable publication
+```
+
+Large changes may use design proposals or decision records. If the project later adopts a formal proposal process, `rfcs/` may be reserved for proposals; the published normative authority remains `specification/`.
+
+## Maintenance rules
+
+- Never silently replace a published term with a new meaning.
+- Never use mutable `latest` references in conformance evidence.
+- Preserve moved public URLs through redirects.
+- Keep retired names only in bounded migration notes or consolidated review history.
+- Revalidate time-sensitive vendor, protocol, legal, security, and standards claims before stable publication.
+- Separate technical conformance from legal certification, security attestation, and operational assurance.

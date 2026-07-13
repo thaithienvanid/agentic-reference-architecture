@@ -1,0 +1,225 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Agentic Reference Architecture",
+  "colors": {
+    "primary": "#2563EB",
+    "light": "#3B82F6",
+    "dark": "#1D4ED8"
+  },
+  "navigation": {
+    "global": {
+      "anchors": [
+        {
+          "anchor": "GitHub",
+          "href": "https://github.com/thaithienvanid/agentic-reference-architecture"
+        }
+      ]
+    },
+    "tabs": [
+      {
+        "tab": "Specification",
+        "groups": [
+          {
+            "group": "Start here",
+            "root": "specification/index",
+            "directory": "card",
+            "pages": ["index", "cheatsheets/architecture"]
+          },
+          {
+            "group": "Core semantics",
+            "pages": [
+              "specification/resource-model",
+              "specification/execution-model",
+              "specification/runtime",
+              "specification/data-and-evidence"
+            ]
+          },
+          {
+            "group": "Enterprise profiles",
+            "pages": [
+              "specification/platform",
+              "specification/security-and-governance",
+              "specification/evaluation-and-conformance"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Guides",
+        "groups": [
+          {
+            "group": "Guide overview",
+            "root": "guides/index",
+            "directory": "card",
+            "pages": ["guides/adoption"]
+          },
+          {
+            "group": "Application design",
+            "pages": [
+              "handbook/domain-and-ddd",
+              "handbook/workflows",
+              "handbook/agents",
+              "handbook/state-context-memory",
+              "handbook/prompts"
+            ]
+          },
+          {
+            "group": "Runtime and integration",
+            "pages": [
+              "handbook/runtime",
+              "handbook/ports-and-adapters",
+              "implementation/repository-structure",
+              "implementation/testing-and-resilience"
+            ]
+          },
+          {
+            "group": "Platform governance",
+            "pages": [
+              "handbook/control-and-execution-planes",
+              "handbook/enterprise-saas",
+              "handbook/marketplace",
+              "handbook/security",
+              "handbook/compliance-and-data-rights"
+            ]
+          },
+          {
+            "group": "Platform operations",
+            "pages": [
+              "handbook/cost-governance",
+              "handbook/model-lifecycle",
+              "handbook/observability",
+              "handbook/deployment-and-operations"
+            ]
+          },
+          {
+            "group": "Evaluation-driven development",
+            "root": "evaluation/index",
+            "directory": "card",
+            "pages": [
+              "cheatsheets/evaluation",
+              "evaluation/evaluation-driven-development",
+              "evaluation/deepeval",
+              "evaluation/harbor",
+              "evaluation/gates-and-metrics"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Reference",
+        "groups": [
+          {
+            "group": "Reference overview",
+            "root": "reference/index",
+            "directory": "card",
+            "pages": []
+          },
+          {
+            "group": "Terminology and contracts",
+            "pages": [
+              "reference/glossary",
+              "reference/conventions",
+              "reference/interfaces",
+              "reference/events-and-state"
+            ]
+          },
+          {
+            "group": "Conformance and profiles",
+            "pages": [
+              "reference/conformance-checklist",
+              "reference/api",
+              "reference/manifests"
+            ]
+          },
+          {
+            "group": "Visual reference",
+            "pages": ["diagrams/index"]
+          }
+        ]
+      },
+      {
+        "tab": "Patterns & examples",
+        "groups": [
+          {
+            "group": "Pattern catalog",
+            "root": "patterns/index",
+            "directory": "card",
+            "pages": [
+              "patterns/agentic-control",
+              "patterns/ensemble-and-deliberation",
+              "patterns/child-agents",
+              "patterns/cross-run-experiments",
+              "patterns/longitudinal-participants",
+              "patterns/saga-and-compensation"
+            ]
+          },
+          {
+            "group": "Worked examples",
+            "pages": [
+              "examples/procurement",
+              "examples/synthetic-research"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Project",
+        "groups": [
+          {
+            "group": "Project overview",
+            "root": "project/index",
+            "directory": "card",
+            "pages": [
+              "project/documentation-architecture",
+              "project/releases-and-errata",
+              "project/review-history"
+            ]
+          },
+          {
+            "group": "Decisions and delivery",
+            "pages": [
+              "decisions/decision-guide",
+              "decisions/adrs",
+              "implementation/roadmap"
+            ]
+          },
+          {
+            "group": "Research evidence",
+            "pages": [
+              "research/findings",
+              "research/comparisons",
+              "research/sources"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "redirects": [
+    { "source": "/audits/documentation-architecture-2026-07-13", "destination": "/project/review-history" },
+    { "source": "/audits/refinement-report-2026-07-12", "destination": "/project/review-history" },
+    { "source": "/deliverables", "destination": "/project/index" },
+    { "source": "/handbook/execution-ontology", "destination": "/specification/execution-model" },
+    { "source": "/handbook/executive-summary", "destination": "/specification/index" },
+    { "source": "/handbook/index", "destination": "/guides/index" },
+    { "source": "/handbook/principles", "destination": "/specification/index" },
+    { "source": "/handbook/reference-architecture", "destination": "/specification/index" },
+    { "source": "/handbook/terminology", "destination": "/reference/glossary" },
+    { "source": "/rfc", "destination": "/specification/index" },
+    { "source": "/rfc/data-and-evidence", "destination": "/specification/data-and-evidence" },
+    { "source": "/rfc/evaluation-and-conformance", "destination": "/specification/evaluation-and-conformance" },
+    { "source": "/rfc/execution-model", "destination": "/specification/execution-model" },
+    { "source": "/rfc/index", "destination": "/specification/index" },
+    { "source": "/rfc/platform", "destination": "/specification/platform" },
+    { "source": "/rfc/resource-model", "destination": "/specification/resource-model" },
+    { "source": "/rfc/runtime", "destination": "/specification/runtime" },
+    { "source": "/rfc/security-and-governance", "destination": "/specification/security-and-governance" },
+    { "source": "/specifications/api", "destination": "/reference/api" },
+    { "source": "/specifications/canonical-conventions", "destination": "/reference/conventions" },
+    { "source": "/specifications/events-and-state", "destination": "/reference/events-and-state" },
+    { "source": "/specifications/manifests", "destination": "/reference/manifests" },
+    { "source": "/specifications/reference-interfaces", "destination": "/reference/interfaces" },
+    { "source": "/specifications/repository-structure", "destination": "/implementation/repository-structure" }
+  ]
+}

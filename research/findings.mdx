@@ -1,0 +1,59 @@
+---
+title: Research findings
+description: Reusable architectural and documentation principles extracted from primary product documentation, specifications, and papers.
+---
+
+# Research findings
+
+**Retrieval date:** July 13, 2026. Product behavior and versions are time-sensitive; consult the linked official sources for current details.
+
+## Fact, inference, recommendation
+
+- **Fact:** directly documented public behavior.
+- **Inference:** a reasonable architectural conclusion from public behavior, not a claim about private internals.
+- **Recommendation:** the ARA design choice.
+
+## Agentic-system principles
+
+| Evidence | Reusable principle | ARA placement |
+|---|---|---|
+| **Fact:** Codex documents separate sandbox capability and approval policy, with network restricted by default in relevant modes. Claude Code documents deterministic hooks and security controls. | Prompt instructions are not enforcement; operating environment and authorization are separate. | Policy gateway, sandbox, approval service, capability grants |
+| **Fact:** LangGraph describes durable execution, persistence, streaming, and human-in-the-loop around graph state. | Graph state and interrupt concepts are useful, but framework-native objects should not become the enterprise domain model. | Optional workflow/agent graph adapter |
+| **Fact:** Temporal records event history, replays deterministic workflow code, and isolates external effects in activities. | Durable lifecycle and nondeterministic effects require separate programming models. | Default durable-workflow class of adapter |
+| **Fact:** Airflow is batch-oriented; Dagster centers data assets and lineage; Prefect centers Python flows, state, and recovery. | Data orchestrators are strong for ingestion, batch inference, and evaluation pipelines, not automatically the primary interactive agent runtime. | Data/evaluation plane adapters |
+| **Fact:** Dify and Langflow expose visual workflow/component authoring and integrations/plugins. | Visual authoring is a control-plane capability; native graph/component models should be translated rather than adopted as universal domain objects. | Authoring/import adapters |
+| **Fact:** MCP standardizes hosts/clients/servers and tools/resources/prompts; A2A standardizes external agent discovery/tasks/messages/artifacts. | Interoperability protocols belong at system edges and do not replace internal policy, tenancy, or durability. | Tool/resource and collaboration gateways |
+| **Fact:** DeepEval evaluates plans, tools, task completion, efficiency, and traces; Harbor executes tasks in controlled environments with verifiers. | Semantic/trajectory judgment and environment-state verification are complementary. | Separate evaluation adapters |
+| **Fact:** OpenTelemetry defines portable traces, metrics, logs, and evolving GenAI conventions. | Use OTLP for operations but own stable internal run, audit, and usage schemas. | Telemetry adapter |
+
+## Documentation-architecture principles
+
+| Evidence | Reusable principle | ARA placement |
+|---|---|---|
+| **Fact:** Diátaxis distinguishes tutorials, task-oriented how-to guides, exact reference, and explanation because each serves a different user need. | Organize documentation by reader job and add a separate normative layer where conformance must be authoritative. | Five top-level journeys plus page contracts |
+| **Fact:** The RFC Editor describes RFCs as documents in the RFC Series produced through defined publication streams. | An independent architecture publication should call itself a specification unless it participates in that series; reserve `rfcs/` for a future proposal process if one is introduced. | Canonical `specification/` root and compatibility redirects |
+| **Fact:** RFC 7322 emphasizes readable, clear, consistent technical documents and repair of inconsistent terminology and cross-references. | Give each semantic concept one owner; use links, redirects, errata, and explicit versions instead of parallel definitions or silent rewrites. | Specification/reference authority and release governance |
+| **Fact:** BCP 14 restricts uppercase requirement terms to their defined normative use. | Keep `MUST`, `SHOULD`, and `MAY` in normative owners; informative pages link back to those owners. | Specification and normative-reference boundaries |
+| **Fact:** Google developer-documentation guidance prioritizes clarity, consistency, direct language, and project-specific rules. | Define local page contracts, terminology, validation, and review rules rather than relying on a generic style guide alone. | `AGENTS.md`, `CONTRIBUTING.md`, deterministic checks |
+| **Fact:** Mintlify supports tabs, task-oriented groups, root landing pages, and redirects. | Keep a small stable set of journeys, use landing pages, avoid duplicate navigation, and preserve moved URLs without redirect shadowing. | `docs.json` and navigation checks |
+| **Inference:** Correct links and prose do not prove that readers can complete implementation or assessment tasks. | Evaluate findability, authority clarity, completeness, economy, reproducibility, and maintainability alongside correctness. | Documentation quality model and reader testing |
+| **Recommendation:** A conformance claim needs an evidence mapping that does not become a second specification. | Use a checklist that defers to normative owners, uses closed statuses, and pins exact versions and evidence. | `reference/conformance-checklist.mdx` |
+
+## What should not enter the core
+
+```text
+Provider SDK request/response classes
+Framework graph state and node classes
+Workflow-engine execution history schema
+Vector database result classes
+MCP/A2A transport session objects
+OTel span objects
+Evaluation-framework test-case objects
+Cloud-specific resource handles
+```
+
+## Public architecture uncertainty
+
+For products whose private internals are not published, this documentation limits claims to public APIs, repositories, specifications, and behavior. ARA recommendations are derived from those interfaces; they are not presented as reverse-engineered vendor internals.
+
+For documentation-practice sources, ARA distinguishes documented methods from repository-specific decisions. The five-tab navigation, normative layer, page contracts, quality dimensions, and checklist design are ARA recommendations rather than claims that an external framework mandates those exact structures.

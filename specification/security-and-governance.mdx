@@ -1,0 +1,100 @@
+---
+title: Security and governance
+description: Normative trust boundaries, capabilities, policy, approvals, agent communication, sandboxes, supply chain, and residual-risk requirements.
+---
+
+# Security and governance
+
+> **Status: Normative for ARA Enterprise and higher profiles**
+
+## Security rule
+
+Prompt instructions are not security controls. Identity, capability, data, network, budget, approval, and package policies are enforced at deterministic boundaries around effects and invocations.
+
+## Trust boundaries
+
+```text
+user/external input -> application
+retrieved content -> model context
+model proposal -> effect authorization
+runtime -> model provider
+runtime -> tool/external system
+parent run -> child run
+agent/peer message -> recipient
+package -> sandbox/platform
+tenant -> shared infrastructure
+human approval -> resumed effect
+telemetry -> external backend
+```
+
+## Capability grants
+
+Every run receives a scoped capability grant. A child run’s grant MUST be an explicit subset of the parent’s delegated authority.
+
+A grant identifies subject, audience, tenant, allowed operations/resources, constraints, issued/expiry time, and provenance. Secrets are referenced, never copied into prompts or run state.
+
+## Effect authorization
+
+Before first invocation, a mutating effect MUST pass:
+
+```text
+schema validation
+domain validation
+policy evaluation
+budget reservation
+approval when required
+durable effect commit
+```
+
+Resource-side authorization remains active.
+
+## Human approval
+
+Approval binds:
+
+```text
+tenant, run, activity, effect
+tool/resource version
+normalized argument digest
+policy version
+approver identity/authority
+expiry and expected run version
+```
+
+The approver SHOULD see a deterministically normalized action view. Agent-authored persuasion or explanation is displayed separately as untrusted content. Any material action change invalidates the approval.
+
+## Inter-agent communication
+
+Peer and child-agent messages MUST be authenticated and replay-protected across trust boundaries. Messages bind sender, audience, parent/child run IDs, schema, content digest, capability-grant reference, nonce/message ID, issue/expiry time, and channel/signature evidence.
+
+Peer output is untrusted input and passes schema, provenance, classification, policy, and sink-safety validation.
+
+## Output handling
+
+Model and agent output MUST be encoded or parameterized for the destination sink. HTML, Markdown, SQL, shell, code, email, and document renderers each require sink-specific controls. Structured output validation does not replace destination safety.
+
+## Sandboxing
+
+Generated code, customer scripts, and marketplace packages execute with explicit image digest, CPU/memory, filesystem, network, secret, artifact, and deadline policies. Network is denied by default for untrusted code.
+
+No sandbox eliminates all escape risk. High-risk workloads require stronger isolation, dedicated pools, monitoring, rapid credential rotation, and host rebuild procedures.
+
+## Memory and retrieval
+
+Memory and retrieval records carry tenant/subject scope, provenance, trust, classification, retention, and revocation. Indirect prompt injection, data poisoning, and cross-subject leakage require preventive and detective controls.
+
+## Supply chain
+
+Marketplace and internal packages SHOULD use signed immutable releases, publisher identity, provenance, SBOM, exact dependency locks, vulnerability/secret/malware scanning, sandbox tests, runtime monitoring, and revocation.
+
+## Probabilistic guardrails
+
+Classifiers and model-based guardrails MAY add defense in depth but MUST NOT be the sole enforcement for authorization, tenant isolation, spending limits, approvals, or irreversible effects. Their own false-positive and false-negative rates require evaluation.
+
+## Audit
+
+Mandatory audit records use independently protected append-only storage, sequence validation, tamper evidence, restricted break-glass access, and retention by policy. Telemetry loss MUST NOT silently erase required audit evidence.
+
+## Residual risk
+
+Every threat model entry SHOULD state residual risk and recovery. ARA reduces blast radius and improves evidence; it does not eliminate model error, prompt injection, compromised providers, malicious insiders, sandbox escape, or correlated evaluator failure.

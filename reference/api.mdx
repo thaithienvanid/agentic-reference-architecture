@@ -1,0 +1,172 @@
+---
+title: API profile
+description: Reference inbound management, run, approval, evaluation, marketplace, event, and administration API conventions.
+---
+
+# API profile
+
+> **Status: Reference profile.** This page illustrates an interoperable HTTP profile; ARA semantics do not require REST.
+
+The API is command/query separated. Commands are idempotent and usually asynchronous; queries do not mutate state. Representations follow [Canonical conventions](/reference/conventions).
+
+## Core APIs
+
+| API | Responsibility |
+|---|---|
+| Agent Management | Create, version, publish, deprecate, and promote agents |
+| Workflow Management | Create, validate, publish, and inspect workflows |
+| Run Command | Start, pause, resume, cancel, signal, and replay |
+| Run Query | State, timeline, artifacts, lineage, and stream cursor |
+| Approval | Submit action-bound decisions |
+| Evaluation | Start runs, inspect results, and manage baselines |
+| Marketplace | Publish, install, upgrade, rollback, and revoke |
+| Administration | Tenants, workspaces, quotas, policy, model routes, and billing |
+
+## Start a run
+
+```http
+POST /v1/runs
+Authorization: Bearer <token>
+Idempotency-Key: request-4f882
+Content-Type: application/json
+```
+
+```json
+{
+  "agent": "procurement-order-agent@5.2.0",
+  "environment": "production",
+  "task": {
+    "type": "create_purchase_order",
+    "contractId": "C-882",
+    "quoteId": "Q-19"
+  },
+  "budgetOverride": {
+    "maximumCost": { "amount": "8.00", "currency": "USD" }
+  }
+}
+```
+
+Trusted tenant and workspace context comes from identity and routing, not the request body. The effective budget is the most restrictive applicable limit among tenant entitlement, deployment policy, parent allocation, and a valid request override.
+
+```http
+HTTP/1.1 202 Accepted
+Location: /v1/runs/run_01K2A
+```
+
+```json
+{
+  "runId": "run_01K2A",
+  "status": "admitted",
+  "deploymentSnapshot": "sha256:394e...",
+  "effectiveBudget": {
+    "maximumCost": { "amount": "8.00", "currency": "USD" },
+    "source": "request_override"
+  },
+  "eventStream": "/v1/runs/run_01K2A/events"
+}
+```
+
+## Event stream
+
+```http
+GET /v1/runs/run_01K2A/events?after=140
+Accept: text/event-stream
+```
+
+The durable semantic stream uses `runSequence` and stable event IDs. Token deltas and verbose progress may use a separate ephemeral channel.
+
+## Approval
+
+```http
+POST /v1/approvals/approval_01K2C:approve
+Authorization: Bearer <approver-token>
+Idempotency-Key: approval-decision-c92e
+Content-Type: application/json
+```
+
+```json
+{
+  "expectedStateVersion": 27,
+  "actionDigest": "sha256:778c...",
+  "comment": "Contract, vendor, and budget verified"
+}
+```
+
+The service validates approver authority, expiry, exact action digest, policy version, and current run state before recording the decision.
+
+## Cancel
+
+```http
+POST /v1/runs/run_01K2A:cancel
+Idempotency-Key: cancel-019
+Content-Type: application/json
+```
+
+```json
+{
+  "reason": "User withdrew request",
+  "expectedStateVersion": 31
+}
+```
+
+Cancellation prevents new effects, propagates to cancellable children and invocations, and reconciles ambiguous mutations. It does not erase completed effects.
+
+## Replay
+
+```http
+POST /v1/runs/run_01K2A:replay
+Content-Type: application/json
+```
+
+```json
+{
+  "mode": "counterfactual",
+  "overrides": {
+    "agentVersion": "procurement-order-agent@5.3.0",
+    "modelRoutingProfile": "eu-enterprise-models@4"
+  },
+  "effectPolicy": {
+    "models": "reinvoke",
+    "readOnlyTools": "reinvoke",
+    "mutatingTools": "use_recorded_results"
+  }
+}
+```
+
+## External event ingestion
+
+```http
+POST /v1/run-events
+Authorization: Bearer <workload-token>
+Idempotency-Key: provider-event-778
+Content-Type: application/json
+```
+
+```json
+{
+  "targetRunId": "run_01K2A",
+  "correlationKey": "invoice-104/payment",
+  "eventType": "payment.settled",
+  "schemaVersion": "1.0.0",
+  "payload": { "paymentId": "P-77" }
+}
+```
+
+The API authenticates the sender, validates tenant and schema, persists an inbox record, deduplicates the event, and signals durable execution.
+
+## Error envelope
+
+```json
+{
+  "error": {
+    "category": "conflict",
+    "code": "RUN_VERSION_MISMATCH",
+    "message": "The run changed since the command was prepared.",
+    "retryable": true,
+    "safeToRetry": true,
+    "correlationId": "corr_5501"
+  }
+}
+```
+
+Do not expose raw provider errors, secrets, internal stack traces, or cross-tenant identifiers.
