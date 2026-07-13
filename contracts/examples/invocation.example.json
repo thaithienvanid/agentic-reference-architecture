@@ -1,0 +1,17 @@
+{
+  "contractVersion": "1.0.0",
+  "invocationId": "invocation_01K2I2",
+  "effectId": "effect_01K2B",
+  "invocationOrdinal": 2,
+  "role": "reconcile",
+  "adapterRef": "erp-http-adapter@3.1.0",
+  "providerOperationRef": "erp-operation-8841",
+  "status": "succeeded",
+  "startedAt": "2026-07-12T08:04:12Z",
+  "completedAt": "2026-07-12T08:04:13Z",
+  "usageRef": "usage_01K2U",
+  "workerLeaseId": "worker_lease_01K2L",
+  "fencingToken": 42,
+  "externalRequestDigest": "sha256:req...",
+  "externalResponseDigest": "sha256:res..."
+}
