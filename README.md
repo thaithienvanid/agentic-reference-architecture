@@ -1,12 +1,12 @@
 # Agentic Reference Architecture
 
-A framework-agnostic, evaluation-driven specification for production AI agents, deterministic and agentic workflows, durable execution, multi-agent systems, enterprise platforms, and governed marketplaces.
+A framework-agnostic, evaluation-driven standard for production AI agents, deterministic and agentic workflows, durable execution, multi-agent systems, enterprise platforms, and governed marketplaces.
 
 > **Models propose. Deterministic software, policy, and humans authorize. The runtime executes, persists, and records.**
 
-## Start with the specification
+## Start with the standard
 
-The normative core is intentionally compact:
+The normative semantic core is intentionally compact:
 
 1. [`rfc/index.mdx`](./rfc/index.mdx) — scope, BCP 14 language, profiles, invariants.
 2. [`rfc/resource-model.mdx`](./rfc/resource-model.mdx) — stable resources and immutable versions.
@@ -17,7 +17,7 @@ The normative core is intentionally compact:
 7. [`rfc/security-and-governance.mdx`](./rfc/security-and-governance.mdx) — trust boundaries and controls.
 8. [`rfc/evaluation-and-conformance.mdx`](./rfc/evaluation-and-conformance.mdx) — evaluation-driven development and conformance profiles.
 
-The rest of the repository supplies informative guides, patterns, worked examples, research, and implementation contracts.
+Exact names, interfaces, schemas, API conventions, and manifests live under [`reference/`](./reference/). The remaining sections provide informative guides, patterns, worked examples, implementation guidance, research, and project history.
 
 ## Canonical vocabulary
 
@@ -42,7 +42,7 @@ ExperimentRun -> ExperimentVariant -> ExperimentTrial -> WorkflowRunRef
 
 ## Documentation site
 
-Markdown/MDX is the source of truth; Mintlify renders the website. Navigation is defined in [`docs.json`](./docs.json).
+Markdown/MDX is the source of truth; Mintlify renders the website. Navigation and redirects are defined in [`docs.json`](./docs.json).
 
 ```bash
 npm install --global mint@4.2.687
@@ -61,18 +61,22 @@ mint broken-links
 ## Repository map
 
 ```text
-rfc/             normative ARA specification
-specifications/  normative public contracts and schemas
-handbook/        informative design and operations guides
+rfc/             normative semantic standard
+reference/       glossary, exact contracts, schemas, API and manifest profiles
+guides/          section landing pages
+handbook/        informative application, runtime, and platform guides
 evaluation/      evaluation-driven development and adapters
 patterns/        reusable composition patterns
 examples/        worked end-to-end systems
+implementation/  module layout, rollout, testing, and resilience
 decisions/       decision guide and ADRs
-implementation/  rollout, testing, and resilience
 research/        primary evidence and comparisons
+project/         documentation governance and project overview
 audits/          historical audit reports
 ```
 
+The [documentation architecture](./project/documentation-architecture.mdx) defines authority, page types, canonical ownership, navigation, redirects, and change propagation.
+
 ## Contributing
 
-A terminology or boundary change is incomplete until the RFC, interfaces, schemas, examples, diagrams, ADRs, cheatsheets, and automated consistency checks agree. See [`CONTRIBUTING.md`](./CONTRIBUTING.md) and [`AGENTS.md`](./AGENTS.md).
+A terminology or boundary change is incomplete until the RFC, reference contracts, schemas, examples, diagrams, ADRs, cheatsheets, and automated checks agree. See [`CONTRIBUTING.md`](./CONTRIBUTING.md) and [`AGENTS.md`](./AGENTS.md).
