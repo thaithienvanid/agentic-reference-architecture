@@ -1,6 +1,6 @@
 ---
 title: ARA specification
-description: Normative scope, requirement language, conformance profiles, and reading order for the Agentic Reference Architecture.
+description: Normative scope, requirement language, conformance modules, invariants, and reading order for the Agentic Reference Architecture.
 ---
 
 # Agentic Reference Architecture specification
@@ -9,77 +9,96 @@ description: Normative scope, requirement language, conformance profiles, and re
 
 The Agentic Reference Architecture (ARA) specifies the minimum concepts, boundaries, and contracts required to build production agentic applications, services, runtimes, platforms, and marketplaces without coupling the core to one model provider, agent framework, durable backend, database, cloud, or observability vendor.
 
-> **Models propose. Deterministic software, policy, and humans authorize. The runtime executes, persists, and records.**
+> **Models propose. Deterministic software, policy, resource authorization, and humans authorize. The runtime executes, persists, and records.**
 
-ARA is an independent technical specification. It is not an RFC Series publication, a formal standards-body standard, legal certification, or security attestation.
+ARA is an independent technical specification. It is not an RFC Series publication, a formal standards-body standard, legal certification, security attestation, or proof of operational effectiveness.
 
 ## Requirement language
 
 The key words **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, and **MAY** are interpreted as described by BCP 14, RFC 2119, and RFC 8174 when they appear in uppercase.
 
-Normative semantic requirements live under `/specification`. Exact naming, interface, and representation rules live in explicitly marked pages under `/reference`. Guides, patterns, examples, research, and product adapters are informative unless they quote a normative rule.
+Normative semantic requirements live under `/specification`. Exact names, interfaces, lifecycle contracts, schemas, and registries live in explicitly marked pages under `/reference` and machine-readable artifacts under `/contracts`. Guides, patterns, examples, research, and provider adapters are informative unless they quote a normative rule.
+
+When prose and an identified machine-readable contract disagree for a representation, the published contract named by the specification controls for that representation. Semantic meaning remains owned by the specification.
 
 ## Scope
 
 ARA covers:
 
+- Clean/Hexagonal dependency boundaries and application use cases.
 - Stable resources and immutable versions.
 - Workflows, activities, agents, runs, state, effects, and invocations.
 - Durable execution, scheduling, retries, reconciliation, cancellation, and replay.
 - Ports and adapters for models, tools, memory, policy, storage, sandboxes, evaluation, and evidence.
 - Control, execution, governance, evaluation, and evidence planes.
 - Multi-tenancy, security, audit, cost, data rights, and marketplace controls.
-- Evaluation-driven development and production conformance.
+- Evaluation-driven development and technical conformance evidence.
 
-ARA does not mandate one deployment topology, storage engine, durable backend, agent framework, model provider, prompt style, or autonomous-agent pattern.
+ARA does not mandate one deployment topology, storage engine, durable backend, agent framework, model provider, prompt style, autonomous-agent pattern, API protocol, or programming language.
 
-## Conformance profiles
+## Conformance modules
 
-An implementation declares the profiles it conforms to.
+ARA uses a required base plus composable capability modules. A named bundle is shorthand; the evidence package identifies every module actually assessed.
 
-| Profile | Purpose | Depends on |
+| Module | Purpose | Depends on |
 |---|---|---|
-| **ARA Core** | Resource/version model, typed workflows, effect boundary, ports, state/evidence separation | None |
-| **ARA Durable** | Long-running runs, journal, idempotency, reconciliation, leases, resume, replay | ARA Core |
-| **ARA Enterprise** | Tenant isolation, identity, policy, audit, quotas, SLOs, regional execution cells | ARA Durable |
-| **ARA Marketplace** | Signed packages, provenance, permissions, sandboxing, install/upgrade/revocation | ARA Enterprise |
-| **ARA Regulated** | Human oversight, data rights, retention, tamper evidence, control mapping | ARA Enterprise |
+| **ARA Core** | Dependency boundaries, resource/version model, typed workflows, effect boundary, ports, state/evidence separation, baseline security and evaluation | None |
+| **ARA Durable** | Long-running execution, journal, atomic transition commit, idempotency, reconciliation, fencing, waits, resume, and replay | ARA Core |
+| **ARA Multi-Tenant** | Tenant/workspace isolation, scoped identity, quotas, placement, data governance, and isolation tests | ARA Core; Durable when executions are long-running |
+| **ARA Enterprise Operations** | Control plane, execution cells, SLOs, disaster recovery, audit/usage completeness, and provider lifecycle | ARA Durable; Multi-Tenant when shared tenants exist |
+| **ARA Marketplace** | Signed packages, exact locks, grants, sandboxing, installation, upgrade, rollback, quarantine, and revocation | ARA Core plus applicable security/operations modules |
+| **ARA High-Assurance** | Strong oversight, fail-closed gates, tamper evidence, independent review, and higher assurance testing | ARA Core plus applicable execution/platform modules |
+| **ARA Regulated** | Intended-purpose governance, data rights, retention, legal holds, control mapping, and regulated evidence | ARA High-Assurance plus modules required by the deployment |
 
-Conformance is a technical architecture claim, not a legal certification or security attestation.
+Convenience bundles:
+
+```text
+ARA Enterprise = Core + Durable + Enterprise Operations
+                 + Multi-Tenant when the platform serves multiple tenants
+
+ARA Regulated Enterprise = Enterprise + High-Assurance + Regulated
+```
+
+A single-tenant regulated system does not need to claim multi-tenant platform features merely to use the Regulated module. Conformance is a technical architecture claim, not legal certification or a security attestation.
 
 ## Normative reading order
 
-1. [Resource and version model](/specification/resource-model)
-2. [Execution model](/specification/execution-model)
-3. [Runtime and kernel](/specification/runtime)
-4. [State, data, and evidence](/specification/data-and-evidence)
-5. [Platform architecture](/specification/platform)
-6. [Security and governance](/specification/security-and-governance)
-7. [Evaluation and conformance](/specification/evaluation-and-conformance)
-8. [Canonical conventions](/reference/conventions)
-9. [Reference interfaces](/reference/interfaces)
-10. [State and event schemas](/reference/events-and-state)
+1. [Architecture boundaries and application use cases](/specification/boundaries-and-use-cases)
+2. [Resource and version model](/specification/resource-model)
+3. [Execution model](/specification/execution-model)
+4. [Runtime and kernel](/specification/runtime)
+5. [State, data, and evidence](/specification/data-and-evidence)
+6. [Platform architecture](/specification/platform)
+7. [Security and governance](/specification/security-and-governance)
+8. [Evaluation and conformance](/specification/evaluation-and-conformance)
+9. [Canonical conventions](/reference/conventions)
+10. [Reference interfaces](/reference/interfaces)
+11. [Lifecycle contracts](/reference/lifecycles)
+12. [State and event schemas](/reference/events-and-state)
+13. [Contract catalog](/reference/contract-catalog)
 
 ## Architectural invariants
 
-An ARA-conforming implementation:
+An ARA Core-conforming implementation:
 
-1. **MUST** separate stable resource identity, immutable resource version, and runtime execution.
-2. **MUST** pin every production run to an immutable deployment snapshot.
-3. **MUST NOT** allow model output to mutate authoritative business state directly.
-4. **MUST** represent each external or nondeterministic operation as an authorized, durable effect.
-5. **MUST** distinguish a logical effect from each concrete invocation used to realize it.
-6. **MUST** define idempotency or reconciliation for mutating effects.
-7. **MUST** keep domain state, workflow state, context, memory, artifacts, checkpoints, telemetry, audit, and usage as distinct models.
-8. **MUST** carry trusted tenant and actor context across every protected boundary.
-9. **MUST** constrain child runs with explicit task, capability, budget, deadline, and result contracts.
-10. **MUST** treat evaluation gates as part of deployable behavior.
-11. **SHOULD** prefer deterministic software whenever it can safely determine the result or transition.
-12. **SHOULD** expose provider-specific features through typed capability extensions rather than leaking provider DTOs into the core.
+1. **MUST** enforce inward dependency direction and keep provider/framework DTOs behind adapters.
+2. **MUST** separate stable resource identity, immutable resource version, and runtime execution.
+3. **MUST** pin every production run to an immutable deployment snapshot.
+4. **MUST NOT** allow model output to mutate authoritative business state directly.
+5. **MUST** represent each semantically material external or nondeterministic operation as an authorized, durable effect.
+6. **MUST** distinguish a logical effect from each concrete invocation used to realize or reconcile it.
+7. **MUST** define idempotency or reconciliation for mutating effects.
+8. **MUST** keep domain state, workflow state, context, memory, artifacts, checkpoints, telemetry, audit, usage, and evaluation as distinct models.
+9. **MUST** carry trusted tenant, actor, capability, data-policy, deadline, and correlation context across protected boundaries.
+10. **MUST** constrain child runs with explicit task, capability, budget, deadline, cancellation, and result contracts.
+11. **MUST** apply baseline secret, sink, capability, and mutation-safety controls even when Enterprise modules are not claimed.
+12. **MUST** treat evaluation contracts and hard gates as part of deployable behavior.
+13. **SHOULD** prefer deterministic software whenever it can safely determine the result or transition.
+14. **SHOULD** expose provider-specific features through typed capability extensions rather than leaking provider types into the core.
 
 ## Publication and errata
 
-A conformance statement identifies both the ARA semantic version and the exact publication commit or digest. Mutable references such as “latest ARA” are not reproducible. See [Releases, versions, and errata](/project/releases-and-errata).
+A conformance statement identifies both the ARA semantic version and the exact publication commit or digest. Mutable references such as “latest ARA” are not reproducible. Stable publication additionally requires machine-contract validation, implementation evidence, and independent review. See [Releases, versions, and errata](/project/releases-and-errata).
 
 ## Extension rule
 
