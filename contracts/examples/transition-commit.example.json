@@ -9,7 +9,7 @@
     {
       "eventType": "effect.reconciled",
       "schemaVersion": "1.0.0",
-      "payloadDigest": "sha256:effect-reconciled"
+      "payloadDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
     }
   ],
   "nextStateRef": "state://run_01K2A/version/28",
