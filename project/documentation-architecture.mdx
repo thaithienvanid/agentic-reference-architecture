@@ -1,0 +1,153 @@
+---
+title: Documentation architecture
+description: Authority, document types, information architecture, status labels, maintenance rules, and change propagation for ARA documentation.
+---
+
+# Documentation architecture
+
+> **Status: Project governance.** This page governs the documentation set; it does not add runtime requirements.
+
+## Goal
+
+ARA documentation must let a reader answer four different questions without searching through competing explanations:
+
+1. **What does ARA require?** — the normative RFC.
+2. **What is the exact contract or representation?** — reference material.
+3. **How and why should an implementation apply it?** — guides and decisions.
+4. **What does it look like in practice?** — patterns and worked examples.
+
+The site follows these user needs rather than treating every page as an equal “handbook chapter.”
+
+## Authority order
+
+```text
+Normative RFC
+  -> normative reference contracts
+    -> accepted ADRs
+      -> informative guides
+        -> patterns and worked examples
+          -> research and audit history
+```
+
+A lower-authority page may explain or illustrate a higher-authority rule, but **MUST NOT** redefine it.
+
+| Content class | Authority | Purpose | Requirement language |
+|---|---|---|---|
+| RFC | Normative | Semantics, invariants, ownership, conformance | BCP 14 uppercase terms |
+| Reference contract | Normative when marked | Exact fields, interfaces, schemas, naming, wire representation | BCP 14 where necessary |
+| ADR | Decision record | Rationale, alternatives, consequences, revisit conditions | Descriptive |
+| Guide | Informative | Application, implementation, and operations guidance | Recommended prose |
+| Pattern | Informative | Reusable composition with use/avoid conditions | Recommended prose |
+| Example | Informative | End-to-end illustration of the canonical model | No new rules |
+| Research | Evidence | Facts, inferences, comparisons, sources | No new rules |
+| Audit/history | Historical | Findings and remediation evidence | May quote retired terms |
+
+## Repository map
+
+```text
+rfc/             normative semantic architecture and conformance
+reference/       exact contracts, glossary, API and manifest profiles
+handbook/        informative design and operations guides
+patterns/        reusable composition patterns
+examples/        end-to-end worked systems
+evaluation/      evaluation-driven development guides and adapters
+implementation/  module layout, rollout, testing, and resilience
+decisions/       ADRs and decision guide
+research/        primary evidence and comparisons
+project/         documentation governance and release history
+audits/          historical audits
+```
+
+`rfc/` is the single semantic authority. `reference/` describes the machinery and representations that implement that authority. The repository does not maintain a second “specifications” tree.
+
+## Reader-facing architecture
+
+The Mintlify site separates:
+
+- **Standard** — normative RFC and contracts.
+- **Guides** — design, implementation, operations, and evaluation guidance.
+- **Reference** — glossary, API/profile lookup, manifests, schemas, and diagrams.
+- **Patterns & examples** — reusable compositions and complete scenarios.
+- **Project** — decisions, roadmap, research, audits, and contribution governance.
+
+Every major section has an overview page. Navigation groups should remain small and task-oriented; a long flat list is split into meaningful subgroups.
+
+## Page contract
+
+Every public MDX page declares:
+
+```yaml
+---
+title: Human-readable title
+description: One-sentence purpose
+---
+```
+
+The first screen should also make the page’s authority clear when ambiguity is possible:
+
+```text
+Status: Normative
+Status: Normative reference
+Status: Informative guide
+Status: Informative pattern
+Status: Worked example
+Status: Research
+Status: Historical audit
+```
+
+A page should have one primary job. Reference pages describe; guides teach or explain; examples demonstrate. Long explanatory detours do not belong in contract pages.
+
+## Canonical ownership
+
+| Topic | Canonical owner |
+|---|---|
+| Resource/version/run semantics | `rfc/resource-model.mdx` |
+| Activity, effect, invocation, retry, iteration, child semantics | `rfc/execution-model.mdx` |
+| Kernel, runtime, lease, journal, recovery | `rfc/runtime.mdx` |
+| State, context, memory, artifacts, evidence | `rfc/data-and-evidence.mdx` |
+| Planes, cells, tenancy, marketplace boundary | `rfc/platform.mdx` |
+| Security invariants | `rfc/security-and-governance.mdx` |
+| Evaluation and conformance | `rfc/evaluation-and-conformance.mdx` |
+| Naming and serialization | `reference/conventions.mdx` |
+| Port signatures | `reference/interfaces.mdx` |
+| State and event representation | `reference/events-and-state.mdx` |
+
+Summaries link to these owners instead of reproducing independent rule lists.
+
+## Change propagation
+
+A semantic change is complete only when all affected artifacts agree:
+
+```text
+RFC rule
+-> reference contract/schema
+-> ADR when consequential
+-> guides and decision tables
+-> diagrams
+-> examples and manifests
+-> evaluation gates/tests
+-> compatibility notes and redirects
+-> deterministic documentation checks
+```
+
+A representation-only change normally updates reference contracts and schema versions without changing RFC semantics. A guide-only clarification must not alter a contract implicitly.
+
+## Compatibility and redirects
+
+Moved public pages retain explicit redirects. Historical identifiers and event meanings are never silently rewritten. Deprecated terminology may remain only in migration notes or audits and must point to the canonical replacement.
+
+## Quality gates
+
+Documentation CI verifies:
+
+- Navigation targets and root pages exist.
+- Public pages are not orphaned unintentionally.
+- Retired canonical terms do not reappear.
+- Normative authority is limited to designated locations.
+- Shared hard gates and state-machine transitions remain consistent.
+- JSON/YAML examples parse where mechanically testable.
+- Mintlify configuration and internal links validate.
+
+## Maintenance principle
+
+> Prefer one authoritative definition plus several purposeful views over several nearly identical “complete” documents.
