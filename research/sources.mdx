@@ -1,44 +1,82 @@
 ---
 title: Primary sources
-description: Official documentation, specifications, repositories, standards, and research papers used by the reference architecture.
+description: Official documentation, specifications, repositories, standards, and research papers used by the Agentic Reference Architecture.
 ---
 
 # Primary sources
 
-**Retrieval date:** July 13, 2026 unless otherwise noted. Time-sensitive claims must be revalidated before major architecture or compliance decisions.
+**Retrieval/review date:** July 13, 2026 unless a source or version is stated explicitly. Time-sensitive product, protocol, legal, security, and observability claims must be revalidated before a major architecture, assurance, or compliance decision.
 
-## Architecture foundations
+## Architecture and domain foundations
 
 - [The Clean Architecture — Robert C. Martin](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
 - [Hexagonal Architecture — Alistair Cockburn](https://alistair.cockburn.us/hexagonal-architecture/)
+- [Domain-Driven Design resources — Domain Language](https://www.domainlanguage.com/ddd/)
 - [Event Sourcing — Martin Fowler](https://martinfowler.com/eaaDev/EventSourcing.html)
 - [Sagas — Garcia-Molina and Salem](https://www.cs.cornell.edu/andru/cs711/2002fa/reading/sagas.pdf)
+- [Leases: An Efficient Fault-Tolerant Mechanism for Distributed File Cache Consistency](https://dl.acm.org/doi/10.1145/74850.74870)
+- [The Chubby Lock Service for Loosely-Coupled Distributed Systems](https://research.google/pubs/the-chubby-lock-service-for-loosely-coupled-distributed-systems/)
 - [MapReduce — Dean and Ghemawat](https://research.google/pubs/mapreduce-simplified-data-processing-on-large-clusters/)
 
-## Coding agents and security controls
+## Workflow, events, schemas, and API contracts
 
+- [BPMN 2.0.2 — Object Management Group](https://www.omg.org/spec/BPMN/2.0.2/)
+- [CloudEvents specification](https://github.com/cloudevents/spec)
+- [W3C PROV-O](https://www.w3.org/TR/prov-o/)
+- [JSON Schema Draft 2020-12](https://json-schema.org/draft/2020-12)
+- [OpenAPI Specification 3.1.1](https://spec.openapis.org/oas/v3.1.1.html)
+- [AsyncAPI Specification 3.0.0](https://www.asyncapi.com/docs/reference/specification/v3.0.0)
+
+## Coding agents and operating-environment controls
+
+- [GitHub Copilot cloud agent — public capabilities and environment](https://docs.github.com/en/copilot/concepts/agents/cloud-agent/about-cloud-agent)
 - [OpenAI Codex agent approvals and security](https://developers.openai.com/codex/agent-approvals-security)
 - [Claude Code security](https://code.claude.com/docs/en/security)
 - [Claude Code hooks](https://code.claude.com/docs/en/hooks-guide)
 
+## Enterprise use-case evidence
+
+- [ServiceNow AI Agents](https://www.servicenow.com/products/ai-agents.html)
+- [SAP Joule Assistants](https://www.sap.com/products/artificial-intelligence/ai-assistant.html)
+
+These product pages support only the public demand/capability claims made in [Enterprise agentic use-case research](/research/enterprise-use-cases). They do not define ARA architecture or imply knowledge of private vendor internals.
+
 ## Agent and workflow frameworks
 
 - [LangGraph overview](https://docs.langchain.com/oss/python/langgraph/overview)
-- [Dify documentation and source](https://docs.dify.ai/)
-- [Langflow documentation and source](https://docs.langflow.org/)
+- [LangGraph persistence](https://docs.langchain.com/oss/python/langgraph/persistence)
+- [Dify documentation](https://docs.dify.ai/)
+- [Dify source repository](https://github.com/langgenius/dify)
+- [Langflow documentation](https://docs.langflow.org/)
+- [Langflow source repository](https://github.com/langflow-ai/langflow)
 
 ## Durable and data orchestration
 
 - [Temporal Workflows](https://docs.temporal.io/workflows)
-- [Temporal event history](https://docs.temporal.io/workflow-execution/event)
-- [Apache Airflow 3.3.0](https://airflow.apache.org/docs/apache-airflow/stable/index.html)
+- [Temporal Event History](https://docs.temporal.io/workflow-execution/event)
+- [Temporal Activities](https://docs.temporal.io/activities)
+- [Temporal Child Workflows](https://docs.temporal.io/child-workflows)
+- [Apache Airflow stable documentation](https://airflow.apache.org/docs/apache-airflow/stable/index.html)
 - [Dagster documentation](https://docs.dagster.io/)
 - [Prefect v3 documentation](https://docs.prefect.io/v3/get-started)
 
-## Protocols
+Version-sensitive comparison rows must record the reviewed version/date rather than treating the product name as timeless.
+
+## Interoperability protocols
 
 - [Model Context Protocol specification 2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25)
 - [A2A protocol specification](https://a2a-protocol.org/latest/specification/)
+
+MCP and A2A define interoperability at system boundaries. Their protocol sessions, remote task states, messages, and peer policy decisions do not become local ARA authorization or run-state authority.
+
+## Identity, authorization, and provisioning
+
+- [OAuth 2.0 — RFC 6749](https://www.rfc-editor.org/rfc/rfc6749)
+- [OpenID Connect Core 1.0](https://openid.net/specs/openid-connect-core-1_0.html)
+- [SCIM Protocol — RFC 7644](https://www.rfc-editor.org/rfc/rfc7644)
+- [NIST SP 800-207 — Zero Trust Architecture](https://csrc.nist.gov/pubs/sp/800/207/final)
+- [Open Policy Agent](https://www.openpolicyagent.org/docs/)
+- [Cedar policy language](https://docs.cedarpolicy.com/)
 
 ## Evaluation
 
@@ -47,7 +85,7 @@ description: Official documentation, specifications, repositories, standards, an
 - [DeepEval source repository](https://github.com/confident-ai/deepeval)
 - [Harbor core concepts](https://www.harborframework.com/docs/core-concepts)
 - [Harbor task structure](https://www.harborframework.com/docs/tasks)
-- [Harbor canonical source repository](https://github.com/harbor-framework/harbor)
+- [Harbor source repository](https://github.com/harbor-framework/harbor)
 
 ## Security, risk, privacy, and governance
 
@@ -56,17 +94,27 @@ description: Official documentation, specifications, repositories, standards, an
 - [European Commission AI Act overview](https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai)
 - [EU Artificial Intelligence Act](https://eur-lex.europa.eu/eli/reg/2024/1689/oj)
 - [EU General Data Protection Regulation](https://eur-lex.europa.eu/eli/reg/2016/679/oj)
-- [Open Policy Agent](https://www.openpolicyagent.org/docs/)
-- [Cedar policy language](https://docs.cedarpolicy.com/)
 
-## Observability, sandboxing, and supply chain
+Regulatory applicability, provider/customer roles, and legal obligations remain deployment-specific. ARA technical controls are not legal certification.
+
+## Observability
 
 - [OpenTelemetry documentation](https://opentelemetry.io/docs/)
-- [OpenTelemetry GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/)
+- [OpenTelemetry semantic conventions repository](https://github.com/open-telemetry/semantic-conventions)
+- [OpenTelemetry GenAI semantic conventions repository](https://github.com/open-telemetry/semantic-conventions/tree/main/docs/gen-ai)
+
+OpenTelemetry GenAI conventions are evolving adapter mappings. ARA owns stable internal run/effect/invocation/audit/usage identities and pins any declared telemetry profile to an exact reviewed revision.
+
+## Sandboxing and supply chain
+
 - [gVisor documentation](https://gvisor.dev/docs/)
 - [Firecracker documentation](https://firecracker-microvm.github.io/)
+- [OCI Image Specification](https://github.com/opencontainers/image-spec)
+- [OCI Distribution Specification](https://github.com/opencontainers/distribution-spec)
 - [SLSA specification](https://slsa.dev/spec/)
 - [Sigstore documentation](https://docs.sigstore.dev/)
+- [SPDX specifications](https://spdx.dev/specifications/)
+- [CycloneDX specification](https://cyclonedx.org/specification/overview/)
 
 ## Agentic research patterns
 
@@ -79,13 +127,15 @@ description: Official documentation, specifications, repositories, standards, an
 - [Generative Agents](https://arxiv.org/abs/2304.03442)
 - [AutoGen](https://arxiv.org/abs/2308.08155)
 
+Research patterns motivate bounded techniques; they do not automatically become universal runtime entities or prove production safety.
+
 ## Documentation architecture and editorial practice
 
 - [Diátaxis documentation framework](https://diataxis.fr/)
 - [RFC Editor — What is an RFC?](https://www.rfc-editor.org/series/rfc/)
 - [RFC 7322 — RFC Style Guide](https://www.rfc-editor.org/rfc/rfc7322.html)
-- [RFC 2119 — Key words for use in RFCs](https://www.rfc-editor.org/rfc/rfc2119.html)
-- [RFC 8174 — Ambiguity of uppercase and lowercase requirement language](https://www.rfc-editor.org/rfc/rfc8174.html)
+- [RFC 2119 — Requirement keywords](https://www.rfc-editor.org/rfc/rfc2119.html)
+- [RFC 8174 — Uppercase/lowercase requirement language](https://www.rfc-editor.org/rfc/rfc8174.html)
 - [Google developer documentation style guide](https://developers.google.com/style)
 
 ## Documentation platform
@@ -95,6 +145,11 @@ description: Official documentation, specifications, repositories, standards, an
 - [Mintlify Mermaid diagrams](https://www.mintlify.com/docs/components/mermaid-diagrams)
 - [Mintlify CLI installation](https://www.mintlify.com/docs/installation)
 
-## Source handling policy
+## Source-handling policy
 
-Product pages document public behavior, not private implementation. Architectural inferences are labeled in the research findings. Recommendations belong to ARA and should not be attributed to a vendor unless an official source states them.
+- Product pages support documented public behavior only, not private implementation claims.
+- Time-sensitive claims include a retrieval/review date and are revalidated before Stable publication.
+- Research findings label **Fact**, **Inference**, and **ARA Recommendation**.
+- Comparison matrices identify assumptions, reviewed versions/dates, scoring rubric, and uncertainty.
+- Legal and regulatory sources support control mapping, not universal legal conclusions.
+- A recommendation belongs to ARA and is not attributed to a vendor unless the source states it.
