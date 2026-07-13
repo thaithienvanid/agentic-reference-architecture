@@ -1,0 +1,116 @@
+---
+title: Contract catalog
+description: Authority, versioning, layout, validation, and compatibility rules for ARA machine-readable schemas, registries, API profiles, and examples.
+---
+
+# Contract catalog
+
+> **Status: Normative reference.** This page identifies the machine-readable contract artifacts that realize ARA semantics.
+
+## Authority model
+
+```text
+Specification
+    owns semantic meaning
+
+Machine-readable contracts
+    own exact serialized representation for declared profiles
+
+Reference prose
+    explains and indexes the contracts
+
+Guides and examples
+    demonstrate use without redefining either owner
+```
+
+When normative prose and a published machine-readable contract disagree about field shape or serialized value, the contract named by the applicable profile controls the representation. When a contract appears to change architectural meaning, the semantic specification controls and the mismatch is an erratum.
+
+## Contract tree
+
+```text
+contracts/
+├── schemas/
+│   ├── common.schema.json
+│   ├── run-state.schema.json
+│   ├── effect.schema.json
+│   ├── invocation.schema.json
+│   ├── event-envelope.schema.json
+│   ├── transition-commit.schema.json
+│   ├── capability-grant.schema.json
+│   ├── approval.schema.json
+│   ├── deployment-snapshot.schema.json
+│   ├── evaluation-result.schema.json
+│   └── package-lock.schema.json
+├── registries/
+│   ├── effect-kinds.json
+│   ├── event-types.json
+│   ├── error-categories.json
+│   ├── hard-gates.json
+│   └── conformance-modules.json
+├── examples/
+│   └── *.example.json
+├── openapi/
+│   └── ara-api-profile.yaml
+└── asyncapi/
+    └── ara-events-profile.yaml
+```
+
+JSON contracts use JSON Schema Draft 2020-12. The HTTP profile uses OpenAPI 3.1.1. The event-delivery profile uses AsyncAPI 3.0.0. These representation standards do not replace ARA execution semantics.
+
+## Schema rules
+
+Every schema:
+
+- **MUST** declare the JSON Schema draft.
+- **MUST** have a stable `$id` and explicit contract version.
+- **MUST** reject undeclared fields unless extension points are intentional.
+- **MUST** distinguish required, optional, and nullable values.
+- **MUST** use canonical names from [Canonical conventions](/reference/conventions).
+- **MUST** define namespaced extension points where provider/profile-specific data is permitted.
+- **MUST NOT** embed plaintext secrets or private hidden reasoning.
+
+## Registry rules
+
+Registries are versioned immutable data sets. Each entry includes:
+
+```text
+id
+version or registry version
+status
+semantic owner
+applicability
+required evidence or behavior
+replacement/deprecation metadata when applicable
+```
+
+Serialized events, error categories, effect kinds, hard gates, and conformance modules **MUST** use registered identifiers unless a namespaced extension is declared.
+
+## Examples
+
+Each `*.example.json` file is validated against the schema with the matching base name. Examples are executable test fixtures, not manually maintained prose snippets.
+
+Documentation SHOULD embed generated or copied examples from this directory and SHOULD NOT maintain a conflicting independent representation.
+
+## Compatibility
+
+- Patch contract releases correct defects without intentionally changing meaning.
+- Minor releases add backward-compatible optional fields, enum values with declared tolerant-reader behavior, or new registries/profiles.
+- Major releases may remove or redefine fields and require migration guidance.
+- Historical events remain readable through versioned readers or upcasters.
+- Renames retain aliases until the next major release unless a security defect requires faster removal.
+- Unknown required capability or hard-gate identifiers cause explicit incompatibility, not silent ignore.
+
+## Validation
+
+Documentation CI validates:
+
+```text
+JSON Schema meta-schema conformance
+example-to-schema conformance
+registry uniqueness and required fields
+OpenAPI and AsyncAPI document structure
+JSON and YAML code fences
+navigation and documentation contracts
+```
+
+A Stable ARA publication records the exact contract-tree digest and validation output.
