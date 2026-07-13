@@ -2,21 +2,32 @@
 
 ## Change workflow
 
-1. Identify the canonical RFC or specification that owns the concept.
-2. Make the normative change first.
-3. Update affected interfaces, schemas, ADRs, diagrams, examples, guides, and cheatsheets.
-4. Add or update a deterministic consistency check when drift can be detected mechanically.
-5. Run the complete documentation validation suite.
-6. Explain compatibility and migration impact in the pull request.
+1. Identify the canonical owner in `project/documentation-architecture.mdx`.
+2. Change normative semantics in `/rfc` first, when semantics actually change.
+3. Change exact interfaces or representations in `/reference` and version affected contracts.
+4. Record a consequential architectural decision or reversal in an ADR.
+5. Update affected guides, diagrams, examples, manifests, evaluation gates, and cheatsheets.
+6. Add or update deterministic checks when drift can be detected mechanically.
+7. Preserve moved public URLs with `docs.json` redirects.
+8. Run the complete validation suite and explain compatibility/migration impact in the pull request.
 
-## Content status
+## Content classes
 
-- `/rfc` and pages marked **Status: Normative** define ARA.
-- Guides, patterns, examples, and research are informative.
-- Historical audit pages may quote retired terminology but do not define it.
+- `/rfc` contains normative semantic requirements.
+- Explicitly marked pages in `/reference` contain normative lookup contracts.
+- ADRs record accepted decisions and rationale.
+- Guides explain how and why to apply the standard.
+- Patterns provide reusable composition guidance.
+- Examples illustrate the model but never create new requirements.
+- Research records facts, inferences, comparisons, and sources.
+- Audit pages are historical and may quote retired terminology.
+
+Every public MDX page has `title` and `description` frontmatter. State the content status near the top when authority is not obvious.
 
 ## Review checklist
 
+- [ ] The page has one primary purpose and correct content class.
+- [ ] No lower-authority page redefines a canonical rule.
 - [ ] Stable resource, immutable version, and runtime execution are distinct.
 - [ ] `Run` is used only for an independently durable execution.
 - [ ] Activity retry, iteration, branch, effect, invocation, and worker lease are not conflated.
@@ -27,7 +38,8 @@
 - [ ] Evaluation and observability impacts are covered.
 - [ ] Security, data rights, and failure modes are covered.
 - [ ] Migration or compatibility consequences are stated.
-- [ ] Navigation and links are valid.
+- [ ] Duplicated rule lists have been replaced with links where practical.
+- [ ] Navigation, landing pages, redirects, and links are valid.
 
 ## Research
 
