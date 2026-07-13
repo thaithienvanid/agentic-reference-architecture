@@ -1,46 +1,46 @@
 ---
 title: Ensembles, iterations, and deliberation
-description: Best-of-N, multi-model ensembles, survey/deliberation rounds, aggregation, and completion policies.
+description: Best-of-N, multi-model ensembles, survey and deliberation cycles, aggregation, and completion policies.
 ---
 
 # Ensembles, iterations, and deliberation
 
-## Universal model
+> **Status: Informative pattern.** Do not make `Round` a universal runtime abstraction.
 
-Do not make `Round` the universal abstraction. Use:
+## Universal model
 
 ```text
 ActivityRun
-  execution strategy
-  scheduler
-  execution branches
-  aggregator
-  completion policy
-  optional IterationRuns
+├── execution strategy
+├── Scheduler policy
+├── ExecutionBranches
+├── aggregation policy
+├── completion policy
+└── optional Iterations
 ```
 
-A **round** is a valid domain-facing name for one debate or deliberation iteration. An iteration may execute a complete multi-step body workflow.
+A **round** is valid only as a qualified domain-facing term such as `DeliberationRound`. It maps to an `Iteration` and may execute a complete multi-activity workflow body.
 
 ## Best-of-N
 
 ```mermaid
 flowchart TB
-    Input --> A["Candidate A"]
-    Input --> B["Candidate B"]
-    Input --> C["Candidate C"]
+    Input --> A["ExecutionBranch A"]
+    Input --> B["ExecutionBranch B"]
+    Input --> C["ExecutionBranch C"]
     A --> Validate
     B --> Validate
     C --> Validate
-    Validate --> Select["Rank, vote, verify, or preserve all"]
+    Validate --> Select["Rank, vote, verify, merge, or preserve all"]
 ```
 
-Candidates are intentional branches; retries within a candidate remain `AttemptRun`s. Compare the strategy against the strongest individual candidate and report incremental value per added branch.
+Candidates are intentional `ExecutionBranch`es. A provider-call retry inside one candidate is another `Invocation` for the same `Effect`; a whole-activity restart is an `ActivityAttempt`. Compare the strategy against the strongest individual candidate and report incremental value per added branch.
 
 ## Multi-model ensemble
 
-Different model routes use one common input snapshot and normalized output schema. Record each branch model route, prompt snapshot, result, usage, and evaluation. Aggregation may use deterministic verification, ranking, weighted vote, evidence merge, synthesis, or preserved dissent.
+Different model routes use one common input snapshot and normalized output schema. Record each branch’s model route, prompt/context snapshot, effects, invocations, result, usage, and evaluation. Aggregation may use deterministic verification, ranking, weighted vote, evidence merge, synthesis, or preserved dissent.
 
-Use only when model diversity provides measured value and policy permits all providers/regions.
+Use an ensemble only when measured diversity benefits justify added cost, latency, correlated-error risk, and provider/data-policy exposure.
 
 ## Survey then deliberate
 
@@ -59,23 +59,23 @@ flowchart TB
     Rebuttal --> Verify
     Verify --> Synthesize["Consensus and dissent"]
     Synthesize --> Decide{"Completion policy?"}
-    Decide -->|Continue| Next["Targeted next iteration"]
+    Decide -->|Continue| Next["Targeted next Iteration"]
 ```
 
-Collect initial views independently before sharing them when anchoring and groupthink matter. Deliberation should verify disputed claims, not reward persuasive wording.
+Collect initial views independently when anchoring and groupthink matter. Deliberation should verify disputed claims and preserve dissent rather than reward persuasive wording.
 
 ## Iteration body
 
 ```text
-IterationRun
-  -> body WorkflowRun
-       independent contributions
-       normalization
-       contradiction analysis
-       challenge/rebuttal
-       evidence verification
-       synthesis
-       progress evaluation
+Iteration
+└── body WorkflowRun or inline workflow body
+    ├── independent contributions
+    ├── normalization
+    ├── contradiction analysis
+    ├── challenge/rebuttal
+    ├── evidence verification
+    ├── synthesis
+    └── progress evaluation
 ```
 
 ## Completion policy
@@ -89,10 +89,10 @@ stopWhen:
   consensusScore: ">= 0.80"
 hardLimits:
   maximumIterations: 4
-  maximumCostUsd: 8.00
+  maximumCost: { amount: "8.00", currency: USD }
 noProgress:
   maximumStagnantIterations: 1
-  minimumImprovement: 0.02
+  minimumImprovement: "0.02"
 ```
 
 Valid outcomes include consensus, partial consensus, documented dissent, insufficient evidence, irreconcilable disagreement, budget stop, or human judgment required. Do not force false consensus.
