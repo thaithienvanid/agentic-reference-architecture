@@ -5,7 +5,7 @@ description: A practical EDD lifecycle for agent, workflow, prompt, tool, and pa
 
 # Evaluation-driven development
 
-Evaluation-driven development applies test-first discipline to probabilistic systems.
+> **Status: Informative guide.** Evaluation-driven development applies test-first discipline to probabilistic systems.
 
 ```mermaid
 flowchart LR
@@ -31,7 +31,7 @@ flowchart LR
 4. Define semantic, trajectory, cost, and latency metrics.
 5. Run the current version to establish a baseline.
 6. Implement the smallest behavior change.
-7. Compare distributions across `TrialRun`s where stochasticity matters.
+7. Compare distributions across `ExperimentTrial`s when stochasticity matters.
 8. Promote only if the canonical hard-gate registry passes and regression tolerances hold.
 9. Observe a canary and automatically roll back on declared triggers.
 10. Convert reviewed production failures into durable cases.
@@ -39,7 +39,7 @@ flowchart LR
 ## Evaluation contract
 
 ```yaml
-kind: EvaluationSuite
+kind: EvaluationSuiteVersion
 metadata:
   name: procurement-agent-release
   version: 6.0.0
@@ -74,7 +74,7 @@ operational:
 |---|---|---|
 | Developer | Unit, mocks, small golden slice | Fast feedback |
 | Pull request | Contracts, replay, representative DeepEval and Harbor smoke cases | Prevent obvious regression |
-| Nightly | Full datasets, repeated trials, adversarial and fault injection | Distributional confidence |
+| Nightly | Full datasets, repeated experiment trials, adversarial and fault injection | Distributional confidence |
 | Release | Production configuration and critical hard gates | Promotion evidence |
 | Canary | Sampled real traffic or shadow execution | Detect live regression |
 | Production | Online sampling and all incidents | Feedback loop |
@@ -85,8 +85,8 @@ Use mocks to force invalid JSON, refusal, partial stream, repeated tool proposal
 
 ## Baseline discipline
 
-A baseline pins subject versions, model-routing profile, dataset, evaluators, trial count, environment digest, and thresholds. Compare a candidate against the strongest relevant baseline, not a deliberately weak implementation.
+A baseline pins subject versions, model-routing profile, dataset, evaluators, experiment-trial count, environment digest, cache and scheduling treatment, and thresholds. Compare a candidate against the strongest relevant baseline, not a deliberately weak implementation.
 
 ## Stochastic confidence
 
-Report pass rate, mean, dispersion, confidence interval where appropriate, worst critical slice, and repeated-trial failure modes. A single passing sample is weak evidence.
+Report pass rate, mean, dispersion, confidence interval where appropriate, worst critical slice, and repeated-trial failure modes. A single passing sample is weak evidence. Each independent repetition is an `ExperimentTrial` referencing the `WorkflowRun` that performed it.
