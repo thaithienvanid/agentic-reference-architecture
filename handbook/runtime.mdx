@@ -5,7 +5,7 @@ description: Informative implementation guidance for the canonical execution ker
 
 # Runtime implementation guide
 
-> **Status: Informative.** Normative ownership and semantics are in [RFC — Runtime and kernel](/rfc/runtime).
+> **Status: Informative guide.** Normative ownership and semantics are in [RFC — Runtime and kernel](/rfc/runtime).
 
 ## Recommended composition
 
@@ -48,21 +48,21 @@ A transport retry, poll, or reconciliation query creates another `Invocation`. A
 | Situation | Response |
 |---|---|
 | Pure task fails before durable output | Retry through `ActivityAttempt` when safe |
-| Provider returns 429 | New invocation after durable backoff |
-| Mutation response is lost | Reconcile the same effect |
-| Worker dies after checkpoint | New `WorkerLease`, resume same activity |
+| Provider returns 429 | New `Invocation` after durable backoff |
+| Mutation response is lost | Reconcile the same `Effect` |
+| Worker dies after checkpoint | New `WorkerLease`, resume same `ActivityRun` |
 | Deliberation continues with new evidence | New `Iteration` |
-| Experiment repeats from frozen baseline | New `ExperimentTrial` |
+| Experiment repeats from frozen baseline | New `ExperimentTrial` referencing a `WorkflowRun` |
 
 ## Runtime invariants
 
 - One authoritative state-transition writer per run.
-- Effect intent is durable before first invocation.
+- Effect intent is durable before the first invocation.
 - Idempotency keys remain stable across invocations.
 - Stale leases cannot commit.
 - Waiting releases active workers.
-- Completed effects are reused during resume/replay.
+- Completed effects are reused during resume and evidence replay.
 - Cancellation does not erase completed mutations.
 - Fallback routes are declared in the deployment snapshot.
 
-See [Reference interfaces](/specifications/reference-interfaces).
+See [Reference interfaces](/reference/interfaces).
