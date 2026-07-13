@@ -1,37 +1,37 @@
 ---
 title: Agentic Reference Architecture
-description: A framework-agnostic, evaluation-driven specification for production agentic systems.
+description: A framework-agnostic, evaluation-driven specification and executable contract set for production agentic systems.
 ---
 
 # Agentic Reference Architecture
 
-> **Models propose. Deterministic software, policy, and humans authorize. The runtime executes, persists, and records.**
+> **Models propose. Deterministic software, policy, resource authorization, and humans authorize. The runtime executes, persists, and records.**
 
-ARA combines a compact normative specification, exact reference contracts, verifiable implementation guidance, reusable patterns, worked examples, and explicit conformance evidence. It supports one production agent, deterministic and agentic workflows, long-running stateful execution, multi-agent systems, enterprise platforms, and governed marketplaces.
+ARA combines a compact normative specification, machine-readable contracts, reference profiles, verifiable implementation guidance, reusable patterns, enterprise worked examples, and explicit conformance evidence. It supports one production agent, deterministic and agentic workflows, long-running stateful execution, multi-agent systems, internal platforms, multi-tenant SaaS, and governed marketplaces.
 
-<Note>ARA 1.0 is a candidate independent technical specification. It is not an RFC Series publication, formal standards-body standard, legal certification, or security attestation.</Note>
+<Note>ARA 1.0 is a candidate independent technical specification. It is not an RFC Series publication, formal standards-body standard, legal certification, security attestation, or proof of operational effectiveness.</Note>
 
 <CardGroup cols={2}>
   <Card title="Adopt ARA" icon="route" href="/guides/adoption">
-    Select the smallest justified profile, build one vertical slice, and produce review evidence.
+    Select Core plus only the composable modules you need, build one vertical slice, and produce evidence.
   </Card>
   <Card title="Read the specification" icon="book" href="/specification/index">
-    Normative resource, execution, runtime, platform, security, and evaluation rules.
+    Normative boundaries, resource grammar, execution, runtime, platform, security, and evaluation rules.
   </Card>
   <Card title="Architecture cheatsheet" icon="bolt" href="/cheatsheets/architecture">
-    Canonical names, boundaries, and decision rules in one compact view.
+    Canonical terms, ownership boundaries, retry scopes, and decision rules.
   </Card>
-  <Card title="Reference contracts" icon="code" href="/reference/index">
-    Glossary, conventions, interfaces, events/state, optional profiles, and diagrams.
+  <Card title="Machine contracts" icon="brackets-curly" href="/reference/contract-catalog">
+    Schemas, registries, fixtures, OpenAPI, AsyncAPI, versions, and validation.
   </Card>
   <Card title="Build runtime and adapters" icon="gears" href="/handbook/runtime">
-    Implement durable execution, then qualify provider integrations behind canonical ports.
+    Implement atomic durable execution, then qualify providers and protocols behind canonical ports.
   </Card>
   <Card title="Assess conformance" icon="list-check" href="/reference/conformance-checklist">
-    Map cumulative ARA profiles to implementation, test, recovery, and assurance evidence.
+    Map Core, Durable, Multi-Tenant, Operations, Marketplace, High-Assurance, and Regulated modules to evidence.
   </Card>
-  <Card title="Patterns and examples" icon="diagram-project" href="/patterns/index">
-    Agentic control, deliberation, experiments, child runs, compensation, and complete scenarios.
+  <Card title="Enterprise examples" icon="building" href="/examples/index">
+    Software delivery, customer service, incident response, procure-to-pay, and synthetic research.
   </Card>
   <Card title="Project governance" icon="sitemap" href="/project/index">
     Decisions, releases, documentation architecture, research, review history, and maintenance.
@@ -44,47 +44,65 @@ ARA combines a compact normative specification, exact reference contracts, verif
 stable resource
   -> immutable resource version
     -> durable run
-      -> activity run
-        -> logical effect
-          -> concrete invocation
+      -> ActivityRun
+        -> semantic Effect
+          -> concrete Invocation
 ```
 
-Optional subordinate scopes include `ActivityAttempt`, `ExecutionBranch`, and `Iteration`. Temporary runtime ownership is a `WorkerLease`. Independent experiment repetitions are `ExperimentTrial`s in the experiment/evaluation bounded context.
+Optional subordinate scopes include `ActivityAttempt`, `ExecutionBranch`, and `Iteration`. Temporary processing authority is a `WorkerLease`. Independent experiment repetitions are `ExperimentTrial`s outside the universal runtime hierarchy.
+
+An independent `AgentRun` owns one root `WorkflowRun`; ARA does not require separate agent and workflow execution engines.
 
 ## Architecture shape
 
 ```mermaid
 flowchart LR
-    Define["Version resources"] --> Deploy["Compile deployment snapshot"]
-    Deploy --> Kernel["Execution Kernel"]
-    Kernel --> Control["Policy, budget, approval"]
-    Control --> Effect["Effect"]
-    Effect --> Invoke["Invocation(s)"]
-    Invoke --> Record["State, journal, artifacts"]
-    Record --> Evaluate["Evaluation and evidence"]
-    Evaluate --> Define
+    UseCase["Domain use case"] --> App["Application layer"]
+    App --> Snapshot["Immutable DeploymentSnapshot"]
+    Snapshot --> Kernel["Execution Kernel"]
+    Kernel --> Commit["Atomic fenced ExecutionCommitPort"]
+    Kernel --> Gate["Capability, policy, budget, approval"]
+    Gate --> Effect["Effect"]
+    Effect --> Invoke["Invocation(s) through adapters"]
+    Invoke --> Evidence["State, journal, artifacts, audit, usage"]
+    Evidence --> Evaluate["Evaluation and release evidence"]
+    Evaluate --> App
 ```
 
-## Conformance profiles
+## Composable conformance modules
 
 ```text
 ARA Core
-  -> ARA Durable
-    -> ARA Enterprise
-      -> ARA Marketplace or ARA Regulated
+
+Optional modules:
+  ARA Durable
+  ARA Multi-Tenant
+  ARA Enterprise Operations
+  ARA Marketplace
+  ARA High-Assurance
+  ARA Regulated
 ```
 
-An implementation adopts only the profiles justified by its risk and scale. A one-shot summarizer does not need the same runtime as a regulated multi-tenant marketplace. A technical claim identifies the ARA semantic version, exact publication commit or digest, implementation deployment digest, applicable profiles, deviations, and evidence package; use the [Conformance checklist](/reference/conformance-checklist).
+Convenience bundle:
+
+```text
+ARA Enterprise = Core + Durable + Enterprise Operations
+                 + Multi-Tenant when shared tenants exist
+```
+
+A one-shot summarizer does not need the same runtime as a regulated multi-tenant marketplace. A technical claim identifies the ARA semantic version, publication commit/digest, contract-tree digest, implementation/deployment digest, claimed modules and profiles, deviations, assessment date, and evidence package.
 
 ## What ARA rejects
 
-- Model output as a business invariant.
-- A framework as the complete architecture.
-- Prompts as authorization controls.
-- A vector database as universal state or memory.
-- Hidden mutable data flow between activities or runs.
-- The normative core does not define unqualified `Step`, `Round`, `AttemptRun`, or `SubAgent` types.
-- Blind retries of ambiguous mutations.
-- Marketplace code that bypasses platform gateways.
+- Model output as a business invariant or authorization decision.
+- A framework, protocol, vector database, or workflow engine as the complete architecture.
+- Prompts as identity, capability, budget, approval, or sandbox controls.
+- Hidden mutable data flow between activities, branches, iterations, or runs.
+- Unqualified `Step`, `Round`, `AttemptRun`, `TrialRun`, `SubAgent`, or `SubWorkflow` in the normative core.
+- Independent non-atomic writes for authoritative execution transitions.
+- Blind retry of an ambiguous mutation.
+- Plaintext credentials in prompts, run state, journal, artifacts, logs, or telemetry.
+- Marketplace or external-agent code that bypasses local gateways and policy.
+- A passing average score that hides a failed required hard gate.
 
-See [Guides](/guides/index) for task-oriented implementation paths and [Project](/project/index) for publication and maintenance governance.
+See [Guides](/guides/index) for task-oriented implementation, [Reference](/reference/index) for exact machinery, and [Project](/project/index) for publication and maintenance governance.
