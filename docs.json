@@ -27,8 +27,9 @@
             "pages": ["index", "cheatsheets/architecture"]
           },
           {
-            "group": "Core semantics",
+            "group": "Foundations and execution",
             "pages": [
+              "specification/boundaries-and-use-cases",
               "specification/resource-model",
               "specification/execution-model",
               "specification/runtime",
@@ -36,7 +37,7 @@
             ]
           },
           {
-            "group": "Enterprise profiles",
+            "group": "Platform and assurance",
             "pages": [
               "specification/platform",
               "specification/security-and-governance",
@@ -121,20 +122,27 @@
               "reference/glossary",
               "reference/conventions",
               "reference/interfaces",
-              "reference/events-and-state"
+              "reference/lifecycles",
+              "reference/events-and-state",
+              "reference/contract-catalog"
             ]
           },
           {
-            "group": "Conformance and profiles",
+            "group": "Interoperability profiles",
             "pages": [
-              "reference/conformance-checklist",
+              "reference/durable-backend-profile",
+              "reference/mcp-profile",
+              "reference/a2a-profile",
               "reference/api",
               "reference/manifests"
             ]
           },
           {
-            "group": "Visual reference",
-            "pages": ["diagrams/index"]
+            "group": "Conformance and visual reference",
+            "pages": [
+              "reference/conformance-checklist",
+              "diagrams/index"
+            ]
           }
         ]
       },
@@ -155,9 +163,14 @@
             ]
           },
           {
-            "group": "Worked examples",
+            "group": "Enterprise worked examples",
+            "root": "examples/index",
+            "directory": "card",
             "pages": [
-              "examples/procurement",
+              "examples/software-delivery",
+              "examples/customer-service",
+              "examples/incident-response",
+              "examples/procure-to-pay",
               "examples/synthetic-research"
             ]
           }
@@ -187,6 +200,7 @@
           {
             "group": "Research evidence",
             "pages": [
+              "research/enterprise-use-cases",
               "research/findings",
               "research/comparisons",
               "research/sources"
@@ -200,6 +214,7 @@
     { "source": "/audits/documentation-architecture-2026-07-13", "destination": "/project/review-history" },
     { "source": "/audits/refinement-report-2026-07-12", "destination": "/project/review-history" },
     { "source": "/deliverables", "destination": "/project/index" },
+    { "source": "/examples/procurement", "destination": "/examples/procure-to-pay" },
     { "source": "/handbook/execution-ontology", "destination": "/specification/execution-model" },
     { "source": "/handbook/executive-summary", "destination": "/specification/index" },
     { "source": "/handbook/index", "destination": "/guides/index" },
