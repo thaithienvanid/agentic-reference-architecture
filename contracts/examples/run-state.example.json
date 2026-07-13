@@ -9,7 +9,7 @@
     "telemetryTenantId": "tenant_hash_4F2A"
   },
   "deploymentSnapshotRef": "deployment_snapshot_01K2S",
-  "deploymentSnapshotDigest": "sha256:394e...",
+  "deploymentSnapshotDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
   "status": "waiting_for_approval",
   "stateVersion": 27,
   "runSequence": 141,
@@ -43,5 +43,5 @@
   "variables": {
     "vendorId": "V-77"
   },
-  "checkpointRef": "artifact://sha256/a82f..."
+  "checkpointRef": "artifact://sha256/5555555555555555555555555555555555555555555555555555555555555555"
 }
