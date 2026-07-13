@@ -1,27 +1,47 @@
 ---
 title: State, effect, invocation, and event schemas
-description: Canonical example schemas for run state, activity results, effects, invocations, worker leases, events, approvals, and state transactions.
+description: Canonical examples for parallel-safe run state, activity results, effects, invocations, worker leases, events, approvals, and atomic execution commits.
 ---
 
 # State, effect, invocation, and event schemas
 
-> **Status: Normative reference examples.** Field conventions follow [Canonical conventions](/reference/conventions).
+> **Status: Normative reference examples.** Field conventions follow [Canonical conventions](/reference/conventions). Machine-readable schemas under `/contracts/schemas` control exact representation.
 
 ## Run state
 
 ```json
 {
+  "contractVersion": "1.0.0",
   "runId": "run_01K2A",
+  "rootRunId": "run_01K2A",
   "tenant": {
     "tenantId": "tenant_acme_eu",
     "workspaceId": "workspace_procurement",
     "homeRegion": "eu-west"
   },
-  "deploymentSnapshot": "sha256:394e...",
+  "deploymentSnapshotRef": "deployment_snapshot_01K2S",
+  "deploymentSnapshotDigest": "sha256:394e...",
   "status": "waiting_for_approval",
   "stateVersion": 27,
   "runSequence": 141,
-  "currentActivityId": "create-order",
+  "activeActivityRunIds": ["activity_run_create_order_01"],
+  "activityRuns": [
+    {
+      "activityRunId": "activity_run_create_order_01",
+      "activityId": "create-order",
+      "status": "waiting",
+      "executionScopePath": "run_01K2A/create-order"
+    }
+  ],
+  "activityResults": [
+    {
+      "activityRunId": "activity_run_research_01",
+      "resultRef": "activity_result_01K2R"
+    }
+  ],
+  "pendingEffectIds": ["effect_01K2B"],
+  "pendingApprovalIds": ["approval_01K2C"],
+  "childRunIds": ["run_research", "run_compliance"],
   "budgets": {
     "money": {
       "parentLimit": { "amount": "12.00", "currency": "USD" },
@@ -31,27 +51,26 @@ description: Canonical example schemas for run state, activity results, effects,
       "consumed": { "amount": "3.82", "currency": "USD" }
     }
   },
-  "pendingEffectIds": ["effect_01K2B"],
-  "pendingApproval": {
-    "approvalId": "approval_01K2C",
-    "effectId": "effect_01K2B",
-    "actionDigest": "sha256:778c...",
-    "policyVersion": "high-value-purchase-approval@5.0.0",
-    "expiresAt": "2026-07-14T10:00:00Z"
+  "variables": {
+    "vendorId": "V-77"
   },
-  "checkpointRef": "artifact://sha256/a82f...",
-  "childRunRefs": ["run_research", "run_compliance"]
+  "checkpointRef": "artifact://sha256/a82f..."
 }
 ```
 
-Large histories and provider payloads remain behind immutable references.
+The state supports multiple concurrent/repeated `ActivityRun`s. Large histories and provider payloads remain behind immutable references.
 
 ## Activity result
 
 ```json
 {
+  "contractVersion": "1.0.0",
   "activityResultId": "activity_result_01K2R",
-  "activityRunId": "activity_run_12",
+  "runId": "run_01K2A",
+  "activityRunId": "activity_run_research_01",
+  "activityId": "research",
+  "branchId": null,
+  "iterationId": null,
   "schemaRef": "ProcurementResearchResult@3",
   "inlineValue": {
     "vendorId": "V-77",
@@ -67,34 +86,71 @@ Large histories and provider payloads remain behind immutable references.
 
 ```json
 {
+  "contractVersion": "1.0.0",
   "effectId": "effect_01K2B",
+  "semanticEffectKey": "sha256:semantic-effect-key",
+  "rootRunId": "run_01K2A",
   "runId": "run_01K2A",
-  "activityRunId": "activity_run_12",
-  "activityAttemptId": null,
+  "activityRunId": "activity_run_create_order_01",
+  "activityAttemptId": "activity_attempt_create_order_02",
+  "branchId": null,
+  "iterationId": null,
+  "executionScopePath": "run_01K2A/create-order",
   "kind": "tool.invoke",
-  "tool": "purchase-order.create@4.2.1",
-  "sideEffectClass": "irreversible_write",
+  "toolRef": "purchase-order.create@4.2.1",
+  "impact": {
+    "determinism": "externally_determined",
+    "dataAccess": "write",
+    "mutation": "irreversible",
+    "externality": "external_service",
+    "compensability": "mitigatable"
+  },
   "inputDigest": "sha256:8ea7...",
-  "idempotencyKey": "tenant_acme_eu/run_01K2A/create-order/1/8ea7",
+  "authorityScopeDigest": "sha256:authority...",
+  "idempotencyKey": "tenant_acme_eu/effect/sha256:semantic-effect-key",
   "status": "outcome_unknown",
   "invocationIds": ["invocation_01K2I1", "invocation_01K2I2"]
 }
 ```
 
+`activityAttemptId` records which restart issued the invocation; it is not part of logical effect identity.
+
 ## Invocation
 
 ```json
 {
+  "contractVersion": "1.0.0",
   "invocationId": "invocation_01K2I2",
   "effectId": "effect_01K2B",
   "invocationOrdinal": 2,
-  "operation": "reconcile",
-  "adapter": "erp-http-adapter@3.1.0",
+  "role": "reconcile",
+  "adapterRef": "erp-http-adapter@3.1.0",
   "providerOperationRef": "erp-operation-8841",
   "status": "succeeded",
   "startedAt": "2026-07-12T08:04:12Z",
   "completedAt": "2026-07-12T08:04:13Z",
-  "usageRef": "usage_01K2U"
+  "usageRef": "usage_01K2U",
+  "workerLeaseId": "worker_lease_01K2L",
+  "fencingToken": 42
+}
+```
+
+## Approval
+
+```json
+{
+  "contractVersion": "1.0.0",
+  "approvalId": "approval_01K2C",
+  "runId": "run_01K2A",
+  "activityRunId": "activity_run_create_order_01",
+  "effectId": "effect_01K2B",
+  "actionDigest": "sha256:778c...",
+  "policyVersionRef": "high-value-purchase-approval@5.0.0",
+  "capabilityGrantRef": "capability_grant_01K2G",
+  "expectedStateVersion": 27,
+  "requiredRoles": ["procurement_manager", "finance_controller"],
+  "status": "pending",
+  "expiresAt": "2026-07-14T10:00:00Z"
 }
 ```
 
@@ -102,9 +158,10 @@ Large histories and provider payloads remain behind immutable references.
 
 ```json
 {
+  "contractVersion": "1.0.0",
   "leaseId": "worker_lease_01K2L",
   "runId": "run_01K2A",
-  "activityRunId": "activity_run_12",
+  "activityRunId": "activity_run_create_order_01",
   "workerId": "worker_eu_17",
   "fencingToken": 42,
   "acquiredAt": "2026-07-12T08:04:10Z",
@@ -117,9 +174,10 @@ Large histories and provider payloads remain behind immutable references.
 
 ```json
 {
+  "contractVersion": "1.0.0",
   "eventId": "evt_01K2D",
   "eventType": "invocation.started",
-  "schemaVersion": "4.0.0",
+  "schemaVersion": "1.0.0",
   "occurredAt": "2026-07-12T08:04:12.100Z",
   "recordedAt": "2026-07-12T08:04:12.108Z",
   "tenantId": "tenant_acme_eu",
@@ -128,9 +186,14 @@ Large histories and provider payloads remain behind immutable references.
   "aggregateType": "run",
   "aggregateId": "run_01K2A",
   "aggregateVersion": 27,
+  "rootRunId": "run_01K2A",
+  "runId": "run_01K2A",
   "runSequence": 141,
-  "activityRunId": "activity_run_12",
-  "activityAttemptId": null,
+  "activityId": "create-order",
+  "activityRunId": "activity_run_create_order_01",
+  "activityAttemptId": "activity_attempt_create_order_02",
+  "branchId": null,
+  "iterationId": null,
   "effectId": "effect_01K2B",
   "invocationId": "invocation_01K2I2",
   "workerLeaseId": "worker_lease_01K2L",
@@ -149,24 +212,42 @@ Large histories and provider payloads remain behind immutable references.
 }
 ```
 
+## Atomic transition commit
+
+```json
+{
+  "contractVersion": "1.0.0",
+  "runId": "run_01K2A",
+  "expectedStateVersion": 27,
+  "expectedRunSequence": 141,
+  "workerLeaseId": "worker_lease_01K2L",
+  "fencingToken": 42,
+  "events": [
+    {
+      "eventType": "effect.reconciled",
+      "schemaVersion": "1.0.0",
+      "payloadDigest": "sha256:effect-reconciled"
+    }
+  ],
+  "nextStateRef": "state://run_01K2A/version/28",
+  "effectMutations": ["effect_01K2B:succeeded"],
+  "invocationMutations": ["invocation_01K2I2:succeeded"],
+  "approvalMutations": [],
+  "budgetMutations": ["budget_reservation_01:reconciled"],
+  "outboxEventIds": ["integration_evt_01"]
+}
+```
+
+The implementation verifies expected state version, run sequence, and fencing token, then commits journal, projection, ledgers, and outbox atomically.
+
 ## Event categories
 
 - Domain events carry business meaning.
-- Execution events describe run, activity, effect, invocation, and lease lifecycles.
+- Execution events describe run, activity, effect, invocation, approval, child-link, and lease lifecycles.
 - Integration events cross bounded contexts through the outbox.
 - Audit events carry authoritative security and governance evidence.
 - Telemetry signals support operations and may be sampled.
 
-## State transaction
+## Lifecycle authority
 
-```text
-BEGIN
-  verify expected state version and fencing token
-  append canonical events
-  update run-state projection
-  update effect, invocation, and budget ledgers
-  write integration outbox
-COMMIT
-```
-
-Historical events are immutable. Compatible evolution uses explicit schema versions and readers or upcasters.
+Status values and legal transitions are defined in [Lifecycle contracts](/reference/lifecycles). Historical events are immutable. Compatible evolution uses explicit contract/schema versions and readers or upcasters.
