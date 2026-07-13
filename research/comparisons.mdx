@@ -1,120 +1,177 @@
 ---
 title: Comparison matrices
-description: Explicit and falsifiable criteria for architecture styles, frameworks, engines, evaluation approaches, deployment, tenancy, and execution models.
+description: Falsifiable, assumption-bound comparisons of architecture styles, frameworks, engines, evaluation methods, deployment, tenancy, and execution models.
 ---
 
 # Comparison matrices
 
-Scores indicate fit under stated assumptions from 1 (weak) to 5 (strong). They are not objective product rankings. ARA is deliberately penalized for complexity and is unnecessary for many small systems.
+> **Status: Research and decision support.** Scores are reasoned fit judgments, not benchmarks, certification, or product rankings.
 
-## Clean, Hexagonal, and ARA
+## Methodology
+
+**Review date:** July 13, 2026. Product rows use public documentation linked in [Primary sources](/research/sources). Revalidate versions, licensing, limits, and operational behavior before selection.
+
+Score meaning:
+
+| Score | Meaning |
+|---:|---|
+| 5 | Native design-center fit with strong documented support |
+| 4 | Strong fit with bounded integration or operational conditions |
+| 3 | Workable, but material constraints or customization exist |
+| 2 | Weak fit; substantial architecture outside the product is required |
+| 1 | Outside the primary design center or directly conflicts with the criterion |
+
+A range means the answer depends materially on configuration or deployment. `N/A` means the criterion is not meaningful for that option. “Operational simplicity” is scored high when the option is simpler to own, not when it is more powerful.
+
+Assumptions:
+
+```text
+production rather than prototype use
+nontrivial security and evaluation requirements
+competent implementation and operations teams
+no hidden proprietary capability beyond public documentation
+criteria are not weighted unless a decision explicitly supplies weights
+```
+
+Uncertainty is highest for private managed-service internals, fast-moving product capabilities, and organization-specific operating cost. A selection record should name the reviewed product version/date, constraints, weights, and validation spike.
+
+## Clean Architecture, Hexagonal Architecture, and full ARA
 
 | Criterion | Clean | Hexagonal | Full ARA |
 |---|---:|---:|---:|
 | Inward dependency direction | 5 | 4 | 5 |
 | Explicit driving/driven ports | 3 | 5 | 5 |
 | Domain isolation | 5 | 4 | 5 |
-| Durable agent execution | 1 | 1 | 5 |
+| Durable agent execution semantics | 1 | 1 | 5 |
 | Effect/idempotency/reconciliation model | 1 | 2 | 5 |
-| Evaluation and platform governance | 1 | 1 | 5 |
-| Initial delivery speed for one bounded LLM call | 5 | 4 | 1 |
+| Evaluation, tenancy, and platform governance | 1 | 1 | 5 |
+| Initial delivery speed for one bounded model call | 5 | 4 | 1–2 |
 | Small-team cognitive load | 4 | 4 | 1–2 |
-| Operational infrastructure cost | 5 | 4 | 1–2 |
+| Operational infrastructure simplicity | 5 | 4 | 1–2 |
 
-ARA extends Clean/Hexagonal when durable, tool-using, multi-tenant, or governed execution justifies the added cost. A one-shot summarizer should normally use a much smaller architecture.
+ARA extends rather than replaces Clean/Hexagonal principles. A one-shot summarizer or bounded classification endpoint normally needs the smaller architecture. Full ARA is justified only by material durability, external effects, governance, evidence, tenancy, or platform reuse.
 
-## Agent frameworks versus durable engines
+## Agent framework versus durable workflow engine
 
 | Criterion | Agent framework | Durable workflow engine |
 |---|---:|---:|
-| Model/tool-loop authoring | 5 | 1 |
+| Model/tool-loop authoring | 5 | 1–2 |
 | Context/prompt ergonomics | 5 | 1 |
-| Durable waits/timers/signals | 3 | 5 |
+| Durable waits, timers, and signals | 2–4 | 5 |
 | Deterministic recovery | 2–3 | 5 |
-| Streaming | 5 | 2 |
-| Enterprise worker operations | 3 | 5 |
-| Learning curve for AI product team | 4 | 2–3 |
-| Best role | Bounded agent logic | Lifecycle durability |
+| Token/interaction streaming | 5 | 2–3 |
+| Worker failure and long-run operations | 2–3 | 5 |
+| AI-team learning curve | 4 | 2–3 |
+| Primary role | Bounded agent behavior | Durable lifecycle and state transitions |
 
-Use only the framework when runs are short and low-risk. Use only a durable engine for deterministic processes. Combine them when agentic behavior and durable lifecycle are both material.
+Use an agent framework alone for short, low-risk executions when its persistence is sufficient. Use a durable engine alone for deterministic workflows. Combine them behind ARA ports when both bounded agentic behavior and durable lifecycle matter.
 
-## Orchestration systems
+## Orchestration and authoring systems
 
-| System | Agent-native | Durable waits | Batch/data | Visual authoring | Operational weight | Best role |
+Reviewed documentation: Temporal, LangGraph, Dify, Langflow, Airflow stable, Dagster, and Prefect v3 on July 13, 2026.
+
+| System | Agent authoring | Durable waits/recovery | Batch/data | Visual authoring | Operational simplicity | Strongest ARA role |
 |---|---:|---:|---:|---:|---:|---|
-| Temporal | 1 | 5 | 3 | 1 | 2 | Critical durable backend |
-| LangGraph | 5 | 4 | 2 | 2 | 3–4 | Agent graph adapter/runtime for bounded scope |
-| Dify | 4 | 3 | 2 | 5 | 4 | Visual product/authoring and constrained runtime |
-| Langflow | 4 | 2–3 | 2 | 5 | 4 | Visual components/MCP authoring |
-| Airflow | 1 | 4 for batch | 5 | 3 | 3 | Scheduled batch and data pipelines |
-| Dagster | 1 | 4 for data | 5 | 3 | 3 | Assets, lineage, evaluation data |
-| Prefect | 1–2 | 4 | 5 | 3 | 3–4 | Python job orchestration |
-| Actor system | 1 | 3–4 | 2 | 1 | 2 | Hot-state serialization/high concurrency |
-| DB scheduler | 1–3 | 2–4 | 2–4 | 1 | 5 initially | Small Variant A with explicit limits |
+| Temporal | 1–2 | 5 | 3 | 1 | 2–3 | Critical `DurableExecutionPort` backend |
+| LangGraph | 5 | 3–4 | 2 | 2 | 3–4 | Bounded agent/workflow adapter; persistence for selected scopes |
+| Dify | 4 | 2–3 | 2 | 5 | 3 | Visual control-plane authoring and constrained runtime |
+| Langflow | 4 | 2–3 | 2 | 5 | 3–4 | Visual component/MCP authoring and integration |
+| Airflow | 1 | 4 for scheduled batch | 5 | 3 | 3 | Batch ingestion, evaluation, and data pipelines |
+| Dagster | 1 | 4 for data assets/jobs | 5 | 3 | 3 | Assets, lineage, datasets, and evaluation pipelines |
+| Prefect | 1–2 | 4 | 5 | 2–3 | 3–4 | Python orchestration and evaluation/data work |
+| Actor system | 1 | 3–4 | 2 | 1 | 2 | Serialized hot state and high concurrency |
+| Purpose-built DB scheduler | 1–3 | 2–4 | 2–4 | 1 | 4–5 initially | Small ARA Core/Durable subset with explicit limits |
 
-A batch ETL/evaluation pipeline may be better implemented directly in Airflow, Dagster, or Prefect than forced through an agent runtime.
+The table does not claim feature equivalence. For example, “durable waits” in an interactive agent graph and in a workflow engine may have different replay, upgrade, history, and operational contracts. Validate the required ARA conformance cases rather than choosing by score alone.
 
 ## Evaluation approaches
 
-| Approach | Repeatability | Semantic quality | Trajectory | Environment realism | Cost/complexity |
+| Approach | Repeatability | Semantic quality | Trajectory | Environment realism | Operational simplicity |
 |---|---:|---:|---:|---:|---:|
-| Deterministic harness | 5 | 1–2 | 4 | 3–5 | 5 |
-| DeepEval-style | 3–4 | 5 | 5 | 2 | 3 |
-| Harbor-style | 5 | 2–4 | 4 | 5 | 2–3 |
-| Online evaluation | 2–4 | 4 | 4 | 5 | 2 |
+| Deterministic/property harness | 5 | 1–2 | 4 | 3–5 | 4–5 |
+| DeepEval-style semantic/trace evaluation | 3–4 | 5 | 5 | 2–3 | 3 |
+| Harbor-style controlled task/verifier | 5 | 2–4 | 4 | 5 | 2–3 |
+| Online evaluator | 2–4 | 4 | 4 | 5 | 2 |
 | Human expert review | 3 | 5 | 4 | 4 | 1–2 |
 | LLM judge only | 2–3 | 4 | 3 | 1–2 | 4 |
 
-No method dominates. Use deterministic evidence for invariants/final state and probabilistic/human evidence for semantic quality.
+No method dominates. Use deterministic/environment evidence for invariants and final state, semantic/trajectory evaluation for behavior quality, humans for calibrated domain judgment, and online evidence for production drift. A required hard gate cannot be replaced by an average judge score.
 
-## Runtime library versus service
+## Runtime library, centralized service, and hybrid
 
 | Criterion | Library only | Service only | Hybrid |
 |---|---:|---:|---:|
 | Local development | 5 | 2 | 4 |
 | Durable distribution | 1–2 | 5 | 5 |
-| Central policy/tenancy | 2 | 5 | 5 |
+| Central policy, tenancy, and quota | 2 | 5 | 5 |
 | Embedded/edge mode | 5 | 1 | 4 |
 | Audit/metering consistency | 2 | 5 | 5 |
 | Operational simplicity | 5 | 3 | 2 |
+| Risk of duplicated semantics | 2–3 | 4 | 2–3 unless kernel/contracts are shared |
 
-A library is preferable for one local bounded agent. The hybrid is justified only when local ergonomics and centralized durable governance are both required.
+Prefer a library for one local bounded application. Prefer a service when durable governance, shared operations, and multi-team consistency dominate. Use a hybrid only when the pure kernel and machine contracts are shared so local and hosted modes do not become separate architectures.
 
 ## Deployment styles
 
 | Criterion | Monolith | Modular monolith | Microservices |
 |---|---:|---:|---:|
 | Initial simplicity | 5 | 5 | 1–2 |
-| Boundary clarity | 2 | 4 | 5 |
+| Boundary clarity | 2 | 4 | 5 only if boundaries are already understood |
 | Transaction simplicity | 5 | 5 | 2 |
-| Independent scaling/isolation | 1 | 2–3 | 5 |
-| Operational burden | 5 | 4–5 | 1 |
-| Variant A fit | 4 | 5 | 1 |
-| Mature Variant C fit | 1 | 3 | 5 |
+| Independent scaling/isolation | 1–2 | 2–3 | 5 |
+| Operational simplicity | 5 | 4–5 | 1 |
+| ARA Core/application fit | 4 | 5 | 1–3 |
+| Mature multi-tenant platform fit | 1–2 | 3 | 5 |
 
-Start modular and extract only on measured scale, security, residency, ownership, or availability boundaries.
+Start with a modular monolith or a few clear deployables. Extract services only for measured scaling, security, residency, failure, ownership, or commercial boundaries.
 
-## Tenancy isolation
+## Tenant-isolation models
 
-| Model | Efficiency | Data isolation | Runtime isolation | Operations |
-|---|---:|---:|---:|---:|
-| Shared rows | 5 | 2 | 1–2 | 5 |
-| Tenant schemas | 4 | 3 | 2 | 4 |
-| Tenant database | 3 | 4 | 3 | 3 |
-| Dedicated cell | 2 | 5 | 5 | 2 |
-| Dedicated deployment | 1 | 5 | 5 | 1 |
+| Model | Resource efficiency | Data isolation | Runtime isolation | Operational simplicity | Typical use |
+|---|---:|---:|---:|---:|---|
+| Shared rows | 5 | 2 | 1–2 | 5 | Low-risk shared tier with strong partitioning/tests |
+| Tenant schemas | 4 | 3 | 2 | 4 | Moderate database isolation |
+| Tenant database/bucket | 3 | 4 | 3 | 3 | Stronger data lifecycle and restore boundaries |
+| Dedicated execution cell | 2 | 5 | 5 | 2 | High-value, residency, noisy-neighbor, or regulated tier |
+| Dedicated deployment | 1 | 5 | 5 | 1 | Maximum isolation/custom networking/operations |
+
+A platform may support several tiers. The selection is a risk and operations decision, not a universal architecture winner.
 
 ## Execution styles
 
 | Style | Long-running | State ownership | Recovery | Throughput | Simplicity | Best use |
 |---|---:|---:|---:|---:|---:|---|
-| Synchronous | 1 | 3 | 1 | 3 | 5 | Fast bounded operation |
-| Queued job | 3 | 2 | 2–3 | 5 | 4 | Independent background work |
-| Event choreography | 4 | 2 | 3 | 5 | 2–3 | Cross-context integration |
-| Actor | 4 | 5 per actor | 3–4 | 5 | 2 | Serialized hot state |
-| Durable workflow | 5 | 5 per workflow | 5 | 4 | 2–3 | Long waits/approvals/effects |
-| Hybrid | 5 | 5 | 5 | 5 | 1 | Large governed platform |
+| Synchronous request | 1 | 3 | 1 | 3 | 5 | Fast bounded operation |
+| Queued job | 3 | 2–3 | 2–3 | 5 | 4 | Independent background work |
+| Event choreography | 4 | 2 | 3 | 5 | 2–3 | Cross-context integration with local ownership |
+| Actor | 4 | 5 per actor | 3–4 | 5 | 2 | Serialized hot state and high concurrency |
+| Durable workflow | 5 | 5 per workflow | 5 | 4 | 2–3 | Long waits, approval, effects, and recovery |
+| Hybrid | 5 | 5 when contracts are coherent | 5 | 5 | 1 | Large governed platform with measured need |
 
-## Adoption falsifiability
+## Falsifiability and decision record
 
-The full architecture is not justified unless at least one material requirement exists for durable waits/recovery, significant tool side effects, multi-team/tenant governance, regulated evidence, marketplace execution, or reusable platform operations. If those needs do not exist, prefer a smaller Clean/Hexagonal application with bounded model calls.
+The full architecture is not justified unless at least one material requirement exists for:
+
+```text
+durable waits or recovery
+significant external mutations and uncertain outcomes
+multi-team or multi-tenant governance
+high-assurance or regulated evidence
+marketplace/package execution
+reusable platform operations
+```
+
+A technology decision using these matrices records:
+
+```text
+business scenario and non-goals
+reviewed product versions and dates
+mandatory criteria and weights
+evidence source for each material score
+validation spike and failure cases
+operational team assumptions
+unknowns and residual risk
+revisit conditions
+```
+
+If the requirements do not exist, prefer a smaller Clean/Hexagonal application with bounded model calls and an evaluation contract.
