@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ara.dev/contracts/1.0/schemas/common.schema.json",
+  "title": "ARA common contract types",
+  "type": "object",
+  "$defs": {
+    "OpaqueId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "VersionRef": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 512,
+      "pattern": "^[^@\\s]+@[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][A-Za-z0-9.-]+)?$"
+    },
+    "ContentDigest": {
+      "type": "string",
+      "pattern": "^sha256:[A-Fa-f0-9.]+$"
+    },
+    "Instant": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "Duration": {
+      "type": "string",
+      "pattern": "^P"
+    },
+    "Money": {
+      "type": "object",
+      "required": ["amount", "currency"],
+      "properties": {
+        "amount": {
+          "type": "string",
+          "pattern": "^-?(?:0|[1-9][0-9]*)(?:\\.[0-9]+)?$"
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "TenantScope": {
+      "type": "object",
+      "required": ["tenantId", "workspaceId"],
+      "properties": {
+        "tenantId": { "$ref": "#/$defs/OpaqueId" },
+        "workspaceId": { "$ref": "#/$defs/OpaqueId" },
+        "homeRegion": { "type": "string", "minLength": 1 },
+        "telemetryTenantId": { "$ref": "#/$defs/OpaqueId" }
+      },
+      "additionalProperties": false
+    },
+    "ActorIdentity": {
+      "type": "object",
+      "required": ["type", "id"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["user", "service", "agent", "system", "external_agent"]
+        },
+        "id": { "$ref": "#/$defs/OpaqueId" },
+        "onBehalfOf": { "$ref": "#/$defs/OpaqueId" },
+        "authnMethod": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "ExecutionScope": {
+      "type": "object",
+      "required": ["rootRunId", "runId"],
+      "properties": {
+        "rootRunId": { "$ref": "#/$defs/OpaqueId" },
+        "parentRunId": { "$ref": "#/$defs/OpaqueId" },
+        "runId": { "$ref": "#/$defs/OpaqueId" },
+        "activityId": { "$ref": "#/$defs/OpaqueId" },
+        "activityRunId": { "$ref": "#/$defs/OpaqueId" },
+        "activityAttemptId": { "$ref": "#/$defs/OpaqueId" },
+        "branchId": { "$ref": "#/$defs/OpaqueId" },
+        "iterationId": { "$ref": "#/$defs/OpaqueId" },
+        "executionScopePath": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "EffectImpact": {
+      "type": "object",
+      "required": ["determinism", "dataAccess", "mutation", "externality", "compensability"],
+      "properties": {
+        "determinism": {
+          "type": "string",
+          "enum": ["nondeterministic", "externally_determined"]
+        },
+        "dataAccess": {
+          "type": "string",
+          "enum": ["none", "read", "write"]
+        },
+        "mutation": {
+          "type": "string",
+          "enum": ["none", "idempotent", "reversible", "irreversible"]
+        },
+        "externality": {
+          "type": "string",
+          "enum": ["internal_service", "external_service", "human"]
+        },
+        "compensability": {
+          "type": "string",
+          "enum": ["not_applicable", "compensatable", "mitigatable", "not_compensatable"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "BudgetState": {
+      "type": "object",
+      "properties": {
+        "money": {
+          "type": "object",
+          "required": ["effectiveLimit", "reserved", "consumed"],
+          "properties": {
+            "parentLimit": { "$ref": "#/$defs/Money" },
+            "effectiveLimit": { "$ref": "#/$defs/Money" },
+            "source": { "type": "string" },
+            "reserved": { "$ref": "#/$defs/Money" },
+            "consumed": { "$ref": "#/$defs/Money" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "Extensions": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z0-9][a-z0-9.-]*$"
+      },
+      "additionalProperties": true
+    }
+  }
+}
