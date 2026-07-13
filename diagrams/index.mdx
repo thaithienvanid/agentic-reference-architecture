@@ -1,19 +1,21 @@
 ---
 title: Mermaid diagram pack
-description: Standalone diagrams for terminology, system boundaries, execution, security, tenancy, evaluation, marketplace, failure, and lineage.
+description: Standalone canonical diagrams for terminology, system boundaries, execution, governance, tenancy, evaluation, marketplace, failure, and lineage.
 ---
 
 # Mermaid diagram pack
+
+> **Status: Reference diagrams.** Diagrams illustrate the [ARA standard](/rfc/index); the RFC remains authoritative when a visual omits detail.
 
 ## 1. Terminology map
 
 ```mermaid
 flowchart LR
-  LLM["LLM application"] --> Assistant
+  LLM["LLM-powered application"] --> Assistant
   LLM --> Deterministic["Deterministic workflow"]
-  Assistant --> ToolAgent["Tool-using agent"]
-  ToolAgent --> Agentic["Agentic workflow"]
-  Agentic --> Autonomous
+  Assistant --> Agent["AgentVersion / AgentRun"]
+  Agent --> Agentic["Agentic workflow"]
+  Agentic --> Autonomous["Bounded autonomous agent"]
   Agentic --> Multi["Multi-agent system"]
   Runtime["Agent runtime"] -. executes .-> Agentic
   Environment["Operating environment"] --> Runtime
@@ -30,7 +32,7 @@ flowchart TB
   Platform --> Models["Model providers"]
   Platform --> Tools["Enterprise tools, MCP, external agents"]
   Platform --> Identity["Identity, secrets, policy"]
-  Platform --> Data["State, event, artifact, memory stores"]
+  Platform --> Data["State, journal, artifact, memory stores"]
 ```
 
 ## 3. Container architecture
@@ -40,16 +42,19 @@ flowchart TB
   API --> Control["Control-plane application"]
   API --> RunAPI["Runtime API"]
   Control --> Compiler["Deployment compiler"]
-  Compiler -. snapshot .-> Workers
-  RunAPI --> Workers
-  Workers --> Kernel
-  Kernel <--> Journal
-  Kernel --> Gate
+  Compiler -. signed snapshot .-> Runtime["Runtime Service"]
+  RunAPI --> Runtime
+  Runtime --> Scheduler
+  Scheduler --> Workers["Runtime Workers"]
+  Workers --> Kernel["Execution Kernel"]
+  Kernel <--> Journal["Platform Run Journal"]
+  Kernel --> Gate["Policy, budget, approval"]
   Gate --> Model
   Gate --> Tool
   Gate --> Memory
+  Workers <--> Leases["WorkerLease store"]
   Journal --> Eval
-  Workers --> OTel
+  Runtime --> OTel
   Journal --> Audit
 ```
 
@@ -62,7 +67,7 @@ flowchart TB
   Driving["Controllers and consumers"] --> Application
   Application --> Domain
   Application --> Ports
-  Kernel --> Domain
+  Kernel["Execution Kernel"] --> Domain
   Kernel --> Ports
 ```
 
@@ -72,7 +77,7 @@ flowchart TB
 flowchart LR
   Kernel --> ModelPort --> Providers
   Kernel --> ToolPort --> MCP
-  Kernel --> WorkflowEnginePort --> Temporal
+  Kernel --> DurableExecutionPort --> DurableBackend["Temporal / actor / DB scheduler"]
   Kernel --> MemoryPort --> Stores
   Kernel --> PolicyPort --> OPA
   Kernel --> SandboxPort --> MicroVM
@@ -83,11 +88,11 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-  Control["Catalogs, policy, deployment"] -->|signed snapshot| Execution["Live runs and effects"]
+  Control["Catalogs, policy, deployment"] -->|signed DeploymentSnapshot| Execution["Live runs, Effects, Invocations"]
   Execution --> Evaluation
   Execution --> Evidence["Observability, audit, usage"]
   Evaluation -. gates .-> Control
-  Evidence -. health/cost .-> Control
+  Evidence -. health and cost .-> Control
 ```
 
 ## 7. Complete run sequence
@@ -96,30 +101,32 @@ flowchart LR
 sequenceDiagram
   participant Client
   participant App
-  participant Runtime
-  participant Journal
+  participant Runtime as Runtime Service
+  participant Journal as Platform Run Journal
   participant Model
   participant Policy
   participant Human
   participant Tool
-  Client->>App: StartRun
+
+  Client->>App: Start run
   App->>Journal: run.started
-  Runtime->>Model: Invocation attempt
+  Runtime->>Journal: effect.planned (model)
+  Runtime->>Model: Invocation 1
   Model-->>Runtime: Action proposal
-  Runtime->>Policy: Evaluate
+  Runtime->>Policy: Evaluate proposed tool Effect
   Policy-->>Runtime: Require approval
   Runtime->>Journal: approval.requested + checkpoint
   Human->>App: Approve action digest
   App->>Runtime: Resume signal
   Runtime->>Policy: Revalidate
-  Runtime->>Journal: effect.planned
+  Runtime->>Journal: effect.planned (tool)
   Runtime->>Tool: Invocation with idempotency key
   Tool-->>Runtime: Result
   Runtime->>Journal: effect.completed + run.completed
   Runtime-->>Client: Result
 ```
 
-## 8. Long-running state machine
+## 8. Long-running run state machine
 
 ```mermaid
 stateDiagram-v2
@@ -128,40 +135,59 @@ stateDiagram-v2
   Created --> Rejected
   Admitted --> Queued
   Queued --> Running
-  Running --> WaitingForModel
-  Running --> WaitingForTool
+
+  Running --> WaitingForEffect
   Running --> WaitingForApproval
   Running --> WaitingForEvent
   Running --> RetryBackoff
   Running --> Paused
   Running --> Cancelling
-  WaitingForModel --> Running
-  WaitingForModel --> RetryBackoff
-  WaitingForTool --> Running
-  WaitingForTool --> RetryBackoff
-  WaitingForTool --> Reconciling
-  Reconciling --> Running
-  Reconciling --> RetryBackoff
-  Reconciling --> WaitingForApproval
+
+  WaitingForEffect --> Running: completed
+  WaitingForEffect --> RetryBackoff: safe retry
+  WaitingForEffect --> Reconciling: outcome unknown
+  WaitingForEffect --> Cancelling
+
+  Reconciling --> Running: confirmed
+  Reconciling --> RetryBackoff: confirmed absent
+  Reconciling --> WaitingForApproval: operator decision
   Reconciling --> Failed
   Reconciling --> Cancelled
-  WaitingForApproval --> Running
+
+  WaitingForApproval --> Running: approved and revalidated
   WaitingForApproval --> PolicyStopped
   WaitingForApproval --> TimedOut
+  WaitingForApproval --> Cancelling
+
   WaitingForEvent --> Running
   WaitingForEvent --> TimedOut
+  WaitingForEvent --> Cancelling
+
   RetryBackoff --> Queued
+  RetryBackoff --> TimedOut
+  RetryBackoff --> Cancelling
+
   Paused --> Queued
+  Paused --> Cancelling
   Cancelling --> Cancelled
   Cancelling --> Reconciling
+
   Running --> Completed
   Running --> Failed
   Running --> TimedOut
   Running --> BudgetStopped
   Running --> PolicyStopped
+
+  Rejected --> [*]
+  Completed --> [*]
+  Failed --> [*]
+  Cancelled --> [*]
+  TimedOut --> [*]
+  BudgetStopped --> [*]
+  PolicyStopped --> [*]
 ```
 
-## 9. Tool-call policy enforcement
+## 9. Tool-effect policy enforcement
 
 ```mermaid
 flowchart LR
@@ -170,9 +196,9 @@ flowchart LR
   Policy -->|approval| Human
   Human --> Budget
   Policy -->|allow| Budget
-  Budget --> Intent["Persist effect intent"]
-  Intent --> Gateway --> Tool
-  Tool --> Result --> Commit
+  Budget --> Intent["Persist Effect intent"]
+  Intent --> Gateway --> Invocation --> Tool
+  Tool --> Result --> Commit["Commit Effect result"]
 ```
 
 ## 10. Human pause and resume
@@ -183,9 +209,10 @@ sequenceDiagram
   participant Journal
   participant Runtime
   participant Human
+
   Kernel->>Journal: approval.requested(actionDigest)
   Runtime->>Journal: checkpoint.written
-  Note over Runtime: Release worker
+  Note over Runtime: Release WorkerLease
   Human->>Runtime: Signed decision
   Runtime->>Journal: approval.granted
   Runtime->>Kernel: Resume and revalidate
@@ -200,19 +227,19 @@ flowchart LR
   Feedback --> Dataset --> Offline
 ```
 
-## 12. Multi-tenant cells
+## 12. Multi-tenant execution cells
 
 ```mermaid
 flowchart TB
   Control["Shared control plane"] --> EU["EU shared cell"]
   Control --> US["US shared cell"]
   Control --> Dedicated["Dedicated tenant cell"]
-  EU --> EUData["EU state/artifacts/models"]
-  US --> USData["US state/artifacts/models"]
+  EU --> EUData["EU state, artifacts, model routes"]
+  US --> USData["US state, artifacts, model routes"]
   Dedicated --> Private["Tenant DB, keys, network, sandbox"]
 ```
 
-## 13. Marketplace lifecycle
+## 13. Marketplace package lifecycle
 
 ```mermaid
 flowchart LR
@@ -224,11 +251,11 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-  Plan["Persist effect.planned"] --> Dispatch
-  Dispatch --> Outcome{"Known outcome?"}
+  Plan["Persist effect.planned"] --> Invoke["Invocation"]
+  Invoke --> Outcome{"Known outcome?"}
   Outcome -->|success| Commit
-  Outcome -->|definite failure| RetryPolicy
-  Outcome -->|unknown| Reconcile
+  Outcome -->|definite safe failure| RetryPolicy
+  Outcome -->|unknown| Reconcile["New reconciliation Invocation"]
   Reconcile -->|occurred| Commit
   Reconcile -->|absent| Retry
   Reconcile -->|unknowable| Human
@@ -243,8 +270,8 @@ flowchart LR
   Bus --> Eval
   Bus --> Audit
   Bus --> Meter
-  Journal -. payload ref .-> PayloadStore
+  Journal -. protected payload ref .-> PayloadStore
   Journal -. artifact lineage .-> ArtifactStore
-  EngineHistory -. operational ref .-> Journal
+  DurableHistory["Durable backend history"] -. operational ref .-> Journal
   Trace -. correlation .-> Journal
 ```
