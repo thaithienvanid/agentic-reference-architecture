@@ -1,6 +1,6 @@
 ---
 title: Resource and version model
-description: Canonical stable identities, immutable versions, deployment snapshots, references, compatibility, and lifecycle.
+description: Canonical stable identities, immutable versions, deployment snapshots, package locks, references, compatibility, and lifecycle.
 ---
 
 # Resource and version model
@@ -15,19 +15,26 @@ stable resource -> immutable resource version -> runtime execution or outcome
 
 ## Canonical resource families
 
-| Stable resource | Immutable version | Runtime use |
+| Stable resource | Immutable version/release | Runtime use or outcome |
 |---|---|---|
 | `Agent` | `AgentVersion` | `AgentRun` when an independent lifecycle exists |
 | `Workflow` | `WorkflowVersion` | `WorkflowRun` |
 | `ExecutionPlan` | `ExecutionPlanVersion` | `ExecutionPlanRun` |
 | `Prompt` | `PromptVersion` | `CompiledPromptSnapshot` |
 | `Tool` | `ToolVersion` | `Effect` and `Invocation` |
+| `Skill` | `SkillVersion` | Capability imported by an agent/workflow version |
+| `Connector` | `ConnectorVersion` | Adapter/profile configuration and effects |
 | `Policy` | `PolicyVersion` | `PolicyDecision` |
+| `PolicyBundle` | `PolicyBundleVersion` | Immutable policy resolution for deployment/runtime |
 | `ContextRecipe` | `ContextRecipeVersion` | `ContextSnapshot` |
+| `ModelRoutingProfile` | `ModelRoutingProfileVersion` | `ModelRouteDecision` and model effects |
+| `Dataset` | `DatasetVersion` | Evaluation or experiment input snapshot |
+| `Evaluator` | `EvaluatorVersion` | Evaluation observations |
 | `EvaluationSuite` | `EvaluationSuiteVersion` | `EvaluationRun` and `EvaluationResult` |
+| `HardGateRegistry` | `HardGateRegistryVersion` | Gate decisions in an evaluation result |
 | `Package` | `PackageRelease` | `PackageInstallationRevision` |
 
-The retired `AgentDefinition` name is not used. The public vocabulary uses `Agent` for stable identity; “definition” remains a generic design-time category rather than a required suffix.
+The retired `*Definition` suffix is not used for stable public identities. “Definition” remains a generic design-time category, not a required entity name.
 
 ## Stable resource
 
@@ -64,10 +71,32 @@ A published version:
 - **MUST** be immutable.
 - **MUST** have a content digest.
 - **MUST NOT** contain plaintext secrets.
-- **MUST** resolve production dependencies to exact versions and digests.
+- **MUST** resolve production dependencies to exact versions and digests before deployment.
 - **SHOULD** reference an evaluation suite appropriate to its risk.
 
 Changes produce a new version. Self-modifying agents produce proposed versions; they do not silently mutate the executing version.
+
+## Agent version
+
+An `AgentVersion` is executable behavior metadata whose actual process is one entry workflow:
+
+```typescript
+interface AgentVersion extends ResourceVersion {
+  entryWorkflowVersionRef: WorkflowVersionRef;
+  instructions: readonly PromptVersionRef[];
+  requiredCapabilities: readonly CapabilityRequirement[];
+  modelRequirements: ModelRequirements;
+  contextRecipeRef: ContextRecipeVersionRef;
+  memoryPolicy: MemoryPolicy;
+  policyBundleRef: PolicyBundleVersionRef;
+  budgetPolicy: BudgetPolicy;
+  terminationPolicy: TerminationPolicy;
+  resultSchemaRef: SchemaRef;
+  evaluationSuiteRefs: readonly EvaluationSuiteVersionRef[];
+}
+```
+
+Every independent `AgentRun` owns one root `WorkflowRun` of `entryWorkflowVersionRef`. This is the single executable substrate defined by [Execution model](/specification/execution-model).
 
 ## Activity identity
 
@@ -94,19 +123,41 @@ A `DeploymentSnapshot` is the immutable, signed resolution of everything require
 ```text
 workflow and agent versions
 prompt and context-recipe versions
-tool and policy versions
-model-routing profile
-evaluation-suite versions
-package-installation revisions
-runtime compatibility
-content digests
+tool, skill, connector, and policy versions
+model-routing profile version
+evaluation-suite and hard-gate-registry versions
+package-installation revisions and package locks
+runtime, event, schema, and adapter compatibility
+content digests and signature/provenance
 ```
 
-A production run **MUST** reference one exact deployment snapshot and **MUST NOT** resolve `latest` during execution.
+A production run **MUST** reference one exact deployment snapshot and **MUST NOT** resolve `latest`, mutable tags, or dependency ranges during execution.
+
+## Package release, lock, installation, and deployment
+
+These scopes are distinct:
+
+```text
+PackageRelease
+    declares content, compatibility, requested capabilities,
+    and dependency constraints
+
+PackageLock
+    resolves all transitive dependencies to exact versions and digests
+
+PackageInstallationRevision
+    pins PackageLock, granted capabilities, tenant configuration,
+    secret-purpose references, and verification evidence
+
+DeploymentSnapshot
+    pins exact installation revisions and all execution dependencies
+```
+
+A `PackageRelease` MAY contain compatible version ranges. An activated installation revision and production deployment **MUST NOT** contain unresolved ranges.
 
 ## References
 
-Human-readable references use:
+Human-readable immutable references use:
 
 ```text
 <resource-name>@<semantic-version>
@@ -121,18 +172,19 @@ draft -> validated -> evaluated -> published -> deployed
       -> deprecated -> revoked or retired
 ```
 
-Deprecation blocks neither historical interpretation nor necessarily new runs. Revocation policy determines whether to block new admission, pause active runs, revoke capabilities, or require emergency migration.
+Deprecation blocks neither historical interpretation nor necessarily new runs. Revocation policy determines whether to block new admission, pause active runs, revoke capabilities, quarantine installations, or require emergency migration.
 
 ## Compatibility
 
 Compatibility is explicit across:
 
 - Runtime contract version.
-- Event and state schemas.
-- Required model capabilities.
-- Tool input/output contracts.
+- Event, state, and machine-readable schema versions.
+- Required model and tool capabilities.
+- Tool input/output and effect-impact contracts.
 - Region and data-classification support.
-- Package dependencies.
+- Package dependencies and lock format.
 - Sandbox and operating-environment requirements.
+- MCP/A2A and other declared interoperability profiles.
 
 Adapters **MUST NOT** pretend incompatible provider capabilities are interchangeable. Typed extensions may expose provider-specific features while preserving the portable core.
