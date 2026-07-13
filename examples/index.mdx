@@ -1,0 +1,55 @@
+---
+title: Enterprise worked examples
+description: A deliberately small portfolio of production-grade scenarios that exercise different ARA boundaries, risks, and conformance modules.
+---
+
+# Enterprise worked examples
+
+> **Status: Informative portfolio.** Examples illustrate the specification; they do not create new ARA requirements.
+
+ARA uses a small set of complete scenarios rather than many shallow demos. Each example must show business ownership, deterministic invariants, agentic work, effects and invocations, durable state, security, evaluation, failure recovery, observability, and cost.
+
+## Portfolio
+
+| Example | Primary business demand | Main ARA concerns |
+|---|---|---|
+| [Software change delivery](/examples/software-delivery) | Engineering throughput and technical-debt reduction | Sandboxing, repository scope, tests, human review, provenance, multi-model evaluation |
+| [Customer service case resolution](/examples/customer-service) | High-volume service, case deflection, and agent augmentation | Conversation, identity, CRM/tool actions, PII, escalation, SLA, multi-tenancy |
+| [IT incident response](/examples/incident-response) | Faster detection, diagnosis, communication, and controlled remediation | Event ingestion, long-running coordination, change approval, rollback, blast radius, SLOs |
+| [Procure-to-pay exception resolution](/examples/procure-to-pay) | Invoice, purchase-order, contract, and supplier exception handling | Document evidence, ERP mutation, dual approval, idempotency, reconciliation, audit |
+| [Synthetic research experiment](/examples/synthetic-research) | Controlled agent/model experimentation and deliberation | Persistent identities, variants, trials, iterations, rate limits, validity boundaries |
+
+## Why these examples
+
+The portfolio is selected by architecture coverage rather than vendor popularity:
+
+1. **Frequent enterprise demand.** Software delivery, service operations, IT operations, and finance/procurement are repeatedly documented as agent and workflow targets by GitHub, ServiceNow, SAP, and other enterprise platforms.
+2. **Different risk shapes.** The examples range from read-heavy analysis to production mutations, emergency changes, customer communication, and financially material actions.
+3. **Different execution shapes.** They cover bounded agent activities, long-running workflows, child runs, parallel branches, experiments, human approval, external events, and reconciliation.
+4. **Portable boundaries.** The scenarios can be implemented with different models, durable backends, tool protocols, policy engines, and cloud providers.
+5. **Measurable completion.** Each scenario has deterministic outcome checks and evaluation evidence beyond final-text quality.
+
+See [Enterprise use-case research](/research/enterprise-use-cases) for the source-backed selection rationale and additional candidate domains.
+
+## Common example contract
+
+Every worked example states:
+
+```text
+business outcome and non-goals
+bounded contexts and exact resource versions
+top-level workflow and activity boundaries
+effects, invocations, approvals, and budgets
+state, artifacts, lineage, telemetry, audit, and usage
+failure injection and recovery
+evaluation contract and hard gates
+limitations and human authority
+```
+
+## Reading guidance
+
+- Start with **customer service** for a user-facing agentic application.
+- Use **software delivery** for sandboxed coding-agent architecture.
+- Use **incident response** for durable event-driven coordination.
+- Use **procure-to-pay** for high-integrity business mutation and reconciliation.
+- Use **synthetic research** for experiments, variants, trials, and deliberation.
