@@ -1,0 +1,208 @@
+---
+title: Durable backend profile
+description: Reference profile for mapping Temporal-class, actor, event-sourced, or database-scheduler backends to ARA durability, journal, fencing, replay, and migration semantics.
+---
+
+# Durable backend profile
+
+> **Status: Reference profile.** This profile becomes binding when an implementation declares it. The [Runtime and kernel](/specification/runtime) specification remains semantically authoritative.
+
+## Purpose
+
+A durable backend supplies timers, signals, suspension, wake-up, work dispatch, and backend recovery behind `DurableExecutionPort`. It does not replace the ARA resource model, Execution Kernel, Platform Run Journal, Effect Ledger, policy, or tenant boundary.
+
+## Three records
+
+```text
+Backend execution history
+    used by the backend for deterministic replay and recovery
+
+Platform Run Journal
+    portable semantic history exposed by ARA
+
+Effect Ledger
+    logical effect identity, invocation evidence, idempotency,
+    ambiguity, reconciliation, and outcome
+```
+
+The three records share identifiers and causal links but have different schemas and ownership.
+
+## Required adapter identity
+
+```typescript
+interface DurableExecutionMapping {
+  runId: RunId;
+  durableExecutionRef: DurableExecutionRef;
+  backendType: string;
+  backendVersion: string;
+  adapterVersion: VersionRef;
+  deploymentSnapshotRef: DeploymentSnapshotRef;
+  historyGeneration: number;
+}
+```
+
+Every backend task, signal, timer, callback, child, and failure record MUST be correlatable to the local run and canonical event sequence.
+
+## Projection protocol
+
+The adapter MUST implement idempotent semantic projection:
+
+```text
+backend transition
+-> derive one or more canonical ARA events
+-> commit through ExecutionCommitPort
+-> record projected backend cursor/version
+-> acknowledge or advance backend coordination
+```
+
+The adapter declares whether projection occurs:
+
+1. In the same transaction as the backend transition.
+2. Through an idempotent local activity/command.
+3. Through a transactional outbox or change feed.
+
+If atomicity across backend and platform storage is unavailable, the adapter MUST tolerate duplicate projection and delayed projection without losing canonical facts.
+
+## Projection lag and failure
+
+The deployment declares:
+
+```text
+maximum semantic-journal projection lag
+alert threshold
+admission behavior when lag is exceeded
+rebuild source and procedure
+operator escalation
+```
+
+Backend history advancing while journal projection is delayed MUST NOT cause duplicate effects. The Effect Ledger and semantic effect key remain authoritative for external work.
+
+A projection failure is retried idempotently. If mandatory audit or journal completeness cannot be restored within policy, the run enters an explicit degraded/policy-stopped state.
+
+## Determinism and external work
+
+Backend workflow/orchestrator code MUST obey the backend’s deterministic replay restrictions. Models, tools, memory, sandbox, external agents, and other nondeterministic operations execute outside deterministic workflow code and map to ARA Effects/Invocations.
+
+Backend retries MUST be visible as ARA `Invocation` evidence when they represent external calls. Hidden provider retries are not acceptable for mutating or billable effects.
+
+## Worker ownership and fencing
+
+The adapter declares one of two modes:
+
+### Explicit ARA lease
+
+The runtime uses `WorkerLeasePort`; every authoritative commit verifies the lease’s monotonic fencing token.
+
+### Backend-equivalent fencing
+
+The backend provides exclusive task ownership and stale-completion rejection with safety equivalent to a monotonic fence. The adapter records the backend token/task identity as `workerLeaseId`/fencing evidence.
+
+A simple visibility timeout without stale-write rejection is not sufficient by itself.
+
+## Signals and external events
+
+External signals MUST be authenticated, tenant-scoped, schema-validated, and deduplicated before delivery to the durable backend.
+
+The adapter records:
+
+```text
+inbox/message ID
+sender identity
+correlation key
+schema/protocol version
+received and delivered timestamps
+backend signal/event ID
+canonical causation event
+```
+
+Duplicate delivery MUST NOT create duplicate semantic effects or state transitions.
+
+## Timers and waits
+
+Timers use absolute deadlines in ARA state and backend-specific timer representations at the adapter. Waiting releases active workers.
+
+Clock skew, duplicate wake-up, cancellation, timeout, and migration behavior MUST be tested.
+
+## Child execution
+
+Backend-native child workflow primitives MAY implement ARA child `WorkflowRun`s when:
+
+- The child has an independent local run identity.
+- Task, grant, budget, deadline, result, cancellation, and failure contracts are recorded.
+- Parent/child events are projected into both journals.
+- Backend cancellation or parent-close behavior maps to the declared ARA child policy.
+
+A backend subroutine without independent lifecycle maps to inline composition, not a child run.
+
+## History rollover
+
+For backends with history limits or continue-as-new behavior:
+
+- `runId` remains the ARA logical identity unless the application intentionally creates a new run.
+- `historyGeneration` increments.
+- The journal records the rollover boundary and new backend reference.
+- Pending effects, approvals, timers, budgets, and child links are preserved.
+- Replay and audit remain continuous across generations.
+
+## Migration and versioning
+
+The adapter profile declares:
+
+```text
+backend code/version compatibility
+workflow determinism/versioning mechanism
+schema/upcaster policy
+worker build routing
+long-running version support window
+rollback behavior
+forced provider/backend withdrawal behavior
+```
+
+Historical runs MUST remain attributable to the backend and adapter versions actually used.
+
+## Rebuild
+
+A rebuild procedure MUST demonstrate:
+
+1. Load or restore backend history.
+2. Locate the last projected cursor.
+3. Reproject missing semantic events idempotently.
+4. Rebuild state projections.
+5. Verify Effect Ledger and external outcomes.
+6. Verify run sequence continuity and audit/usage completeness.
+7. Resume only after fencing prior writers.
+
+## Contract tests
+
+A declared adapter passes at least:
+
+```text
+worker/task loss before and after effect dispatch
+duplicate activity/task delivery
+stale completion after reassignment
+duplicate and out-of-order signal delivery
+long approval/timer wait and restart
+projection failure and rebuild
+backend history rollover
+schema/runtime upgrade and rollback
+ambiguous mutation reconciliation
+child cancellation and late result
+control-plane outage with cached snapshot
+regional failover and fencing
+```
+
+## Temporal-class mapping example
+
+A Temporal-class implementation typically maps:
+
+```text
+ARA WorkflowRun          -> durable workflow execution
+ARA deterministic kernel -> deterministic workflow/orchestrator code
+ARA Effect/Invocation    -> activity/local-activity or external operation evidence
+ARA signal/event wait    -> signal/update/query plus authenticated inbox
+ARA child WorkflowRun    -> child workflow execution
+ARA backend history      -> Temporal event history
+ARA Platform Run Journal -> separate semantic projection
+```
+
+This mapping is informative; equivalent backends may satisfy the contract differently.
