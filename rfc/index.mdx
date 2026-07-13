@@ -1,21 +1,21 @@
 ---
-title: ARA specification
+title: ARA standard
 description: Normative scope, requirement language, conformance profiles, and reading order for the Agentic Reference Architecture.
 ---
 
-# Agentic Reference Architecture specification
+# Agentic Reference Architecture standard
 
 > **Status: Normative · Baseline: ARA 1.0**
 
-The Agentic Reference Architecture (ARA) specifies the minimum concepts, boundaries, and contracts required to build production agentic applications, services, runtimes, platforms, and marketplaces without coupling the core to one model provider, agent framework, workflow engine, database, cloud, or observability vendor.
+The Agentic Reference Architecture (ARA) defines the minimum concepts, boundaries, and contracts required to build production agentic applications, services, runtimes, platforms, and marketplaces without coupling the core to one model provider, agent framework, durable backend, database, cloud, or observability vendor.
 
 > **Models propose. Deterministic software, policy, and humans authorize. The runtime executes, persists, and records.**
 
 ## Requirement language
 
-The key words **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, and **MAY** are to be interpreted as described by BCP 14, RFC 2119 and RFC 8174, when they appear in uppercase.
+The key words **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, and **MAY** are interpreted as described by BCP 14, RFC 2119, and RFC 8174 when they appear in uppercase.
 
-Normative requirements live under `/rfc` and in explicitly marked specification pages. Guides, patterns, examples, research comparisons, and product adapters are informative unless they quote a normative rule.
+Normative semantic requirements live under `/rfc`. Exact naming, interface, and representation rules live in explicitly marked pages under `/reference`. Guides, patterns, examples, research, and product adapters are informative unless they quote a normative rule.
 
 ## Scope
 
@@ -29,7 +29,7 @@ ARA covers:
 - Multi-tenancy, security, audit, cost, data rights, and marketplace controls.
 - Evaluation-driven development and production conformance.
 
-ARA does not mandate one deployment topology, storage engine, workflow engine, agent framework, model provider, prompt style, or autonomous-agent pattern.
+ARA does not mandate one deployment topology, storage engine, durable backend, agent framework, model provider, prompt style, or autonomous-agent pattern.
 
 ## Conformance profiles
 
@@ -54,9 +54,9 @@ Conformance is a technical claim, not a legal certification or security attestat
 5. [Platform architecture](/rfc/platform)
 6. [Security and governance](/rfc/security-and-governance)
 7. [Evaluation and conformance](/rfc/evaluation-and-conformance)
-8. [Canonical conventions](/specifications/canonical-conventions)
-9. [Reference interfaces](/specifications/reference-interfaces)
-10. [State and event schemas](/specifications/events-and-state)
+8. [Canonical conventions](/reference/conventions)
+9. [Reference interfaces](/reference/interfaces)
+10. [State and event schemas](/reference/events-and-state)
 
 ## Architectural invariants
 
