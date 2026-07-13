@@ -5,6 +5,8 @@ description: End-to-end durable, multi-agent, approval-bound purchase-order exec
 
 # Worked example — procurement agent
 
+> **Status: Worked example.**
+
 ## Scenario
 
 Acme EU asks the production agent to create a €180,000 purchase order from contract `C-882` and quote `Q-19` with an effective per-run cost limit of USD 8.00 under a USD 12.00 deployment ceiling.
@@ -43,7 +45,7 @@ sequenceDiagram
   Research-->>Runtime: Research artifact
   Compliance-->>Runtime: Compliance artifact
   Runtime->>Model: Propose normalized order arguments
-  Runtime->>Policy: Authorize €180,000 create action
+  Runtime->>Policy: Authorize €180,000 create Effect
   Policy-->>Runtime: Require dual approval
   Runtime->>Journal: approval.requested + checkpoint
   Approvers->>API: Approve exact action digest
@@ -66,13 +68,13 @@ sequenceDiagram
 |---|---|---|
 | Authenticate and route tenant | Application/identity | Auth audit and EU cell decision |
 | Resolve behavior | Control plane | Deployment digest |
-| Create and progress run | Execution context/runtime | Canonical run events |
+| Create and progress run | Runtime Service and Execution Kernel | Canonical run events |
 | Compile context | Runtime | Source refs and digest |
 | Delegate checks | Runtime/policy | Child run IDs and grants |
 | Propose order | Model gateway | Normalized request/result and usage |
 | Validate totals | Domain/task activity | Deterministic validation event |
-| Approve | Approval service | Signed decisions bound to action digest |
-| Create and reconcile | Tool gateway/runtime | One effect, two invocation attempts, provider evidence |
+| Approve | Approval service | Signed decisions bound to effect/action digest |
+| Create and reconcile | Tool gateway/runtime | One Effect, two Invocations, provider evidence |
 | Complete | Run aggregate | Terminal result and artifacts |
 | Evaluate | Evaluation plane | Versioned evaluation result |
 | Bill | Metering plane | Immutable usage records |
@@ -83,8 +85,8 @@ sequenceDiagram
 vendor matches contract
 total equals €180,000 and currency is EUR
 every line item traces to contract or quote
-both approvals precede tool dispatch
-action digest equals executed argument digest
+both approvals precede first mutating Invocation
+action digest equals Effect input digest
 exactly one ERP order exists for the idempotency key
 no cross-tenant or cross-region access occurred
 effective USD 8 run budget was enforced
@@ -92,8 +94,8 @@ effective USD 8 run budget was enforced
 
 ## Failure recovery
 
-The timeout is classified `effectMayHaveOccurred=true` and `safeToRetry=false`. The runtime retains one logical create effect and performs a separate reconciliation invocation rather than sending another create request.
+The timeout is classified `effectMayHaveOccurred=true` and `safeToRetry=false`. The runtime retains one logical create `Effect` and performs a separate reconciliation `Invocation` rather than sending another create request.
 
 ## Compensation boundary
 
-The example demonstrates reconciliation, not rollback. If the domain permits cancelling a created order, that cancellation is a separately authorized compensation effect with its own audit and failure semantics. See [Saga and compensation](/patterns/saga-and-compensation).
+The example demonstrates reconciliation, not rollback. If the domain permits cancelling a created order, cancellation is a separately authorized compensation `Effect` with its own invocations, audit, and failure semantics. See [Saga and compensation](/patterns/saga-and-compensation).
