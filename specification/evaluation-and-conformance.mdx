@@ -1,6 +1,6 @@
 ---
 title: Evaluation and conformance
-description: Normative evaluation-driven development, hard gates, conformance evidence, resilience testing, and extension requirements.
+description: Normative evaluation-driven development, hard-gate registries, stochastic evidence, composable conformance modules, resilience testing, and extension requirements.
 ---
 
 # Evaluation and conformance
@@ -9,33 +9,59 @@ description: Normative evaluation-driven development, hard gates, conformance ev
 
 ## Evaluation contract
 
-Every deployable `AgentVersion`, `WorkflowVersion`, `PromptVersion`, high-risk `ToolVersion`, model-routing profile, and package release SHOULD reference a versioned evaluation contract appropriate to its risk.
+Every deployable `AgentVersion`, `WorkflowVersion`, `PromptVersion`, high-risk `ToolVersion`, `ModelRoutingProfileVersion`, and `PackageRelease` SHOULD reference a versioned evaluation contract appropriate to its risk.
 
 ```text
 deployable behavior
 = immutable specification
 + capabilities and policies
 + evaluation suite
++ hard-gate registry
 ```
+
+An evaluation contract identifies subject versions, datasets, evaluators, environment, metrics, slices, thresholds, hard gates, repeated-trial policy, cost/latency limits, and promotion behavior.
 
 ## Evaluation layers
 
 | Layer | Strongest evidence |
 |---|---|
 | Unit/property tests | Domain invariants, arithmetic, pure state evolution |
-| State-machine simulation | Legal transitions, waits, cancellation, retries |
-| Port contracts | Adapter errors, streaming, idempotency, tenant scope |
-| Semantic/trajectory evaluation | Quality, plan, tool choice, argument correctness |
+| State-machine simulation | Legal transitions, waits, cancellation, retries, joins |
+| Port and contract tests | Adapter errors, streaming, idempotency, fencing, tenant scope |
+| Semantic/trajectory evaluation | Quality, plan, tool choice, arguments, task completion |
 | Environment verification | Actual filesystem, database, API, and sandbox state |
 | Adversarial evaluation | Policy, injection, exfiltration, delegation, sink safety |
 | Human review | Nuanced domain judgment and evaluator calibration |
-| Canary/shadow | Production configuration, drift, cost, and rollback behavior |
+| Canary/shadow | Production configuration, drift, cost, capacity, and rollback behavior |
+| Operational assurance | Load, soak, chaos, disaster recovery, deletion/restore, provider withdrawal |
 
 DeepEval and Harbor are adapters behind `EvaluationPort`; they do not own production state, authorization, or the canonical run model.
 
 ## Hard-gate registry
 
-The canonical enterprise hard gates are:
+Hard gates are versioned resources:
+
+```text
+HardGateRegistry
+└── HardGateRegistryVersion
+    └── GateDefinition
+```
+
+A `GateDefinition` includes:
+
+```text
+gate ID and version
+applicability rule and subject type
+evidence schema
+deterministic or probabilistic evaluator
+threshold and severity
+unknown/inconclusive handling
+required slices and repetitions
+calibration requirements
+retention and reviewer ownership
+```
+
+The canonical baseline registry `enterprise-agent-safety@1.0.0` includes:
 
 ```text
 no_cross_tenant_access
@@ -48,7 +74,9 @@ hard_budget_enforced
 mandatory_audit_complete
 ```
 
-A hard-gate failure MUST NOT be averaged into a passing quality score.
+A hard-gate failure **MUST NOT** be averaged into a passing quality score. Missing required evidence or evaluator unavailability **MUST** produce `inconclusive` or `failed` according to the gate’s explicit policy; it MUST NOT silently pass. High-impact gates SHOULD fail closed or require human escalation.
+
+The machine-readable registry under `/contracts/registries` is the authoritative representation of gate IDs and applicability metadata.
 
 ## Stochastic evaluation
 
@@ -58,10 +86,27 @@ Independent repetitions belong to the evaluation/experiment domain:
 ExperimentRun
 └── ExperimentVariant
     └── ExperimentTrial
-        └── WorkflowRunRef
+        └── ExecutionSubjectRef
+```
+
+An `ExecutionSubjectRef` may identify an `AgentRun`, `WorkflowRun`, or `ExecutionPlanRun`.
+
+A repeated-trial contract SHOULD define:
+
+```text
+frozen baseline and controlled variables
+variant configuration
+sample-size rationale or stopping rule
+random controls when supported
+scheduler, cache, and fallback treatment
+critical slices
+exclusion and replacement rules
+analysis method and confidence/uncertainty reporting
 ```
 
 Report pass rate, distribution, dispersion, critical slices, cost, latency, and repeated failure modes. One passing sample is weak evidence.
+
+Infrastructure failure replacement and subject-behavior failure are distinct. A replacement trial MUST retain the original failure record and state why it was excluded or repeated.
 
 ## Release flow
 
@@ -72,46 +117,71 @@ requirement or incident
 -> fast tests
 -> offline semantic/trajectory evaluation
 -> environment and security verification
+-> operational/resilience checks
 -> promotion gates
 -> canary or shadow
 -> production feedback curation
 ```
 
-Production failures are reviewed before becoming dataset cases. Do not blindly train on every user signal.
+Production failures are reviewed before becoming dataset cases. Do not blindly train or optimize on every user signal.
+
+## Online evaluation
+
+Online evaluation MUST NOT mutate canonical historical run truth. It consumes immutable run evidence, artifacts, protected payload references, and selected telemetry; it produces versioned `EvaluationResult` records.
+
+Every online evaluator declares sampling, privacy, retention, cost, judge route, calibration, and incident-escalation policy.
 
 ## Resilience assurance
 
-ARA Durable and higher profiles SHOULD test:
+ARA Durable and higher modules SHOULD test:
 
 - Worker loss and fencing.
-- Duplicate commands/events.
+- Duplicate commands/events/signals/callbacks.
 - Ambiguous effects and reconciliation.
-- Load, soak, backpressure, and quota behavior.
+- Load, soak, backpressure, quotas, and retry amplification.
 - Regional failover and restoration.
-- Model/provider withdrawal and fallback.
-- Sandbox isolation.
+- Model/provider withdrawal and explicit fallback.
+- Sandbox isolation and escape response.
 - Data deletion and backup restoration.
+- Durable-backend history and journal rebuild compatibility.
 
-## Conformance claim
+## Composable conformance claim
 
 A conformance claim identifies:
 
 ```text
 ARA version and exact publication commit or digest
-profiles implemented, including prerequisite profiles
-optional extensions and declared reference profiles
+modules and convenience bundles claimed
+prerequisite modules actually assessed
+optional reference/interoperability profiles declared
 known deviations and not-applicable rationale
 deployment topology and implementation release/digest
+machine-contract versions
 evidence package and assessment date
+independent reviewer or review scope
 ```
 
-The evidence package SHOULD include architecture diagrams, schemas, port-contract results, state-machine tests, security threat model, evaluation reports, SLO results, recovery exercises, and unresolved risks.
+The evidence package SHOULD include architecture diagrams, machine-readable schemas, port-contract results, state-machine tests, security threat model, evaluation reports, SLO results, recovery exercises, and unresolved risks.
 
-The [Conformance checklist](/reference/conformance-checklist) provides the non-normative assessment record, profile-by-profile evidence mapping, closed status vocabulary, and review procedure. It MUST NOT be used to weaken or replace a requirement in this specification or a normative reference contract.
+`deviation_accepted` means the assessed implementation has an accepted deviation; it is **not** full conformance for that requirement.
+
+The [Conformance checklist](/reference/conformance-checklist) provides the assessment record, evidence mapping, closed status vocabulary, and review procedure. It **MUST NOT** weaken or replace a requirement in this specification or a normative reference contract.
 
 ## Extension compatibility
 
-Extensions use namespaced types and typed capability declarations. An extension MUST NOT weaken core invariants, bypass gateways, redefine canonical identifiers, or silently change the meaning of existing events.
+Extensions use namespaced types and typed capability declarations. An extension **MUST NOT** weaken core invariants, bypass gateways, redefine canonical identifiers, or silently change the meaning of existing events.
+
+An interoperability profile such as MCP, A2A, OpenAPI, or AsyncAPI translates external protocol semantics at an adapter boundary; it does not redefine local ARA authorization, tenancy, durability, or evidence.
+
+## Stable-publication gate
+
+ARA itself SHOULD be designated Stable only after:
+
+- Normative prose and machine contracts agree.
+- Schemas, registries, examples, OpenAPI/AsyncAPI profiles, and documentation validate.
+- Atomic commit, fencing, retry, reconciliation, concurrency, and replay contracts are demonstrated.
+- At least two materially different runtime implementations or adapters pass the same conformance tests.
+- Security, evaluation, marketplace, protocol, documentation, and publication evidence receive independent review.
 
 ## Future-proofing rule
 
