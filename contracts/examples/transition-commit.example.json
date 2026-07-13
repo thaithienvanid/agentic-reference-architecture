@@ -1,0 +1,21 @@
+{
+  "contractVersion": "1.0.0",
+  "runId": "run_01K2A",
+  "expectedStateVersion": 27,
+  "expectedRunSequence": 141,
+  "workerLeaseId": "worker_lease_01K2L",
+  "fencingToken": 42,
+  "events": [
+    {
+      "eventType": "effect.reconciled",
+      "schemaVersion": "1.0.0",
+      "payloadDigest": "sha256:effect-reconciled"
+    }
+  ],
+  "nextStateRef": "state://run_01K2A/version/28",
+  "effectMutations": ["effect_01K2B:succeeded"],
+  "invocationMutations": ["invocation_01K2I2:succeeded"],
+  "approvalMutations": [],
+  "budgetMutations": ["budget_reservation_01:reconciled"],
+  "outboxEventIds": ["integration_evt_01"]
+}
