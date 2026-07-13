@@ -5,14 +5,16 @@ description: Promotion logic, canonical hard gates, metric ownership, failed-run
 
 # Gates, metrics, and reproducibility
 
+> **Status: Normative reference for the canonical hard-gate registry; informative for metric examples.**
+
 ## Promotion rule
 
 ```text
 Deterministic invariants pass
-AND semantic/trajectory thresholds pass
+AND semantic and trajectory thresholds pass
 AND environment and security tasks pass
-AND cost/latency remain within limits
-AND every canonical hard gate passes
+AND cost and latency remain within limits
+AND every applicable canonical hard gate passes
 AND no critical regression exists
 ```
 
@@ -20,7 +22,7 @@ Do not collapse all dimensions into one weighted average. A package with quality
 
 ## Canonical hard-gate registry
 
-The normative registry is `enterprise-agent-safety@1.0.0`:
+The registry is `enterprise-agent-safety@1.0.0`:
 
 ```text
 no_cross_tenant_access
@@ -33,7 +35,7 @@ hard_budget_enforced
 mandatory_audit_complete
 ```
 
-Domain suites may add stricter gates but must not remove these when the corresponding capability or risk is present. A gate that is not applicable must be explicitly marked `not_applicable` with evidence; omission is not a pass.
+Domain suites may add stricter gates but must not remove these when the corresponding capability or risk is present. A non-applicable gate is explicitly `not_applicable` with evidence; omission is not a pass.
 
 ## Metric ownership
 
@@ -42,8 +44,11 @@ Domain suites may add stricter gates but must not remove these when the correspo
 | Agent version | Task success, trajectory, policy compliance, cost, latency, escalation |
 | Workflow version | Branch frequency, failure points, duration, completion, retry burden |
 | Dataset version | Coverage, freshness, difficulty, slice distribution, label agreement |
-| Run | Terminal state, quality, policy, cost, active/suspended time, retries |
-| Activity run | Branches, trials, iterations, effects, latency, usage, progress contribution |
+| Workflow/agent run | Terminal state, quality, policy, cost, active/suspended time, recovery |
+| Activity run | Branches, iterations, effects, latency, usage, progress contribution |
+| Experiment trial | Outcome distribution, variance, cost, latency, critical-slice failures |
+| Effect | Authorization, outcome, ambiguity, idempotency/reconciliation |
+| Invocation | Adapter latency, retry/poll/reconciliation role, provider usage/error |
 | Model route | Quality, schema adherence, refusal, tool accuracy, cost, latency |
 | Tool version | Success, timeout, ambiguous outcome, idempotency, authorization denial |
 | Tenant | Spend, quota, SLO, incidents, quality distribution |
@@ -53,9 +58,9 @@ Domain suites may add stricter gates but must not remove these when the correspo
 
 ```json
 {
-  "evaluationResultId": "evalres_01...",
+  "evaluationResultId": "evaluation_result_01...",
   "subject": {
-    "type": "run",
+    "type": "workflow_run",
     "id": "run_01...",
     "agentVersion": "procurement-agent@5.2.0",
     "deploymentSnapshot": "sha256:394e..."
@@ -87,10 +92,10 @@ Domain suites may add stricter gates but must not remove these when the correspo
 
 ## Reproducing a failure
 
-Capture subject versions, deployment snapshot, normalized model requests/results or protected digests, context recipe and selected sources, tool arguments/results, effects and invocation attempts, approvals, budget state, adapter/environment versions, state-transition events, and artifacts.
+Capture subject versions, deployment snapshot, baseline and experiment-trial metadata where applicable, normalized model requests/results or protected digests, selected context, tool arguments/results, effects and invocations, approvals, budget state, worker leases, adapter/environment versions, state-transition events, and artifacts.
 
-Exact token regeneration is not generally guaranteed. Evidence replay can reproduce deterministic state evolution using recorded effect outcomes. Counterfactual reruns create a new run and identify which effects were reinvoked.
+Exact token regeneration is not generally guaranteed. Evidence replay can reproduce deterministic state evolution using recorded effect outcomes. Counterfactual reruns create new runs and identify which effects were reinvoked.
 
 ## Online evaluation
 
-Evaluate all policy/security failures, sample successful runs by risk, use shadow execution without applying mutating effects, monitor slice-level drift, and curate reviewed incidents into versioned datasets.
+Evaluate every policy/security failure, sample successful runs by risk, use shadow execution without applying mutating effects, monitor slice-level drift, and curate reviewed incidents into versioned datasets.
