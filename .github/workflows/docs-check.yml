@@ -1,0 +1,39 @@
+name: Documentation checks
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  mintlify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - name: Run architecture consistency checks
+        run: python scripts/check_doc_consistency.py
+
+      - name: Validate docs.json syntax
+        run: python -m json.tool docs.json > /dev/null
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "20.17.0"
+
+      - name: Install pinned Mintlify CLI
+        run: npm install --global mint@4.2.687
+
+      - name: Validate Mintlify configuration and content
+        run: mint validate
+
+      - name: Check internal links
+        run: mint broken-links
