@@ -1,0 +1,48 @@
+{
+  "contractVersion": "1.0.0",
+  "grantId": "capability_grant_01K2G",
+  "parentGrantId": "capability_grant_parent_01",
+  "subject": {
+    "type": "agent",
+    "id": "agent_run_01K2A",
+    "onBehalfOf": "user_887",
+    "authnMethod": "delegated_run_identity"
+  },
+  "audience": "procurement-runtime-eu",
+  "tenant": {
+    "tenantId": "tenant_acme_eu",
+    "workspaceId": "workspace_procurement",
+    "homeRegion": "eu-west"
+  },
+  "capabilities": [
+    {
+      "operation": "erp.purchase_order.create",
+      "resource": "purchase-order.create@4.2.1",
+      "conditions": {
+        "maximumValueEur": 180000
+      }
+    }
+  ],
+  "constraints": {
+    "regions": ["eu-west"],
+    "dataClassifications": ["internal", "confidential"],
+    "networkDestinations": ["erp.private.example.invalid:443"],
+    "secretPurposes": ["tenant-erp-purchase-order-writer"],
+    "memoryScopes": ["workspace", "agent"],
+    "maximumCost": { "amount": "8.00", "currency": "USD" }
+  },
+  "issuedAt": "2026-07-12T08:00:00Z",
+  "expiresAt": "2026-07-12T09:00:00Z",
+  "delegationDepthRemaining": 0,
+  "budgetAllocationRef": "budget_allocation_01",
+  "policyDecisionRefs": ["policy_decision_01K2P"],
+  "provenance": {
+    "issuer": {
+      "type": "service",
+      "id": "policy-gateway",
+      "authnMethod": "workload_identity"
+    },
+    "reason": "Approved procurement run capability allocation",
+    "digest": "sha256:grant..."
+  }
+}
