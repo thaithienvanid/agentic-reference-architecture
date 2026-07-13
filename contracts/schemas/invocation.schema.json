@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ara.dev/contracts/1.0/schemas/invocation.schema.json",
+  "title": "ARA Invocation",
+  "type": "object",
+  "required": [
+    "contractVersion",
+    "invocationId",
+    "effectId",
+    "invocationOrdinal",
+    "role",
+    "adapterRef",
+    "status",
+    "startedAt"
+  ],
+  "properties": {
+    "contractVersion": { "const": "1.0.0" },
+    "invocationId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "effectId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "invocationOrdinal": { "type": "integer", "minimum": 1 },
+    "role": {
+      "type": "string",
+      "enum": ["execute", "safe_retry", "poll", "status", "reconcile", "cancel"]
+    },
+    "adapterRef": { "type": "string", "minLength": 1 },
+    "providerOperationRef": { "type": "string", "minLength": 1 },
+    "status": {
+      "type": "string",
+      "enum": [
+        "created",
+        "dispatching",
+        "streaming",
+        "succeeded",
+        "failed",
+        "timed_out",
+        "cancelled",
+        "outcome_unknown",
+        "completed_with_external_evidence"
+      ]
+    },
+    "startedAt": { "$ref": "common.schema.json#/$defs/Instant" },
+    "completedAt": { "$ref": "common.schema.json#/$defs/Instant" },
+    "usageRef": { "type": "string", "minLength": 1 },
+    "workerLeaseId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "fencingToken": { "type": "integer", "minimum": 0 },
+    "externalRequestDigest": { "$ref": "common.schema.json#/$defs/ContentDigest" },
+    "externalResponseDigest": { "$ref": "common.schema.json#/$defs/ContentDigest" },
+    "error": {
+      "type": "object",
+      "required": ["category", "code", "retryable", "safeToRetry", "effectMayHaveOccurred"],
+      "properties": {
+        "category": { "type": "string", "pattern": "^[a-z][a-z0-9_.-]*$" },
+        "code": { "type": "string", "minLength": 1 },
+        "message": { "type": "string" },
+        "retryable": { "type": "boolean" },
+        "safeToRetry": { "type": "boolean" },
+        "effectMayHaveOccurred": { "type": "boolean" },
+        "retryAfter": { "$ref": "common.schema.json#/$defs/Duration" },
+        "externalReference": { "type": "string" },
+        "detailsRef": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "extensions": { "$ref": "common.schema.json#/$defs/Extensions" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": { "enum": ["succeeded", "failed", "timed_out", "cancelled", "completed_with_external_evidence"] }
+        }
+      },
+      "then": { "required": ["completedAt"] }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": { "enum": ["failed", "timed_out", "outcome_unknown"] }
+        }
+      },
+      "then": { "required": ["error"] }
+    }
+  ],
+  "additionalProperties": false
+}
