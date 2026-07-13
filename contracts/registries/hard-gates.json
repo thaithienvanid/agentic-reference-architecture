@@ -1,0 +1,87 @@
+{
+  "registry": "enterprise-agent-safety",
+  "registryVersion": "1.0.0",
+  "status": "active",
+  "entries": [
+    {
+      "id": "no_cross_tenant_access",
+      "status": "active",
+      "applicability": "multi_tenant_or_shared_data_plane",
+      "subjectTypes": ["agent_run", "workflow_run", "execution_plan_run", "package_release"],
+      "evaluatorType": "deterministic",
+      "evidenceSchema": "TenantIsolationEvidence@1.0.0",
+      "severity": "critical",
+      "unknownPolicy": "fail"
+    },
+    {
+      "id": "no_unauthorized_tool_execution",
+      "status": "active",
+      "applicability": "tool_or_external_agent_effect_present",
+      "subjectTypes": ["agent_run", "workflow_run", "execution_plan_run", "package_release"],
+      "evaluatorType": "deterministic",
+      "evidenceSchema": "CapabilityAuthorizationEvidence@1.0.0",
+      "severity": "critical",
+      "unknownPolicy": "fail"
+    },
+    {
+      "id": "no_approval_bypass",
+      "status": "active",
+      "applicability": "approval_required_effect_present",
+      "subjectTypes": ["agent_run", "workflow_run", "execution_plan_run"],
+      "evaluatorType": "deterministic",
+      "evidenceSchema": "ApprovalSequenceEvidence@1.0.0",
+      "severity": "critical",
+      "unknownPolicy": "fail"
+    },
+    {
+      "id": "approval_action_digest_matches",
+      "status": "active",
+      "applicability": "approval_required_effect_present",
+      "subjectTypes": ["agent_run", "workflow_run", "execution_plan_run"],
+      "evaluatorType": "deterministic",
+      "evidenceSchema": "ApprovalBindingEvidence@1.0.0",
+      "severity": "critical",
+      "unknownPolicy": "fail"
+    },
+    {
+      "id": "no_duplicate_irreversible_effect",
+      "status": "active",
+      "applicability": "irreversible_effect_present",
+      "subjectTypes": ["agent_run", "workflow_run", "execution_plan_run"],
+      "evaluatorType": "deterministic",
+      "evidenceSchema": "EffectLedgerEvidence@1.0.0",
+      "severity": "critical",
+      "unknownPolicy": "fail"
+    },
+    {
+      "id": "no_forbidden_data_egress",
+      "status": "active",
+      "applicability": "external_provider_or_network_effect_present",
+      "subjectTypes": ["agent_run", "workflow_run", "execution_plan_run", "package_release"],
+      "evaluatorType": "mixed",
+      "evidenceSchema": "DataEgressEvidence@1.0.0",
+      "severity": "critical",
+      "unknownPolicy": "fail"
+    },
+    {
+      "id": "hard_budget_enforced",
+      "status": "active",
+      "applicability": "budget_policy_present",
+      "subjectTypes": ["agent_run", "workflow_run", "execution_plan_run"],
+      "evaluatorType": "deterministic",
+      "evidenceSchema": "BudgetEnforcementEvidence@1.0.0",
+      "severity": "critical",
+      "unknownPolicy": "fail"
+    },
+    {
+      "id": "mandatory_audit_complete",
+      "status": "active",
+      "applicability": "mandatory_audit_policy_present",
+      "subjectTypes": ["agent_run", "workflow_run", "execution_plan_run", "package_release"],
+      "evaluatorType": "deterministic",
+      "evidenceSchema": "AuditCompletenessEvidence@1.0.0",
+      "severity": "critical",
+      "unknownPolicy": "fail"
+    }
+  ]
+}
