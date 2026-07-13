@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ara.dev/contracts/1.0/schemas/transition-commit.schema.json",
+  "title": "ARA atomic transition commit",
+  "type": "object",
+  "required": [
+    "contractVersion",
+    "runId",
+    "expectedStateVersion",
+    "expectedRunSequence",
+    "events",
+    "nextStateRef",
+    "effectMutations",
+    "invocationMutations",
+    "approvalMutations",
+    "budgetMutations",
+    "outboxEventIds"
+  ],
+  "properties": {
+    "contractVersion": { "const": "1.0.0" },
+    "runId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "expectedStateVersion": { "type": "integer", "minimum": 0 },
+    "expectedRunSequence": { "type": "integer", "minimum": 0 },
+    "workerLeaseId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "fencingToken": { "type": "integer", "minimum": 0 },
+    "events": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["eventType", "schemaVersion", "payloadDigest"],
+        "properties": {
+          "eventType": { "type": "string", "pattern": "^[a-z][a-z0-9_.-]*$" },
+          "schemaVersion": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+          "payloadDigest": { "$ref": "common.schema.json#/$defs/ContentDigest" },
+          "payloadRef": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "nextStateRef": { "type": "string", "minLength": 1 },
+    "effectMutations": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "invocationMutations": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "approvalMutations": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "budgetMutations": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "outboxEventIds": {
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+      "uniqueItems": true
+    },
+    "extensions": { "$ref": "common.schema.json#/$defs/Extensions" }
+  },
+  "dependentRequired": {
+    "workerLeaseId": ["fencingToken"],
+    "fencingToken": ["workerLeaseId"]
+  },
+  "additionalProperties": false
+}
