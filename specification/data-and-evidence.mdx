@@ -1,6 +1,6 @@
 ---
 title: State, data, and evidence
-description: Normative boundaries for domain state, workflow state, inputs, context, memory, artifacts, events, checkpoints, telemetry, audit, lineage, and usage.
+description: Normative boundaries for domain state, workflow state, execution instances, inputs, context, memory, artifacts, events, checkpoints, telemetry, audit, lineage, and usage.
 ---
 
 # State, data, and evidence
@@ -13,10 +13,10 @@ description: Normative boundaries for domain state, workflow state, inputs, cont
 |---|---|
 | **Domain state** | What is true in the business domain? |
 | **Workflow state** | What transition is legal next? |
-| **Activity input snapshot** | What exact values did this activity receive? |
-| **Activity result** | What typed output did the activity commit? |
+| **Activity input snapshot** | What exact values did this activity execution receive? |
+| **Activity result** | What typed output did one `ActivityRun` commit? |
 | **Conversation** | What messages were exchanged? |
-| **Working context** | What exact content was assembled for a model invocation? |
+| **Working context** | What exact content was assembled for a model effect? |
 | **Memory record** | What governed information may be reused later? |
 | **Artifact** | What immutable content was produced or consumed? |
 | **Checkpoint** | Where can execution resume efficiently? |
@@ -30,7 +30,7 @@ These concepts **MUST NOT** be collapsed into a single generic state object, tra
 
 ## Workflow state
 
-Workflow state SHOULD be compact, typed, versioned, and limited to control-relevant data:
+Workflow state SHOULD be compact, typed, versioned, and limited to control-relevant data and immutable references:
 
 ```typescript
 interface RunState {
@@ -38,36 +38,67 @@ interface RunState {
   stateVersion: number;
   runSequence: number;
   status: RunStatus;
-  variables: Readonly<Record<string, unknown>>;
-  activityResults: ReadonlyMap<ActivityId, ActivityResultRef>;
-  pendingEffects: ReadonlyMap<EffectId, EffectRef>;
-  pendingApprovals: readonly ApprovalRef[];
+
+  activeActivityRunIds: readonly ActivityRunId[];
+  activityRuns: ReadonlyMap<ActivityRunId, ActivityRunRef>;
+  activityResults: ReadonlyMap<ActivityRunId, ActivityResultRef>;
+
+  pendingEffectIds: readonly EffectId[];
+  pendingApprovalIds: readonly ApprovalId[];
+  childRunIds: readonly RunId[];
+
+  variables: TypedStateValue;
   budget: BudgetState;
+  terminalResult?: ExecutionResultRef;
 }
 ```
 
-Large histories and provider payloads belong behind references.
+The state model **MUST NOT** assume one current activity or one result per `ActivityId`. Parallel branches, repeated activities, nested workflows, and iterations require execution-instance identity.
+
+Large histories and provider payloads belong behind immutable references.
+
+## Execution-scope identity
+
+Subordinate execution and evidence records SHOULD carry the applicable scope fields:
+
+```text
+rootRunId
+parentRunId?
+runId
+activityId?
+activityRunId?
+activityAttemptId?
+branchId?
+iterationId?
+effectId?
+invocationId?
+executionScopePath
+```
+
+`ActivityId` identifies workflow structure. `ActivityRunId` identifies one logical execution instance. They are not interchangeable.
 
 ## Activity data flow
 
 ```text
-Activity A output
+ActivityRun A completes
 -> validate output schema
 -> validate domain constraints
 -> commit ActivityResult and events
 -> evolve workflow state
--> resolve Activity B bindings
+-> resolve ActivityRun B bindings to exact source executions
 -> create immutable input snapshot
--> start Activity B
+-> start ActivityRun B
 ```
 
-An activity **MUST NOT** read arbitrary mutable output from another activity. Explicit bindings and source references make replay, authorization, and evaluation possible.
+An activity **MUST NOT** read arbitrary mutable output from another activity. A binding identifies one exact source execution, an explicitly defined branch/iteration set, a deterministic join result, or an immutable artifact/prior-run reference.
+
+A whole-activity retry reuses the same activity input snapshot. An intentional iteration may create a new snapshot because its inputs changed.
 
 ## Context
 
-A `ContextRecipeVersion` defines selection, ordering, compaction, redaction, token budget, provenance, and classification rules. A `ContextSnapshot` records the exact items selected for a model effect.
+A `ContextRecipeVersion` defines selection, ordering, compaction, redaction, token budget, provenance, trust, and classification rules. A `ContextSnapshot` records the exact items selected for one model effect.
 
-Prompt text, authorized tool schemas, and context sources are distinct inputs to compilation.
+Prompt text, authorized tool schemas, policy notices, and context sources are distinct inputs to compilation. Untrusted content remains data even when it contains imperative language.
 
 ## Memory
 
@@ -76,23 +107,23 @@ A `MemoryRecord` includes:
 ```text
 tenant and subject scope
 type and content reference
-provenance and confidence
+provenance, source trust, and confidence
 classification and purpose
 validity and retention
 supersession/revocation status
 ```
 
-A vector index is a derived retrieval view, not the memory source of truth. Memory does not determine legal workflow transitions.
+A vector index is a derived retrieval view, not the memory source of truth. Memory does not determine legal workflow transitions and cannot grant authority.
 
 ## Artifacts
 
-Artifacts are immutable and content-addressed where practical. Metadata includes producer run/activity, digest, media type, schema, lineage, region, classification, and retention.
+Artifacts are immutable and content-addressed where practical. Metadata includes producer run/activity, digest, media type, schema, lineage, region, classification, purpose, and retention.
 
-Cross-run chaining **MUST** use exact artifact references and explicit decisions, not “latest output.”
+Cross-run chaining **MUST** use exact artifact references and explicit selection decisions, not “latest output.”
 
 ## Canonical events
 
-Serialized event types use dotted lowercase, for example:
+Serialized event types use versioned entries from the canonical event registry, for example:
 
 ```text
 run.started
@@ -104,43 +135,74 @@ approval.requested
 artifact.produced
 ```
 
-The event envelope includes stable ID, schema version, run sequence, tenant/workspace, aggregate identity/version, actor, correlation, causation, classification, payload digest, and protected payload reference.
+The event envelope includes stable ID, schema version, run sequence, tenant/workspace, aggregate identity/version, execution-scope references, actor, correlation, causation, classification, payload digest, and protected payload reference.
 
-CloudEvents MAY be used as an integration envelope. The ARA run journal remains the authoritative execution contract.
+CloudEvents MAY be used as an integration envelope. The ARA run journal remains the authoritative semantic execution contract.
 
-## Journal, projection, and outbox
+## Journal, projection, ledgers, and outbox
 
-A state transition SHOULD commit atomically:
+An accepted execution transition **MUST** commit atomically through `ExecutionCommitPort` or an equivalent consistency protocol:
 
 ```text
-verify expected state version
-append run events
+verify expected state version and run sequence
+verify WorkerLease fencing token when applicable
+append canonical run events
 update current-state projection
-update effect and budget ledgers
+update effect, invocation, approval, and budget ledgers
 insert integration outbox records
+commit or reject the entire unit
 ```
 
-Integration buses are at-least-once delivery mechanisms, not the canonical source of run truth.
+Integration buses are at-least-once delivery mechanisms, not the canonical source of run truth. Projections and indexes are rebuildable from authoritative records.
+
+## Separate lifecycle records
+
+Run status is a projection over separate authoritative lifecycle records for:
+
+```text
+Run
+ActivityRun
+ActivityAttempt
+Effect
+Invocation
+Approval
+WorkerLease
+ChildRunLink
+EvaluationRun
+```
+
+An implementation **MUST NOT** infer an invocation or approval lifecycle solely from the top-level run status. See [Lifecycle contracts](/reference/lifecycles).
 
 ## Lineage
 
-Lineage connects inputs, context items, effects, invocations, activity results, artifacts, evaluations, and downstream runs. Implementations SHOULD be able to answer:
+Lineage connects input snapshots, context items, effects, invocations, activity results, artifacts, approvals, evaluations, and downstream runs. Implementations SHOULD be able to answer:
 
-- Which exact versions and deployment produced this artifact?
-- Which sources and effect outcomes influenced it?
-- Which policy and approval decisions applied?
-- Which downstream runs consumed it?
+- Which exact versions, deployment, and package locks produced this artifact?
+- Which source records and effect outcomes influenced it?
+- Which policy, capability, and approval decisions applied?
+- Which branches, iterations, trials, and downstream runs consumed it?
+- Which protected payloads or derived indexes must be removed for a data-rights request?
 
 W3C PROV concepts MAY be used by lineage adapters.
 
 ## Telemetry
 
-OpenTelemetry-compatible traces, metrics, and logs SHOULD correlate on run, activity, effect, invocation, and deployment identifiers. Telemetry may be sampled and MUST NOT be the only source for audit, billing, or replay.
+OpenTelemetry-compatible traces, metrics, and logs SHOULD correlate on run, activity, effect, invocation, deployment, and experiment identifiers. Telemetry may be sampled and **MUST NOT** be the only source for audit, billing, replay, or conformance evidence.
 
-Raw secrets, authorization headers, private hidden reasoning, and sensitive payloads MUST NOT be exported by default.
+Tenant scope in telemetry **MUST** be correlatable without requiring a raw business tenant identifier. A controlled pseudonymous telemetry tenant ID SHOULD be used, with privileged mapping stored separately.
+
+Raw secrets, authorization headers, private hidden reasoning, and sensitive payloads **MUST NOT** be exported by default.
+
+## Audit
+
+Audit records are independently protected evidence of identity, authorization, capability grants, policy decisions, approvals, break-glass actions, and material effects. Audit delivery failures **MUST** fail closed or create an explicit policy stop when the deployment requires mandatory audit.
+
+## Usage
+
+Usage records attribute resource consumption to tenant, workspace, deployment, execution plan, run, activity run, effect, invocation, package release, model/tool route, and evaluated outcome where applicable. Provider-reported usage is reconciled with reservations and billing records.
 
 ## Privacy and erasure
 
-Sensitive content SHOULD be stored behind encrypted payload references rather than duplicated in immutable event metadata. Erasure workflows resolve lineage, honor legal holds, remove eligible payloads and derived indexes, and preserve only the minimum non-sensitive deletion evidence required by policy.
+Sensitive content SHOULD be stored behind encrypted payload references rather than duplicated in immutable event metadata. Erasure workflows resolve lineage, honor legal holds, remove eligible payloads and derived indexes, reapply deletion tombstones after restore, and preserve only the minimum non-sensitive deletion evidence required by policy.
 
 Crypto-shredding is a mechanism, not a universal legal determination.
