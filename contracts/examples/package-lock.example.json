@@ -6,21 +6,21 @@
     {
       "package": "com.example.procurement-suite",
       "version": "2.4.0",
-      "digest": "sha256:6a14...",
+      "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
       "sourceRegistry": "https://marketplace.example.invalid",
-      "signatureRef": "sigstore://bundle/sha256/8b91...",
-      "sbomDigest": "sha256:d491..."
+      "signatureRef": "sigstore://bundle/sha256/2222222222222222222222222222222222222222222222222222222222222222",
+      "sbomDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
     },
     {
       "package": "com.example.document-tools",
       "version": "3.4.2",
-      "digest": "sha256:3d91...",
+      "digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
       "sourceRegistry": "https://marketplace.example.invalid",
-      "signatureRef": "sigstore://bundle/sha256/3d92...",
-      "sbomDigest": "sha256:3d93..."
+      "signatureRef": "sigstore://bundle/sha256/5555555555555555555555555555555555555555555555555555555555555555",
+      "sbomDigest": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
     }
   ],
   "resolverRef": "ara-package-resolver@1.0.0",
   "generatedAt": "2026-07-13T10:00:00Z",
-  "lockDigest": "sha256:package-lock..."
+  "lockDigest": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
 }
