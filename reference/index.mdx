@@ -1,43 +1,65 @@
 ---
 title: Reference
-description: Authoritative lookup for ARA terminology, contracts, schemas, conformance evidence, API and manifest profiles, and diagrams.
+description: Authoritative lookup for ARA terminology, lifecycles, machine contracts, interfaces, interoperability profiles, conformance evidence, and diagrams.
 ---
 
 # Reference
 
 > **Status: Reference.** Use this section while designing, implementing, integrating, testing, assessing, or reviewing an ARA system.
 
-Reference pages describe machinery and evidence expectations precisely. They complement the semantic rules in the [ARA specification](/specification/index) and should be consulted by task rather than read linearly.
+The [specification](/specification/index) owns semantic meaning. Normative Reference pages and the `contracts/` tree own exact names, interfaces, lifecycle states, and serialized representations for declared versions. Reference profiles are optional until an implementation declares them.
 
 <CardGroup cols={2}>
   <Card title="Glossary" icon="book-open" href="/reference/glossary">
-    Canonical names and short definitions.
+    Canonical resource, execution, runtime, data, platform, and composition terms.
   </Card>
-  <Card title="Conventions" icon="ruler" href="/reference/conventions">
-    Naming grammar, identifiers, money, time, events, and compatibility.
+  <Card title="Canonical conventions" icon="ruler" href="/reference/conventions">
+    Naming grammar, identifiers, money, time, events, sequences, digests, and compatibility.
   </Card>
-  <Card title="Interfaces" icon="code" href="/reference/interfaces">
-    Framework-neutral ports and trusted contexts.
+  <Card title="Reference interfaces" icon="code" href="/reference/interfaces">
+    Framework-neutral ports, trusted contexts, atomic commit, credentials, and adapter contracts.
   </Card>
-  <Card title="Events and state" icon="database" href="/reference/events-and-state">
-    Run state, effects, invocations, leases, and event envelopes.
+  <Card title="Lifecycle contracts" icon="arrows-rotate" href="/reference/lifecycles">
+    Separate states and transitions for runs, activities, attempts, effects, invocations, approvals, leases, children, and evaluation.
   </Card>
-  <Card title="Conformance checklist" icon="list-check" href="/reference/conformance-checklist">
-    Profile-by-profile implementation and evidence review for technical conformance claims.
+  <Card title="State and event schemas" icon="database" href="/reference/events-and-state">
+    Run projections, activity results, effects, invocations, leases, events, and transition commits.
   </Card>
-  <Card title="API profile" icon="plug" href="/reference/api">
-    Optional inbound command, query, approval, event, and replay conventions.
+  <Card title="Machine contract catalog" icon="brackets-curly" href="/reference/contract-catalog">
+    JSON Schemas, registries, executable fixtures, OpenAPI, AsyncAPI, versioning, and validation.
+  </Card>
+  <Card title="Durable backend profile" icon="clock-rotate-left" href="/reference/durable-backend-profile">
+    Dual-history mapping, fencing, signals, rollover, projection, rebuild, migration, and recovery.
+  </Card>
+  <Card title="MCP profile" icon="plug" href="/reference/mcp-profile">
+    Tools, resources, prompts, sampling, roots, elicitation, authorization, and adapter evidence.
+  </Card>
+  <Card title="A2A profile" icon="people-arrows" href="/reference/a2a-profile">
+    External-agent discovery, task effects, messages, artifacts, streaming, idempotency, and local authority.
+  </Card>
+  <Card title="API profile" icon="globe" href="/reference/api">
+    Optional HTTP commands and queries for runs, approvals, signals, resume, evidence replay, and rerun.
   </Card>
   <Card title="Manifest profile" icon="file-code" href="/reference/manifests">
-    Optional agent, workflow, tool, prompt, policy, evaluation, and package representations.
+    Resource versions, deployments, package releases, exact locks, installations, and hard-gate registries.
+  </Card>
+  <Card title="Conformance checklist" icon="list-check" href="/reference/conformance-checklist">
+    Module-by-module implementation, interoperability, evidence, deviation, and independent-review record.
   </Card>
   <Card title="Diagram pack" icon="diagram-project" href="/diagrams/index">
-    Standalone architectural views.
+    Standalone context, boundary, runtime, sequence, state, tenancy, marketplace, and lineage views.
   </Card>
 </CardGroup>
 
 ## Authority rule
 
-Pages marked **Normative reference** define required names, representations, or interfaces. Pages marked **Reference profile** provide an optional concrete profile and become binding only when an implementation declares that profile. A **Reference checklist** maps canonical requirements to assessment evidence without creating semantic requirements.
+| Page class | Authority |
+|---|---|
+| **Normative reference** | Required exact name, interface, lifecycle, registry, or representation |
+| **Reference profile** | Optional concrete interoperability/transport form; binding when declared |
+| **Reference checklist** | Maps canonical requirements to evidence; creates no new semantics |
+| **Example fixture** | Executable representation test for one schema version |
 
-Reference material states exact names, fields, interfaces, statuses, constraints, and evidence expectations. Design rationale belongs in guides or ADRs; implementation procedure belongs in how-to guides; end-to-end behavior belongs in worked examples.
+When a machine contract and prose disagree about serialized shape, the named machine contract controls that representation. When a contract appears to alter semantic meaning, the specification controls and the mismatch is an erratum.
+
+Reference material is optimized for lookup. Rationale belongs in guides or ADRs, implementation procedures in how-to guides, and complete behavior in [Enterprise worked examples](/examples/index).
