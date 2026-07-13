@@ -1,0 +1,47 @@
+{
+  "contractVersion": "1.0.0",
+  "runId": "run_01K2A",
+  "rootRunId": "run_01K2A",
+  "tenant": {
+    "tenantId": "tenant_acme_eu",
+    "workspaceId": "workspace_procurement",
+    "homeRegion": "eu-west",
+    "telemetryTenantId": "tenant_hash_4F2A"
+  },
+  "deploymentSnapshotRef": "deployment_snapshot_01K2S",
+  "deploymentSnapshotDigest": "sha256:394e...",
+  "status": "waiting_for_approval",
+  "stateVersion": 27,
+  "runSequence": 141,
+  "activeActivityRunIds": ["activity_run_create_order_01"],
+  "activityRuns": [
+    {
+      "activityRunId": "activity_run_create_order_01",
+      "activityId": "create-order",
+      "status": "waiting",
+      "executionScopePath": "run_01K2A/create-order"
+    }
+  ],
+  "activityResults": [
+    {
+      "activityRunId": "activity_run_research_01",
+      "resultRef": "activity_result_01K2R"
+    }
+  ],
+  "pendingEffectIds": ["effect_01K2B"],
+  "pendingApprovalIds": ["approval_01K2C"],
+  "childRunIds": ["run_research", "run_compliance"],
+  "budgets": {
+    "money": {
+      "parentLimit": { "amount": "12.00", "currency": "USD" },
+      "effectiveLimit": { "amount": "8.00", "currency": "USD" },
+      "source": "request_override",
+      "reserved": { "amount": "0.10", "currency": "USD" },
+      "consumed": { "amount": "3.82", "currency": "USD" }
+    }
+  },
+  "variables": {
+    "vendorId": "V-77"
+  },
+  "checkpointRef": "artifact://sha256/a82f..."
+}
