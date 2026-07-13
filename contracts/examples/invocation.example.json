@@ -12,6 +12,6 @@
   "usageRef": "usage_01K2U",
   "workerLeaseId": "worker_lease_01K2L",
   "fencingToken": 42,
-  "externalRequestDigest": "sha256:req...",
-  "externalResponseDigest": "sha256:res..."
+  "externalRequestDigest": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+  "externalResponseDigest": "sha256:9999999999999999999999999999999999999999999999999999999999999999"
 }
