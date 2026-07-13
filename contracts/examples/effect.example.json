@@ -1,0 +1,27 @@
+{
+  "contractVersion": "1.0.0",
+  "effectId": "effect_01K2B",
+  "semanticEffectKey": "sha256:semantic-effect-key",
+  "rootRunId": "run_01K2A",
+  "runId": "run_01K2A",
+  "activityRunId": "activity_run_create_order_01",
+  "activityAttemptId": "activity_attempt_create_order_02",
+  "executionScopePath": "run_01K2A/create-order",
+  "kind": "tool.invoke",
+  "toolRef": "purchase-order.create@4.2.1",
+  "impact": {
+    "determinism": "externally_determined",
+    "dataAccess": "write",
+    "mutation": "irreversible",
+    "externality": "external_service",
+    "compensability": "mitigatable"
+  },
+  "inputDigest": "sha256:8ea7...",
+  "authorityScopeDigest": "sha256:authority...",
+  "idempotencyKey": "tenant_acme_eu/effect/sha256:semantic-effect-key",
+  "capabilityGrantRef": "capability_grant_01K2G",
+  "policyDecisionRefs": ["policy_decision_01K2P"],
+  "approvalIds": ["approval_01K2C"],
+  "status": "outcome_unknown",
+  "invocationIds": ["invocation_01K2I1", "invocation_01K2I2"]
+}
