@@ -1,26 +1,32 @@
 ---
 title: Agentic Reference Architecture
-description: A framework-agnostic, evaluation-driven specification for production agentic systems.
+description: A framework-agnostic, evaluation-driven standard for production agentic systems.
 ---
 
 # Agentic Reference Architecture
 
 > **Models propose. Deterministic software, policy, and humans authorize. The runtime executes, persists, and records.**
 
-ARA is a compact normative specification plus optional implementation guides. It supports one production agent, deterministic and agentic workflows, long-running stateful execution, multi-agent systems, enterprise platforms, and governed marketplaces.
+ARA combines a compact normative standard, exact reference contracts, implementation guides, reusable patterns, and worked examples. It supports one production agent, deterministic and agentic workflows, long-running stateful execution, multi-agent systems, enterprise platforms, and governed marketplaces.
 
 <CardGroup cols={2}>
-  <Card title="Read the specification" icon="book" href="/rfc/index">
-    Start with the normative resource, execution, runtime, platform, security, and evaluation contracts.
+  <Card title="Read the standard" icon="book" href="/rfc/index">
+    Normative resource, execution, runtime, platform, security, and evaluation rules.
   </Card>
   <Card title="Architecture cheatsheet" icon="bolt" href="/cheatsheets/architecture">
-    Use the canonical names and decision rules without reading every guide.
+    Canonical names and decision rules in one compact view.
   </Card>
-  <Card title="Implementation contracts" icon="code" href="/specifications/reference-interfaces">
-    Typed ports, events, state, APIs, and manifests.
+  <Card title="Reference contracts" icon="code" href="/reference/index">
+    Glossary, conventions, interfaces, state/events, API, and manifests.
+  </Card>
+  <Card title="Guides" icon="compass" href="/guides/index">
+    Apply the standard to application, runtime, platform, security, cost, and operations design.
   </Card>
   <Card title="Patterns and examples" icon="diagram-project" href="/patterns/index">
-    Apply the core to agents, deliberation, experiments, child runs, and enterprise effects.
+    Agentic control, deliberation, experiments, child runs, compensation, and complete scenarios.
+  </Card>
+  <Card title="Project governance" icon="sitemap" href="/project/documentation-architecture">
+    Authority, page types, decisions, research, audits, and change propagation.
   </Card>
 </CardGroup>
 
@@ -35,14 +41,14 @@ stable resource
           -> concrete invocation
 ```
 
-Optional subordinate scopes include `ActivityAttempt`, `ExecutionBranch`, and `Iteration`. Temporary runtime ownership is a `WorkerLease`. Experiment repetitions are `ExperimentTrial`s in the experiment/evaluation bounded context.
+Optional subordinate scopes include `ActivityAttempt`, `ExecutionBranch`, and `Iteration`. Temporary runtime ownership is a `WorkerLease`. Independent experiment repetitions are `ExperimentTrial`s in the experiment/evaluation bounded context.
 
 ## Architecture shape
 
 ```mermaid
 flowchart LR
     Define["Version resources"] --> Deploy["Compile deployment snapshot"]
-    Deploy --> Kernel["Execution kernel"]
+    Deploy --> Kernel["Execution Kernel"]
     Kernel --> Control["Policy, budget, approval"]
     Control --> Effect["Effect"]
     Effect --> Invoke["Invocation(s)"]
