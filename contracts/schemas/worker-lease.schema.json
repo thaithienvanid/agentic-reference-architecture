@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ara.dev/contracts/1.0/schemas/worker-lease.schema.json",
+  "title": "ARA WorkerLease",
+  "type": "object",
+  "required": [
+    "contractVersion",
+    "leaseId",
+    "runId",
+    "workerId",
+    "fencingToken",
+    "acquiredAt",
+    "expiresAt",
+    "status"
+  ],
+  "properties": {
+    "contractVersion": { "const": "1.0.0" },
+    "leaseId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "runId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "activityRunId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "workerId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "fencingToken": { "type": "integer", "minimum": 0 },
+    "acquiredAt": { "$ref": "common.schema.json#/$defs/Instant" },
+    "expiresAt": { "$ref": "common.schema.json#/$defs/Instant" },
+    "releasedAt": { "$ref": "common.schema.json#/$defs/Instant" },
+    "status": { "type": "string", "enum": ["active", "renewed", "released", "expired", "revoked"] },
+    "backendOwnershipRef": { "type": "string" },
+    "extensions": { "$ref": "common.schema.json#/$defs/Extensions" }
+  },
+  "additionalProperties": false
+}
