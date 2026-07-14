@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate ARA machine-readable contracts, registries, fixtures, and YAML examples."""
+"""Validate ARA machine-readable contracts, registries, fixtures, and documentation examples."""
 
 from __future__ import annotations
 
@@ -47,10 +47,14 @@ def walk_values(value: Any, pointer: str = "$") -> Iterable[tuple[str, Any]]:
             yield from walk_values(child, f"{pointer}[{index}]")
 
 
-def validate_sha256_strings(path: Path, value: Any, failures: list[str]) -> None:
+def validate_sha256_strings(path: Path, value: Any, failures: list[str], *, context: str = "") -> None:
+    prefix = f" {context}" if context else ""
     for pointer, child in walk_values(value):
         if isinstance(child, str) and child.startswith("sha256:") and not DIGEST_RE.fullmatch(child):
-            fail(f"{path.relative_to(ROOT)} {pointer}: invalid SHA-256 digest {child!r}", failures)
+            fail(
+                f"{path.relative_to(ROOT)}{prefix} {pointer}: invalid SHA-256 digest {child!r}",
+                failures,
+            )
 
 
 def json_pointer(document: Any, pointer: str) -> Any:
@@ -100,7 +104,7 @@ def validate_schemas_and_examples(failures: list[str]) -> tuple[int, int]:
         try:
             schema = load_json(path)
             Draft202012Validator.check_schema(schema)
-        except Exception as error:  # validation reports the exact contract defect
+        except Exception as error:
             fail(f"{path.relative_to(ROOT)}: invalid JSON Schema: {error}", failures)
             continue
         schema_id = schema.get("$id")
@@ -225,6 +229,7 @@ def validate_openapi(failures: list[str]) -> None:
     except Exception as error:
         fail(f"{OPENAPI.relative_to(ROOT)}: invalid YAML: {error}", failures)
         return
+    validate_sha256_strings(OPENAPI, document, failures)
     if not isinstance(document, dict) or document.get("openapi") != "3.1.1":
         fail("OpenAPI profile must declare openapi: 3.1.1", failures)
         return
@@ -261,6 +266,7 @@ def validate_asyncapi(failures: list[str]) -> None:
     except Exception as error:
         fail(f"{ASYNCAPI.relative_to(ROOT)}: invalid YAML: {error}", failures)
         return
+    validate_sha256_strings(ASYNCAPI, document, failures)
     if not isinstance(document, dict) or document.get("asyncapi") != "3.0.0":
         fail("AsyncAPI profile must declare asyncapi: 3.0.0", failures)
         return
@@ -281,15 +287,19 @@ def validate_document_fences(failures: list[str]) -> tuple[int, int]:
         for index, body in enumerate(re.findall(r"```json\s*\n(.*?)\n```", text, flags=re.S), 1):
             json_count += 1
             try:
-                json.loads(body)
+                document = json.loads(body)
             except Exception as error:
                 fail(f"{path.relative_to(ROOT)}: invalid JSON fence {index}: {error}", failures)
+                continue
+            validate_sha256_strings(path, document, failures, context=f"JSON fence {index}")
         for index, body in enumerate(re.findall(r"```ya?ml\s*\n(.*?)\n```", text, flags=re.S), 1):
             yaml_count += 1
             try:
-                yaml.safe_load(body)
+                document = yaml.safe_load(body)
             except Exception as error:
                 fail(f"{path.relative_to(ROOT)}: invalid YAML fence {index}: {error}", failures)
+                continue
+            validate_sha256_strings(path, document, failures, context=f"YAML fence {index}")
     return json_count, yaml_count
 
 
