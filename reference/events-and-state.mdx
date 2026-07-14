@@ -1,6 +1,6 @@
 ---
 title: State, execution, and event contracts
-description: Canonical contract map and bounded examples for run state, activity results, effects, invocations, approvals, leases, events, and atomic commits.
+description: Canonical contract map and bounded examples for run state, lifecycle records, effects, invocations, approvals, leases, events, and atomic commits.
 ---
 
 # State, execution, and event contracts
@@ -12,6 +12,8 @@ description: Canonical contract map and bounded examples for run state, activity
 | Concept | JSON Schema | Executable fixture |
 |---|---|---|
 | Run state | `contracts/schemas/run-state.schema.json` | `contracts/examples/run-state.example.json` |
+| Activity run | `contracts/schemas/activity-run.schema.json` | `contracts/examples/activity-run.example.json` |
+| Activity attempt | `contracts/schemas/activity-attempt.schema.json` | `contracts/examples/activity-attempt.example.json` |
 | Activity result | `contracts/schemas/activity-result.schema.json` | `contracts/examples/activity-result.example.json` |
 | Effect | `contracts/schemas/effect.schema.json` | `contracts/examples/effect.example.json` |
 | Invocation | `contracts/schemas/invocation.schema.json` | `contracts/examples/invocation.example.json` |
@@ -20,6 +22,8 @@ description: Canonical contract map and bounded examples for run state, activity
 | Child-run link | `contracts/schemas/child-run-link.schema.json` | `contracts/examples/child-run-link.example.json` |
 | Event envelope | `contracts/schemas/event-envelope.schema.json` | `contracts/examples/event-envelope.example.json` |
 | Atomic transition commit | `contracts/schemas/transition-commit.schema.json` | `contracts/examples/transition-commit.example.json` |
+| Evaluation run | `contracts/schemas/evaluation-run.schema.json` | `contracts/examples/evaluation-run.example.json` |
+| Evaluation result | `contracts/schemas/evaluation-result.schema.json` | `contracts/examples/evaluation-result.example.json` |
 
 Every fixture is validated against the schema with the matching base name. Bounded snippets on this page explain important fields; they do not replace those executable files.
 
@@ -86,6 +90,46 @@ Every fixture is validated against the schema with the matching base name. Bound
 
 Large histories, model payloads, documents, and artifact bytes do not belong in this projection.
 
+## Activity run and attempt
+
+An `ActivityRun` is one logical execution. An `ActivityAttempt` exists only when the whole activity restarts from its retry boundary. Worker transfer uses a new lease, not a new attempt.
+
+```json
+{
+  "contractVersion": "1.0.0",
+  "activityRunId": "activity_run_create_order_01",
+  "rootRunId": "run_01K2A",
+  "runId": "run_01K2A",
+  "workflowVersionRef": "procurement-order@3.0.0",
+  "activityId": "create-order",
+  "inputSnapshotRef": "artifact://sha256/1111111111111111111111111111111111111111111111111111111111111111",
+  "inputDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "executionScopePath": "run_01K2A/create-order",
+  "status": "waiting",
+  "stateVersion": 5,
+  "attemptIds": ["activity_attempt_create_order_01"],
+  "effectIds": ["effect_01K2B"],
+  "createdAt": "2026-07-12T08:03:50Z",
+  "updatedAt": "2026-07-12T08:04:14Z"
+}
+```
+
+```json
+{
+  "contractVersion": "1.0.0",
+  "activityAttemptId": "activity_attempt_create_order_01",
+  "activityRunId": "activity_run_create_order_01",
+  "ordinal": 1,
+  "inputSnapshotRef": "artifact://sha256/1111111111111111111111111111111111111111111111111111111111111111",
+  "inputDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "status": "running",
+  "workerLeaseIds": ["worker_lease_01K2L"],
+  "createdAt": "2026-07-12T08:03:50Z",
+  "startedAt": "2026-07-12T08:03:51Z",
+  "updatedAt": "2026-07-12T08:04:14Z"
+}
+```
+
 ## Activity result
 
 An `ActivityResult` is the committed typed output of one exact `ActivityRun`. It may contain a bounded inline value, immutable artifact references, or both.
@@ -98,7 +142,7 @@ An `ActivityResult` is the committed typed output of one exact `ActivityRun`. It
   "runId": "run_01K2A",
   "activityId": "research",
   "activityRunId": "activity_run_research_01",
-  "schemaRef": "ProcurementResearchResult@3",
+  "schemaRef": "ProcurementResearchResult@3.0.0",
   "inlineValue": {
     "vendorId": "V-77",
     "riskScore": 0.42
@@ -164,6 +208,7 @@ An `Invocation` is one concrete adapter or provider call for exactly one effect.
   "adapterRef": "erp-http-adapter@3.1.0",
   "providerOperationRef": "erp-operation-8841",
   "status": "succeeded",
+  "createdAt": "2026-07-12T08:04:11Z",
   "startedAt": "2026-07-12T08:04:12Z",
   "completedAt": "2026-07-12T08:04:13Z",
   "usageRef": "usage_01K2U",
@@ -210,6 +255,33 @@ An approval binds an exact effect action and expected state. A `WorkerLease` sep
   "backendOwnershipRef": "temporal://namespace/ara/workflow/run_01K2A"
 }
 ```
+
+## Evaluation run and result
+
+An `EvaluationRun` tracks execution of one exact suite against one exact subject and environment. Its terminal result is a separate immutable `EvaluationResult`.
+
+```json
+{
+  "contractVersion": "1.0.0",
+  "evaluationRunId": "evaluation_run_01K2E",
+  "subject": {
+    "type": "workflow_run",
+    "id": "run_01K2A",
+    "deploymentSnapshotDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+  },
+  "evaluationSuiteVersionRef": "procurement-agent-release@6.0.0",
+  "environmentDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "status": "completed",
+  "stateVersion": 4,
+  "createdAt": "2026-07-13T09:55:00Z",
+  "startedAt": "2026-07-13T09:56:00Z",
+  "completedAt": "2026-07-13T10:00:00Z",
+  "updatedAt": "2026-07-13T10:00:00Z",
+  "resultRef": "evaluation_result_01K2E"
+}
+```
+
+A `passed` evaluation result cannot contain an applicable failed or inconclusive hard gate. An inapplicable gate records `applicable: false`, `status: not_applicable`, evidence, and a reason.
 
 ## Canonical event envelope
 
