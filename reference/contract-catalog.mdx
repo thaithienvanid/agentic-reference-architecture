@@ -5,7 +5,7 @@ description: Authority, inventory, versioning, validation, and compatibility rul
 
 # Contract catalog
 
-> **Status: Normative reference.** This page identifies the machine-readable artifacts that realize ARA semantics. The [specification](/specification/index) owns meaning; the named contract owns the serialized representation for a declared profile.
+> **Status: Normative reference.** This page identifies the machine-readable artifacts that realize ARA semantics. The [specification](/specification/index) owns meaning; a named contract owns serialized representation for its declared version/profile.
 
 ## Authority model
 
@@ -23,7 +23,7 @@ Guide or worked example
     demonstrates use without redefining either owner
 ```
 
-When prose and a published machine contract disagree about field shape or serialized value, the contract named by the applicable profile controls the representation. When a contract appears to change architectural meaning, the semantic specification controls and the mismatch is an erratum.
+When prose and a published machine contract disagree about field shape or serialized value, the contract named by the applicable profile controls that representation. When a contract appears to change architectural meaning, the specification controls and the mismatch is an erratum.
 
 ## Contract inventory
 
@@ -32,18 +32,21 @@ When prose and a published machine contract disagree about field shape or serial
 | Schema | Represents |
 |---|---|
 | `common.schema.json` | Shared identifiers, versions, digests, money, time, tenant/actor scope, execution scope, effect impact, and extensions |
-| `run-state.schema.json` | Current execution projection keyed by activity-run identity |
+| `run-state.schema.json` | Current run projection keyed by activity-run identity |
+| `activity-run.schema.json` | One logical execution of an activity and its lifecycle |
+| `activity-attempt.schema.json` | One whole-activity restart from a declared retry boundary |
 | `activity-result.schema.json` | Typed committed output of one `ActivityRun` |
 | `effect.schema.json` | Logical external or nondeterministic operation and semantic identity |
 | `invocation.schema.json` | One concrete adapter/provider call for an effect |
-| `event-envelope.schema.json` | Canonical execution-event envelope and causation metadata |
-| `transition-commit.schema.json` | Atomic fenced execution transition request |
+| `approval.schema.json` | Action-bound approval request and decisions |
 | `worker-lease.schema.json` | Temporary worker ownership and fencing evidence |
 | `child-run-link.schema.json` | Parent/child execution contract and lifecycle link |
+| `event-envelope.schema.json` | Canonical execution-event envelope and causation metadata |
+| `transition-commit.schema.json` | Self-contained atomic fenced execution transition |
 | `capability-grant.schema.json` | Scoped, audience-bound, attenuable authority |
-| `approval.schema.json` | Action-bound approval request and decisions |
 | `deployment-snapshot.schema.json` | Immutable executable resolution of versions and contracts |
 | `experiment-trial.schema.json` | Independent repetition from a frozen experiment baseline |
+| `evaluation-run.schema.json` | Evaluation execution lifecycle |
 | `evaluation-result.schema.json` | Metrics, hard gates, uncertainty, and evidence |
 | `hard-gate-registry.schema.json` | Versioned hard-gate definitions and unknown policies |
 | `package-lock.schema.json` | Exact transitive package resolution |
@@ -68,7 +71,7 @@ Every schema except `common.schema.json` has a matching executable fixture under
 | `openapi/ara-api-profile.yaml` | Optional OpenAPI 3.1.1 profile | Run commands/queries, approval, external-event ingestion, resume, evidence replay, and rerun |
 | `asyncapi/ara-events-profile.yaml` | Optional AsyncAPI 3.0.0 profile | Canonical event delivery, external signals, and bounded-context integration events |
 
-MCP, A2A, and durable-backend mappings are specified in their reference-profile pages and may gain additional machine profiles in compatible contract releases.
+MCP, A2A, and durable-backend mappings are specified in their reference-profile pages and may gain machine profiles in compatible contract releases.
 
 ## Contract tree
 
@@ -78,17 +81,20 @@ contracts/
 ├── schemas/
 │   ├── common.schema.json
 │   ├── run-state.schema.json
+│   ├── activity-run.schema.json
+│   ├── activity-attempt.schema.json
 │   ├── activity-result.schema.json
 │   ├── effect.schema.json
 │   ├── invocation.schema.json
-│   ├── event-envelope.schema.json
-│   ├── transition-commit.schema.json
+│   ├── approval.schema.json
 │   ├── worker-lease.schema.json
 │   ├── child-run-link.schema.json
+│   ├── event-envelope.schema.json
+│   ├── transition-commit.schema.json
 │   ├── capability-grant.schema.json
-│   ├── approval.schema.json
 │   ├── deployment-snapshot.schema.json
 │   ├── experiment-trial.schema.json
+│   ├── evaluation-run.schema.json
 │   ├── evaluation-result.schema.json
 │   ├── hard-gate-registry.schema.json
 │   ├── package-lock.schema.json
@@ -120,9 +126,11 @@ Every schema:
 - **MUST NOT** embed plaintext credentials, authorization headers, or private hidden reasoning.
 - **MUST** use canonical 64-hex SHA-256 strings wherever `ContentDigest` applies.
 
+Cross-record rules that JSON Schema cannot prove—such as monotonic fencing, effect reuse across activity attempts, or hard-gate aggregation—belong in contract-test and conformance suites.
+
 ## Registry rules
 
-Registries are versioned immutable datasets. Each entry identifies its ID, status, semantic owner, applicability, required behavior/evidence, and replacement metadata when applicable.
+Registries are versioned immutable datasets. Each entry identifies its ID, status, semantic owner, applicability, required behavior/evidence, and replacement metadata where applicable.
 
 Serialized events, errors, effects, hard gates, and conformance modules **MUST** use registered identifiers unless a namespaced extension is declared. Duplicate IDs and silent reuse of a retired meaning are prohibited.
 
@@ -130,7 +138,7 @@ Serialized events, errors, effects, hard gates, and conformance modules **MUST**
 
 Each `*.example.json` file is validated against the schema with the matching base name. Fixtures are executable contract tests, not decorative prose.
 
-Documentation SHOULD link to or embed generated/copy-verified fixtures and SHOULD NOT maintain a conflicting independent representation. Placeholder digests are not allowed in machine fixtures.
+Documentation SHOULD link to or embed generated/copy-verified fixtures and SHOULD NOT maintain a conflicting representation. Placeholder digests are prohibited in fixtures and in parsed JSON/YAML documentation examples.
 
 ## API and event-profile rules
 
@@ -139,7 +147,7 @@ Documentation SHOULD link to or embed generated/copy-verified fixtures and SHOUL
 - Operational resume, evidence replay, and rerun remain distinct operations.
 - Broker delivery is at least once and does not replace the Platform Run Journal.
 - External signals are authenticated, persisted to an inbox, deduplicated, and correlated before durable execution is signaled.
-- Raw provider errors, secrets, and cross-tenant identifiers are never part of the portable profile.
+- Raw provider errors, credentials, and cross-tenant identifiers are never part of the portable profile.
 
 ## Compatibility
 
