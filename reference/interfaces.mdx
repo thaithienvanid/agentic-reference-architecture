@@ -1,6 +1,6 @@
 ---
 title: Reference interfaces
-description: Canonical framework-neutral application, execution, capability, governance, evidence, and integration ports with fencing-aware atomic commit semantics.
+description: Canonical framework-neutral application, execution, capability, governance, evidence, and integration ports with fenced atomic commit semantics.
 ---
 
 # Reference interfaces
@@ -128,7 +128,7 @@ interface MarketplaceUseCases {
 }
 ```
 
-Commands are tenant-scoped and idempotent where duplicate delivery is possible. Queries use separate read interfaces and MUST NOT mutate authoritative state.
+Commands are tenant-scoped and idempotent where duplicate delivery is possible. Queries use separate read interfaces and **MUST NOT** mutate authoritative state.
 
 ## Execution Kernel
 
@@ -146,24 +146,49 @@ type ExecutionIntent =
   | { type: "start_activity"; activityId: ActivityId; input: ActivityInputSnapshotRef }
   | { type: "restart_activity"; activityRunId: ActivityRunId; at: Instant }
   | { type: "request_effect"; effect: EffectDraft }
-  | { type: "wait"; wait: WaitIntent }
-  | { type: "start_child"; request: ChildRunRequest }
   | { type: "complete"; result: ExecutionResultDraft }
   | { type: "fail"; failure: RunFailure };
 ```
 
 `ExecutionIntent` is a pure decision. Runtime-control writes and provider calls occur outside the kernel.
 
+All semantically material waits and delegated starts use `request_effect`:
+
+```text
+human approval request       -> human.approval Effect
+durable timer                -> timer.schedule Effect
+external-event subscription  -> event.wait Effect
+child WorkflowRun/AgentRun    -> child_run.start Effect
+external-agent collaboration -> external_agent.task Effect
+```
+
+After the effect is durably planned, the kernel evolves the run into the corresponding waiting projection. Journal writes, lease changes, checkpoints, deterministic policy evaluation, and best-effort telemetry remain `RuntimeControlOperation`s and do not create recursive effects.
+
 ## Atomic execution commit
 
 ```typescript
+interface LedgerMutation {
+  entityId: string;
+  operation:
+    | "insert"
+    | "transition"
+    | "append_evidence"
+    | "reconcile"
+    | "reserve"
+    | "release";
+  expectedStatus?: string;
+  nextStatus?: string;
+  payloadDigest?: ContentDigest;
+  payloadRef?: ProtectedPayloadRef;
+}
+
 interface TransitionCommit {
   events: readonly NewRunEvent[];
   nextState: RunState;
-  effectMutations: readonly EffectMutation[];
-  invocationMutations: readonly InvocationMutation[];
-  approvalMutations: readonly ApprovalMutation[];
-  budgetMutations: readonly BudgetMutation[];
+  effectMutations: readonly LedgerMutation[];
+  invocationMutations: readonly LedgerMutation[];
+  approvalMutations: readonly LedgerMutation[];
+  budgetMutations: readonly LedgerMutation[];
   outboxEvents: readonly IntegrationEvent[];
 }
 
@@ -175,7 +200,7 @@ interface ExecutionCommitPort {
 }
 ```
 
-The implementation MUST verify expected state version, run sequence, and current fencing token before committing the complete unit atomically.
+The implementation **MUST** verify expected state version, run sequence, and current fencing token before committing the complete unit atomically. The serialized owner is `contracts/schemas/transition-commit.schema.json`.
 
 ## Capability ports
 
@@ -213,8 +238,8 @@ interface SandboxPort {
 
 interface HumanApprovalPort {
   deliver(ctx: InvocationContext, request: ApprovalRequest): Promise<Result<ApprovalDeliveryRef>>;
-  status(ctx: ExecutionContext, approval: ApprovalRef): Promise<Result<ApprovalStatus>>;
-  revoke(ctx: ExecutionContext, approval: ApprovalRef, reason: string): Promise<Result<void>>;
+  status(ctx: InvocationContext, approval: ApprovalRef): Promise<Result<ApprovalStatus>>;
+  revoke(ctx: InvocationContext, approval: ApprovalRef, reason: string): Promise<Result<void>>;
 }
 
 interface ExternalAgentPort {
@@ -224,6 +249,8 @@ interface ExternalAgentPort {
   cancel(ctx: InvocationContext, task: RemoteTaskRef): Promise<Result<void>>;
 }
 ```
+
+An external status, cancellation, or reconciliation call is another `Invocation` of the same logical effect. A local read of an already committed approval projection uses an application/runtime query interface instead of calling `HumanApprovalPort.status`.
 
 ## Governance ports
 
@@ -286,7 +313,7 @@ interface EffectLedgerPort {
 }
 ```
 
-Authoritative writes to state, journal, effects, invocations, approvals, budgets, and outbox MUST use `ExecutionCommitPort` rather than independent write calls.
+Authoritative writes to state, journal, effects, invocations, approvals, budgets, and outbox **MUST** use `ExecutionCommitPort` rather than independent write calls.
 
 ## Evidence and integration ports
 
@@ -317,7 +344,7 @@ Best-effort telemetry failure does not change run truth. Mandatory audit or usag
 
 ## Capability attenuation
 
-A child capability grant is calculated as an intersection of parent-delegable authority, task requirements, tenant entitlements, policy, data/region constraints, and budget allocation. An adapter or child MUST NOT broaden that result.
+A child capability grant is calculated as an intersection of parent-delegable authority, task requirements, tenant entitlements, policy, data/region constraints, and budget allocation. An adapter or child **MUST NOT** broaden that result.
 
 ## Port registry
 
@@ -334,7 +361,7 @@ A child capability grant is calculated as an intersection of parent-delegable au
 Adapters and infrastructure implementations prove:
 
 ```text
-error classification and unknown outcome
+error classification and uncertain outcome
 stream completion and cancellation
 semantic effect identity across retries/attempts
 fencing and stale-write rejection
@@ -347,4 +374,4 @@ capability negotiation and version drift
 duplicate delivery and recovery
 ```
 
-The shared conformance kit validates the machine-readable contracts and representative failure cases.
+The shared conformance kit validates machine-readable contracts and representative failure cases.
