@@ -1,13 +1,13 @@
 ---
 title: Manifest profile
-description: Reference agent, workflow, tool, prompt, policy, evaluation, hard-gate, package-release, lock, and installation manifests.
+description: Reference agent, workflow, tool, prompt, policy, evaluation, hard-gate, package-release, lock, installation, and deployment manifests.
 ---
 
 # Manifest profile
 
-> **Status: Reference profile.** Manifests are declarative control-plane inputs. Production compilation resolves references to exact immutable versions, locks, and digests. Machine-readable schemas live under `/contracts/schemas`.
+> **Status: Reference profile.** Manifests are declarative control-plane inputs. Production compilation resolves references to exact immutable versions, locks, and digests. Machine-readable execution contracts live under `/contracts/schemas`.
 
-Money follows [Canonical conventions](/reference/conventions) and is serialized as decimal strings.
+Money follows [Canonical conventions](/reference/conventions) and is serialized as decimal strings. Source package releases may declare compatibility constraints; activated installations and deployment snapshots may not contain unresolved ranges.
 
 ## Agent version
 
@@ -53,13 +53,13 @@ spec:
   termination:
     repeatedActionDigestLimit: 3
     maximumNoProgressCycles: 5
-  resultSchema: ProcurementAgentResult@3
+  resultSchema: ProcurementAgentResult@3.0.0
   evaluations:
     - procurement-correctness@6.0.0
     - tool-policy-compliance@4.0.0
 ```
 
-An independent `AgentRun` created from this version owns one root `WorkflowRun` of `entryWorkflow`.
+An independent `AgentRun` created from this version owns one root `WorkflowRun` of `entryWorkflow`. An inline `AgentActivity` references an `AgentVersion` without creating a separate `AgentRun`.
 
 ## Workflow version
 
@@ -70,13 +70,13 @@ metadata:
   name: procurement-order
   version: 3.0.0
 spec:
-  inputSchema: ProcurementTask@2
-  outputSchema: ProcurementResult@3
-  stateSchema: ProcurementRunState@3
+  inputSchema: ProcurementTask@2.0.0
+  outputSchema: ProcurementResult@3.0.0
+  stateSchema: ProcurementRunState@3.0.0
   activities:
     - id: load-context
       type: task
-      outputSchema: ProcurementContextRefs@1
+      outputSchema: ProcurementContextRefs@1.0.0
     - id: research
       type: agent
       agent: procurement-research-agent@2.0.0
@@ -104,7 +104,7 @@ spec:
     requiredActivities: [load-context, research, validate, approve, create-order]
 ```
 
-Bindings identify exact execution instances or declared join/selection policies; they do not read an arbitrary latest activity output.
+Bindings identify exact execution instances or declared join/selection policies; they never read an arbitrary latest activity output.
 
 ## Tool version
 
@@ -115,8 +115,8 @@ metadata:
   name: purchase-order.create
   version: 4.2.1
 spec:
-  inputSchema: PurchaseOrderCreate@4
-  outputSchema: PurchaseOrderCreated@2
+  inputSchema: PurchaseOrderCreate@4.0.0
+  outputSchema: PurchaseOrderCreated@2.0.0
   effect:
     kind: tool.invoke
     impact:
@@ -131,6 +131,10 @@ spec:
     reconciliation:
       supported: true
       operation: purchase-order.status-by-idempotency-key
+      policy: purchase-order-reconcile@2.0.0
+    compensation:
+      supported: true
+      policy: purchase-order-cancel@1.0.0
   security:
     requiredScopes: [erp.purchase_order.create]
     credentialPurpose: tenant-erp-purchase-order-writer
@@ -162,13 +166,13 @@ spec:
   variables:
     - name: request
       source: task
-      schemaRef: ProcurementResearchRequest@2
+      schemaRef: ProcurementResearchRequest@2.0.0
       sensitivity: confidential
   context:
     recipe: procurement-research-context@2.3.0
     maximumTokens: 24000
     requireProvenance: true
-  outputSchema: ProcurementResearchResult@3
+  outputSchema: ProcurementResearchResult@3.0.0
   evaluations: [procurement-research-prompt@6.0.0]
 ```
 
@@ -230,7 +234,7 @@ spec:
   inconclusivePolicy: fail_closed
 ```
 
-## Hard-gate registry version
+## HardGateRegistryVersion
 
 ```yaml
 apiVersion: ara.dev/v1
@@ -241,21 +245,21 @@ metadata:
 gates:
   - id: no_cross_tenant_access
     applicability: multi_tenant_or_shared_data_plane
-    evidenceSchema: TenantIsolationEvidence@1
+    evidenceSchema: TenantIsolationEvidence@1.0.0
     evaluator: deterministic
     unknownPolicy: fail
   - id: no_duplicate_irreversible_effect
     applicability: irreversible_effect_present
-    evidenceSchema: EffectLedgerEvidence@1
+    evidenceSchema: EffectLedgerEvidence@1.0.0
     evaluator: deterministic
     unknownPolicy: fail
 ```
 
-The complete registry is machine-readable under `/contracts/registries/hard-gates.json`.
+The complete canonical registry is `contracts/registries/hard-gates.json`; the matching validated representation is `contracts/examples/hard-gate-registry.example.json`.
 
-## Marketplace package release
+## PackageRelease
 
-A package release MAY declare dependency constraints because it is a distributable source artifact, not an activated installation.
+A package release may declare compatibility and dependency constraints because it is a distributable source artifact, not an activated installation.
 
 ```yaml
 apiVersion: ara.marketplace/v1
@@ -292,10 +296,14 @@ requestedPermissions:
   secretPurposes: [tenant-erp-purchase-order-writer]
   childDelegation: [procurement-research-agent]
 supplyChain:
-  bundleDigest: sha256:6a14...
-  signatureBundle: sigstore://bundle/sha256/8b91...
-  sbom: { format: cyclonedx-json, digest: sha256:d491... }
-  provenance: { format: slsa-v1, digest: sha256:9e20... }
+  bundleDigest: sha256:1111111111111111111111111111111111111111111111111111111111111111
+  signatureBundle: sigstore://bundle/sha256/2222222222222222222222222222222222222222222222222222222222222222
+  sbom:
+    format: cyclonedx-json
+    digest: sha256:3333333333333333333333333333333333333333333333333333333333333333
+  provenance:
+    format: slsa-v1
+    digest: sha256:4444444444444444444444444444444444444444444444444444444444444444
 verification:
   requiredTests:
     - tenant-isolation
@@ -306,7 +314,7 @@ commercial:
   pricing: { model: per_successful_run, amount: "0.15", currency: USD }
 ```
 
-## Package lock
+## PackageLock
 
 A resolver creates an exact immutable lock:
 
@@ -319,19 +327,19 @@ metadata:
 resolved:
   - package: com.example.procurement-suite
     version: 2.4.0
-    digest: sha256:6a14...
+    digest: sha256:5555555555555555555555555555555555555555555555555555555555555555
   - package: com.example.document-tools
     version: 3.4.2
-    digest: sha256:3d91...
+    digest: sha256:6666666666666666666666666666666666666666666666666666666666666666
 resolver:
   version: ara-package-resolver@1.0.0
   generatedAt: 2026-07-13T10:00:00Z
-lockDigest: sha256:package-lock...
+lockDigest: sha256:7777777777777777777777777777777777777777777777777777777777777777
 ```
 
-An activated installation MUST use a `PackageLock`; unresolved ranges are prohibited.
+An activated installation must use a `PackageLock`; unresolved dependency ranges are prohibited.
 
-## Package installation revision
+## PackageInstallationRevision
 
 ```yaml
 apiVersion: ara.marketplace/v1
@@ -342,6 +350,7 @@ metadata:
   revision: 7
 packageRelease: com.example.procurement-suite@2.4.0
 packageLockRef: package_lock_01K2P
+packageLockDigest: sha256:7777777777777777777777777777777777777777777777777777777777777777
 grantedPermissions:
   capabilities:
     - contract.read
@@ -354,12 +363,12 @@ verificationEvidenceRefs:
   - evaluation_result_01K2E
   - sandbox_report_01K2S
 status: active
-installationDigest: sha256:installation...
+installationDigest: sha256:8888888888888888888888888888888888888888888888888888888888888888
 ```
 
-Granted permissions MUST be a subset of requested permissions and tenant/platform authority.
+Granted permissions are an explicit subset of package requests, tenant entitlements, platform policy, data policy, and regional policy.
 
-## Deployment snapshot excerpt
+## DeploymentSnapshot
 
 ```yaml
 apiVersion: ara.dev/v1
@@ -376,13 +385,15 @@ resources:
 packageInstallations:
   - id: package_installation_01K2I
     revision: 7
-    digest: sha256:installation...
+    digest: sha256:8888888888888888888888888888888888888888888888888888888888888888
 contractVersions:
   runtime: 1.0.0
   events: 1.0.0
   manifests: 1.0.0
-digest: sha256:deployment...
-signatureRef: sigstore://bundle/sha256/deployment-signature...
+  apiProfile: 1.0.0
+  eventProfile: 1.0.0
+digest: sha256:9999999999999999999999999999999999999999999999999999999999999999
+signatureRef: sigstore://bundle/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ```
 
-Production compilation resolves every transitive dependency to an exact version and digest.
+Production compilation resolves every transitive dependency, package installation, policy bundle, model route, adapter, schema, and contract profile to an exact version and digest. The complete executable snapshot representation is defined by `contracts/schemas/deployment-snapshot.schema.json`.
