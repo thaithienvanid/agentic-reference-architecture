@@ -1,6 +1,7 @@
 {
   "contractVersion": "1.0.0",
   "effectId": "effect_01K2B",
+  "semanticEffectSlot": "create-order",
   "semanticEffectKey": "effect-key:create-order:8ea7",
   "rootRunId": "run_01K2A",
   "runId": "run_01K2A",
@@ -19,6 +20,8 @@
   "inputDigest": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
   "authorityScopeDigest": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
   "idempotencyKey": "tenant_acme_eu/effect/effect-key:create-order:8ea7",
+  "reconciliationPolicyRef": "purchase-order-reconcile@2.0.0",
+  "compensationPolicyRef": "purchase-order-cancel@1.0.0",
   "capabilityGrantRef": "capability_grant_01K2G",
   "policyDecisionRefs": ["policy_decision_01K2P"],
   "approvalIds": ["approval_01K2C"],
