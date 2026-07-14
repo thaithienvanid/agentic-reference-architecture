@@ -6,6 +6,7 @@
   "required": [
     "contractVersion",
     "effectId",
+    "semanticEffectSlot",
     "semanticEffectKey",
     "rootRunId",
     "runId",
@@ -21,7 +22,13 @@
   "properties": {
     "contractVersion": { "const": "1.0.0" },
     "effectId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
-    "semanticEffectKey": { "type": "string", "minLength": 8 },
+    "semanticEffectSlot": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "semanticEffectKey": { "type": "string", "minLength": 8, "maxLength": 512 },
     "rootRunId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
     "parentRunId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
     "runId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
@@ -38,6 +45,8 @@
     "inputDigest": { "$ref": "common.schema.json#/$defs/ContentDigest" },
     "authorityScopeDigest": { "$ref": "common.schema.json#/$defs/ContentDigest" },
     "idempotencyKey": { "type": "string", "minLength": 1, "maxLength": 512 },
+    "reconciliationPolicyRef": { "type": "string", "minLength": 1, "maxLength": 512 },
+    "compensationPolicyRef": { "type": "string", "minLength": 1, "maxLength": 512 },
     "capabilityGrantRef": { "$ref": "common.schema.json#/$defs/OpaqueId" },
     "policyDecisionRefs": {
       "type": "array",
@@ -89,9 +98,15 @@
             },
             "required": ["mutation"]
           }
-        }
+        },
+        "required": ["impact"]
       },
-      "then": { "required": ["idempotencyKey"] }
+      "then": {
+        "anyOf": [
+          { "required": ["idempotencyKey"] },
+          { "required": ["reconciliationPolicyRef"] }
+        ]
+      }
     }
   ],
   "additionalProperties": false
