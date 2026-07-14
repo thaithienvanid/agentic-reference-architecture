@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministic consistency checks for ARA documentation architecture."""
+"""Deterministic consistency checks for the ARA documentation architecture."""
 
 from __future__ import annotations
 
@@ -69,23 +69,48 @@ REQUIRED_PATHWAY_AND_GOVERNANCE_PAGES = [
     "research/enterprise-use-cases",
 ]
 
+SCHEMA_NAMES = [
+    "common",
+    "run-state",
+    "activity-run",
+    "activity-attempt",
+    "activity-result",
+    "effect",
+    "invocation",
+    "approval",
+    "worker-lease",
+    "child-run-link",
+    "event-envelope",
+    "transition-commit",
+    "capability-grant",
+    "deployment-snapshot",
+    "experiment-trial",
+    "evaluation-run",
+    "evaluation-result",
+    "hard-gate-registry",
+    "package-lock",
+    "package-installation-revision",
+]
+
 REQUIRED_CONTRACT_FILES = [
     "requirements-docs.txt",
     "scripts/check_contracts.py",
     "contracts/README.md",
     "contracts/openapi/ara-api-profile.yaml",
     "contracts/asyncapi/ara-events-profile.yaml",
-    "contracts/schemas/activity-result.schema.json",
-    "contracts/schemas/child-run-link.schema.json",
-    "contracts/schemas/experiment-trial.schema.json",
-    "contracts/schemas/hard-gate-registry.schema.json",
-    "contracts/schemas/package-installation-revision.schema.json",
-    "contracts/examples/activity-result.example.json",
-    "contracts/examples/child-run-link.example.json",
-    "contracts/examples/experiment-trial.example.json",
-    "contracts/examples/hard-gate-registry.example.json",
-    "contracts/examples/package-installation-revision.example.json",
-    "contracts/examples/worker-lease.example.json",
+    "contracts/registries/effect-kinds.json",
+    "contracts/registries/event-types.json",
+    "contracts/registries/error-categories.json",
+    "contracts/registries/hard-gates.json",
+    "contracts/registries/conformance-modules.json",
+]
+REQUIRED_CONTRACT_FILES += [
+    f"contracts/schemas/{name}.schema.json" for name in SCHEMA_NAMES
+]
+REQUIRED_CONTRACT_FILES += [
+    f"contracts/examples/{name}.example.json"
+    for name in SCHEMA_NAMES
+    if name != "common"
 ]
 
 CANONICAL_GATES = [
@@ -278,11 +303,7 @@ def frontmatter(text: str) -> dict[str, str]:
 
 def declares_normative_authority(text: str) -> bool:
     return bool(
-        re.search(
-            r"^>\s*\*\*Status:\s*Normative\b",
-            text,
-            flags=re.MULTILINE,
-        )
+        re.search(r"^>\s*\*\*Status:\s*Normative\b", text, flags=re.MULTILINE)
     )
 
 
@@ -291,7 +312,12 @@ def is_explicit_negative_guidance(line: str) -> bool:
     return any(marker in lowered for marker in NEGATIVE_CONTEXT_MARKERS)
 
 
-def check_how_to(rel: str, text: str, contract: dict[str, Any], failures: list[str]) -> None:
+def check_how_to(
+    rel: str,
+    text: str,
+    contract: dict[str, Any],
+    failures: list[str],
+) -> None:
     if "Status: Informative how-to guide" not in text:
         fail(f"{rel}: missing Informative how-to guide status", failures)
     for heading in contract["required"]:
@@ -305,6 +331,19 @@ def check_how_to(rel: str, text: str, contract: dict[str, Any], failures: list[s
         )
 
 
+def require_phrases(
+    path: str,
+    phrases: Iterable[str],
+    failures: list[str],
+    label: str,
+) -> str:
+    text = (ROOT / path).read_text(encoding="utf-8")
+    for phrase in phrases:
+        if phrase not in text:
+            fail(f"{path}: missing {label} {phrase!r}", failures)
+    return text
+
+
 def main() -> int:
     failures: list[str] = []
 
@@ -316,7 +355,6 @@ def main() -> int:
 
     pages = collect_pages(docs.get("navigation", {}))
     page_set = set(pages)
-
     duplicates = sorted({page for page in pages if pages.count(page) > 1})
     if duplicates:
         fail(f"duplicate navigation/root pages: {duplicates}", failures)
@@ -386,9 +424,8 @@ def main() -> int:
     if tabs != EXPECTED_TABS:
         fail(f"navigation tabs must be exactly {EXPECTED_TABS}; found {tabs}", failures)
 
-    redirects = docs.get("redirects", [])
     redirect_map: dict[str, str] = {}
-    for item in redirects:
+    for item in docs.get("redirects", []):
         if not isinstance(item, dict):
             fail(f"invalid redirect entry: {item!r}", failures)
             continue
@@ -403,10 +440,9 @@ def main() -> int:
         if source in redirect_map:
             fail(f"duplicate redirect source: {source}", failures)
         redirect_map[source] = destination
-        source_page = source.strip("/")
-        destination_page = destination.strip("/")
-        if page_exists(source_page):
+        if page_exists(source.strip("/")):
             fail(f"redirect source shadows live page: {source}", failures)
+        destination_page = destination.strip("/")
         if destination_page not in page_set and not page_exists(destination_page):
             fail(f"redirect destination does not exist: {destination}", failures)
 
@@ -427,12 +463,14 @@ def main() -> int:
         if not (ROOT / rel).exists():
             fail(f"required contract/build file missing: {rel}", failures)
 
-    manifests = (ROOT / "reference/manifests.mdx").read_text(encoding="utf-8")
+    manifests = require_phrases(
+        "reference/manifests.mdx",
+        ("PackageLock", "PackageInstallationRevision", "HardGateRegistryVersion", "semanticEffectSlot"),
+        failures,
+        "manifest concept",
+    )
     if re.search(r"\bamount:\s+[0-9]+(?:\.[0-9]+)?\b", manifests):
-        fail("unquoted monetary amount in manifests", failures)
-    for phrase in ("PackageLock", "PackageInstallationRevision", "HardGateRegistryVersion"):
-        if phrase not in manifests:
-            fail(f"reference/manifests.mdx missing {phrase}", failures)
+        fail("reference/manifests.mdx: unquoted monetary amount", failures)
 
     for rel in GATE_FILES:
         text = (ROOT / rel).read_text(encoding="utf-8")
@@ -441,39 +479,53 @@ def main() -> int:
             fail(f"{rel}: missing canonical gates {missing}", failures)
 
     for rel in ("specification/runtime.mdx", "diagrams/index.mdx"):
-        text = (ROOT / rel).read_text(encoding="utf-8")
-        for transition in ("Reconciling --> Running", "Reconciling --> Failed"):
-            if transition not in text:
-                fail(f"{rel}: missing state transition {transition}", failures)
+        require_phrases(
+            rel,
+            ("Reconciling --> Running", "Reconciling --> Failed"),
+            failures,
+            "state transition",
+        )
 
-    execution = (ROOT / "specification/execution-model.mdx").read_text(encoding="utf-8")
-    for term in CANONICAL_EXECUTION_TERMS:
-        if term not in execution:
-            fail(f"execution model missing {term}", failures)
-    for phrase in ("RuntimeControlOperation", "semanticEffectKey", "ActivityAttempt is not part"):
+    execution = require_phrases(
+        "specification/execution-model.mdx",
+        CANONICAL_EXECUTION_TERMS,
+        failures,
+        "canonical term",
+    )
+    for phrase in ("RuntimeControlOperation", "semanticEffectKey", "ActivityAttempt is execution provenance"):
         if phrase not in execution:
-            fail(f"execution model missing hardening phrase: {phrase}", failures)
+            fail(f"specification/execution-model.mdx: missing hardening phrase {phrase!r}", failures)
 
-    boundaries = (ROOT / "specification/boundaries-and-use-cases.mdx").read_text(encoding="utf-8")
-    for phrase in ("Domain core", "Shared Kernel", "Application layer", "Execution Kernel", "Runtime Service"):
-        if phrase not in boundaries:
-            fail(f"architecture boundaries page missing {phrase}", failures)
-
-    runtime = (ROOT / "specification/runtime.mdx").read_text(encoding="utf-8")
-    for phrase in ("ExecutionCommitPort", "fencingToken", "Platform Run Journal", "Effect Ledger"):
-        if phrase not in runtime:
-            fail(f"runtime specification missing {phrase}", failures)
-
-    specification = (ROOT / "specification/index.mdx").read_text(encoding="utf-8")
-    for phrase in (
-        "Normative candidate",
-        "not an RFC Series publication",
-        "commit or digest",
-        "ARA Multi-Tenant",
-        "ARA High-Assurance",
-    ):
-        if phrase not in specification:
-            fail(f"specification/index.mdx missing publication/module phrase: {phrase}", failures)
+    require_phrases(
+        "specification/boundaries-and-use-cases.mdx",
+        ("Domain core", "Shared Kernel", "Application layer", "Execution Kernel", "Runtime Service"),
+        failures,
+        "boundary",
+    )
+    require_phrases(
+        "specification/runtime.mdx",
+        ("ExecutionCommitPort", "fencingToken", "Platform Run Journal", "Effect Ledger"),
+        failures,
+        "runtime concept",
+    )
+    require_phrases(
+        "specification/index.mdx",
+        ("Normative candidate", "not an RFC Series publication", "commit or digest", "ARA Multi-Tenant", "ARA High-Assurance"),
+        failures,
+        "publication/module phrase",
+    )
+    require_phrases(
+        "reference/interfaces.mdx",
+        ("request_effect", "timer.schedule", "event.wait", "child_run.start", "ExecutionCommitPort"),
+        failures,
+        "effect-boundary interface phrase",
+    )
+    require_phrases(
+        "specification/data-and-evidence.mdx",
+        ("budgets: BudgetState", "terminalResultRef", "complete `nextState`"),
+        failures,
+        "RunState/commit phrase",
+    )
 
     for rel, contract in HOW_TO_CONTRACTS.items():
         path = ROOT / rel
@@ -486,14 +538,7 @@ def main() -> int:
     for heading in CONFORMANCE_CHECKLIST_HEADINGS:
         if heading not in checklist:
             fail(f"conformance checklist missing section: {heading}", failures)
-    for status in (
-        "passed",
-        "failed",
-        "not_assessed",
-        "not_applicable",
-        "deviation_accepted",
-        "inconclusive",
-    ):
+    for status in ("passed", "failed", "not_assessed", "not_applicable", "deviation_accepted", "inconclusive"):
         if f"`{status}`" not in checklist:
             fail(f"conformance checklist missing status: {status}", failures)
     if "does not replace the normative" not in checklist:
@@ -505,57 +550,59 @@ def main() -> int:
     for heading in DOCUMENTATION_ARCHITECTURE_HEADINGS:
         if heading not in architecture:
             fail(f"documentation architecture missing section: {heading}", failures)
-    for dimension in (
-        "Correctness",
-        "Findability",
-        "Authority clarity",
-        "Completeness",
-        "Economy",
-        "Reproducibility",
-        "Maintainability",
-    ):
+    for dimension in ("Correctness", "Findability", "Authority clarity", "Completeness", "Economy", "Reproducibility", "Maintainability"):
         if dimension not in architecture:
             fail(f"documentation architecture missing quality dimension: {dimension}", failures)
 
-    guides_index = (ROOT / "guides/index.mdx").read_text(encoding="utf-8")
-    for target in (
-        "/specification/index",
-        "/handbook/runtime",
-        "/handbook/ports-and-adapters",
-        "/reference/conformance-checklist",
-    ):
-        if target not in guides_index:
-            fail(f"guides/index.mdx missing task entry: {target}", failures)
+    require_phrases(
+        "guides/index.mdx",
+        ("/specification/index", "/handbook/runtime", "/handbook/ports-and-adapters", "/reference/conformance-checklist"),
+        failures,
+        "task entry",
+    )
+    require_phrases(
+        "examples/index.mdx",
+        ("/examples/software-delivery", "/examples/customer-service", "/examples/incident-response", "/examples/procure-to-pay", "/examples/synthetic-research"),
+        failures,
+        "portfolio entry",
+    )
+    require_phrases(
+        "research/enterprise-use-cases.mdx",
+        (
+            "docs.github.com/en/copilot/concepts/agents/cloud-agent/about-cloud-agent",
+            "servicenow.com/products/ai-agents.html",
+            "sap.com/products/artificial-intelligence/ai-assistant.html",
+        ),
+        failures,
+        "primary source",
+    )
+    require_phrases(
+        "research/sources.mdx",
+        ("RFC Editor — What is an RFC?", "JSON Schema", "OpenAPI", "AsyncAPI"),
+        failures,
+        "source",
+    )
 
-    examples_index = (ROOT / "examples/index.mdx").read_text(encoding="utf-8")
-    for target in (
-        "/examples/software-delivery",
-        "/examples/customer-service",
-        "/examples/incident-response",
-        "/examples/procure-to-pay",
-        "/examples/synthetic-research",
-    ):
-        if target not in examples_index:
-            fail(f"examples/index.mdx missing portfolio entry: {target}", failures)
+    contract_catalog = (ROOT / "reference/contract-catalog.mdx").read_text(encoding="utf-8")
+    for name in SCHEMA_NAMES:
+        if f"{name}.schema.json" not in contract_catalog:
+            fail(f"reference/contract-catalog.mdx missing schema {name}.schema.json", failures)
 
-    use_cases = (ROOT / "research/enterprise-use-cases.mdx").read_text(encoding="utf-8")
-    for source in (
-        "docs.github.com/en/copilot/concepts/agents/cloud-agent/about-cloud-agent",
-        "servicenow.com/products/ai-agents.html",
-        "sap.com/products/artificial-intelligence/ai-assistant.html",
-    ):
-        if source not in use_cases:
-            fail(f"enterprise-use-case research missing primary source: {source}", failures)
+    lifecycle_reference = (ROOT / "reference/lifecycles.mdx").read_text(encoding="utf-8")
+    for name in ("activity-run.schema.json", "activity-attempt.schema.json", "evaluation-run.schema.json"):
+        if name not in lifecycle_reference:
+            fail(f"reference/lifecycles.mdx missing machine contract {name}", failures)
 
-    sources = (ROOT / "research/sources.mdx").read_text(encoding="utf-8")
-    for phrase in (
-        "RFC Editor — What is an RFC?",
-        "JSON Schema",
-        "OpenAPI",
-        "AsyncAPI",
-    ):
-        if phrase not in sources:
-            fail(f"research sources missing {phrase}", failures)
+    event_reference = (ROOT / "reference/events-and-state.mdx").read_text(encoding="utf-8")
+    for phrase in ("Activity run", "Activity attempt", "Evaluation run", '"createdAt"'):
+        if phrase not in event_reference:
+            fail(f"reference/events-and-state.mdx missing contract-backed phrase {phrase!r}", failures)
+
+    for rel in ("AGENTS.md", "CONTRIBUTING.md", "README.md"):
+        text = (ROOT / rel).read_text(encoding="utf-8")
+        for phrase in ("check_contracts.py", "requirements-docs.txt"):
+            if phrase not in text:
+                fail(f"{rel}: missing validation command {phrase}", failures)
 
     if failures:
         print("Documentation consistency checks failed:")
@@ -565,7 +612,8 @@ def main() -> int:
 
     print(
         "Documentation consistency checks passed for "
-        f"{len(pages)} navigation/root entries and {len(files)} public MDX pages."
+        f"{len(pages)} navigation/root entries, {len(files)} public MDX pages, "
+        f"and {len(REQUIRED_CONTRACT_FILES)} required contract/build files."
     )
     return 0
 
