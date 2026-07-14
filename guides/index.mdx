@@ -1,0 +1,65 @@
+---
+title: Guides
+description: Task-oriented adoption, design, implementation, operations, security, evaluation, and review guidance for applying ARA.
+---
+
+# Guides
+
+> **Status: Informative.** Guides explain how and why to apply the [ARA specification](/specification/index); they do not redefine it.
+
+## Start by task
+
+<CardGroup cols={2}>
+  <Card title="Adopt ARA" icon="route" href="/guides/adoption">
+    Select the minimum profile, build one vertical slice, and produce review and conformance evidence.
+  </Card>
+  <Card title="Design an application" icon="cubes" href="/handbook/workflows">
+    Workflows, agents, state, context, memory, prompts, and domain boundaries.
+  </Card>
+  <Card title="Build a durable runtime" icon="gears" href="/handbook/runtime">
+    Implement the kernel, journal, effects, leases, durable backend, recovery, and replay.
+  </Card>
+  <Card title="Implement an adapter" icon="plug" href="/handbook/ports-and-adapters">
+    Normalize provider capabilities, errors, retries, streaming, mutations, credentials, and evidence.
+  </Card>
+  <Card title="Design the platform" icon="server" href="/handbook/control-and-execution-planes">
+    Planes, cells, tenancy, marketplace, security, cost, model lifecycle, and SLOs.
+  </Card>
+  <Card title="Build with evaluation" icon="flask" href="/evaluation/index">
+    Deterministic, semantic, trajectory, environment, adversarial, and online evaluation.
+  </Card>
+  <Card title="Review a design" icon="clipboard-check" href="/decisions/decision-guide">
+    Choose deterministic versus agentic behavior, activity versus workflow, child execution, and retry scope.
+  </Card>
+  <Card title="Assess conformance" icon="list-check" href="/reference/conformance-checklist">
+    Map Core, Durable, Enterprise, Marketplace, and Regulated claims to reproducible evidence.
+  </Card>
+</CardGroup>
+
+## Reader paths
+
+| Reader | Suggested path |
+|---|---|
+| Product architect | Adopt ARA → domain/workflows → state/context/memory → worked example → checklist |
+| Runtime engineer | Execution specification → durable runtime guide → interfaces → adapter guide → resilience testing |
+| Provider integrator | Reference interfaces → adapter guide → conventions/events → contract tests |
+| Platform architect | Platform specification → planes/cells → enterprise SaaS → deployment and operations |
+| Security or risk reviewer | Security specification → security guide → compliance/data rights → hard gates → checklist |
+| Evaluation engineer | Evaluation specification → EDD guide → DeepEval/Harbor adapters → gates and metrics |
+| Conformance reviewer | Specification index → normative reference → checklist → release/errata governance |
+| Contributor or maintainer | Documentation architecture → releases/errata → ADRs → contribution rules |
+
+## Documentation modes
+
+| Need | Use |
+|---|---|
+| Follow a practical adoption sequence | [Adopt ARA](/guides/adoption) and worked examples |
+| Complete a specific implementation or operations task | How-to guides and implementation pages |
+| Understand alternatives and trade-offs | Explanation guides, ADRs, and research |
+| Look up an exact term, interface, event, or evidence expectation | [Reference](/reference/index) |
+| Determine mandatory behavior | [ARA specification](/specification/index) |
+| Prepare a technical conformance claim | [Conformance checklist](/reference/conformance-checklist) |
+
+## Guide contract
+
+A how-to guide states an outcome, prerequisites, ordered actions or decisions, validation criteria, and failure or avoidance guidance. An explanation guide develops a mental model and trade-offs. Both link to the canonical specification or reference owner and avoid maintaining a second complete definition.

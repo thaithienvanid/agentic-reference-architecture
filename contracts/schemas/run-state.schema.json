@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ara.dev/contracts/1.0/schemas/run-state.schema.json",
+  "title": "ARA RunState",
+  "type": "object",
+  "required": [
+    "contractVersion",
+    "runId",
+    "rootRunId",
+    "tenant",
+    "deploymentSnapshotRef",
+    "deploymentSnapshotDigest",
+    "status",
+    "stateVersion",
+    "runSequence",
+    "activeActivityRunIds",
+    "activityRuns",
+    "activityResults",
+    "pendingEffectIds",
+    "pendingApprovalIds",
+    "childRunIds",
+    "budgets",
+    "variables"
+  ],
+  "properties": {
+    "contractVersion": { "const": "1.0.0" },
+    "runId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "rootRunId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "parentRunId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "tenant": { "$ref": "common.schema.json#/$defs/TenantScope" },
+    "deploymentSnapshotRef": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "deploymentSnapshotDigest": { "$ref": "common.schema.json#/$defs/ContentDigest" },
+    "status": {
+      "type": "string",
+      "enum": [
+        "created",
+        "admitted",
+        "rejected",
+        "queued",
+        "running",
+        "waiting_for_effect",
+        "waiting_for_approval",
+        "waiting_for_event",
+        "retry_backoff",
+        "paused",
+        "reconciling",
+        "cancelling",
+        "completed",
+        "failed",
+        "cancelled",
+        "timed_out",
+        "budget_stopped",
+        "policy_stopped"
+      ]
+    },
+    "stateVersion": { "type": "integer", "minimum": 0 },
+    "runSequence": { "type": "integer", "minimum": 0 },
+    "activeActivityRunIds": {
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+      "uniqueItems": true
+    },
+    "activityRuns": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["activityRunId", "activityId", "status", "executionScopePath"],
+        "properties": {
+          "activityRunId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+          "activityId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+          "status": {
+            "type": "string",
+            "enum": ["planned", "ready", "running", "waiting", "completed", "terminal_failed", "cancelled", "timed_out", "skipped"]
+          },
+          "branchId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+          "iterationId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+          "executionScopePath": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      }
+    },
+    "activityResults": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["activityRunId", "resultRef"],
+        "properties": {
+          "activityRunId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+          "resultRef": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      }
+    },
+    "pendingEffectIds": {
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+      "uniqueItems": true
+    },
+    "pendingApprovalIds": {
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+      "uniqueItems": true
+    },
+    "childRunIds": {
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+      "uniqueItems": true
+    },
+    "budgets": { "$ref": "common.schema.json#/$defs/BudgetState" },
+    "variables": { "type": "object" },
+    "checkpointRef": { "type": "string", "minLength": 1 },
+    "terminalResultRef": { "type": "string", "minLength": 1 },
+    "extensions": { "$ref": "common.schema.json#/$defs/Extensions" }
+  },
+  "additionalProperties": false
+}

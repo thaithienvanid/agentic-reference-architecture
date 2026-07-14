@@ -1,0 +1,24 @@
+{
+  "registry": "ara.error-categories",
+  "registryVersion": "1.0.0",
+  "entries": [
+    { "id": "authentication", "status": "active", "defaultRetryable": false, "description": "Presented identity or credential cannot be authenticated." },
+    { "id": "authorization", "status": "active", "defaultRetryable": false, "description": "Identity, entitlement, capability, policy, or resource authorization denied the operation." },
+    { "id": "validation", "status": "active", "defaultRetryable": false, "description": "Input, output, schema, domain, or protocol validation failed." },
+    { "id": "unsupported_capability", "status": "active", "defaultRetryable": false, "description": "Required provider, adapter, protocol, model, or tool capability is unavailable." },
+    { "id": "rate_limited", "status": "active", "defaultRetryable": true, "description": "Provider or platform rate limit rejected the invocation; Retry-After may be supplied." },
+    { "id": "capacity_exhausted", "status": "active", "defaultRetryable": true, "description": "Required worker, token, sandbox, queue, or provider capacity is temporarily unavailable." },
+    { "id": "transient_unavailable", "status": "active", "defaultRetryable": true, "description": "Temporary provider, network, storage, or service availability failure." },
+    { "id": "timeout", "status": "active", "defaultRetryable": true, "description": "Deadline elapsed; safeToRetry and effectMayHaveOccurred determine response." },
+    { "id": "cancelled", "status": "active", "defaultRetryable": false, "description": "Invocation or operation was cancelled or cancellation was requested." },
+    { "id": "provider_policy_refusal", "status": "active", "defaultRetryable": false, "description": "Provider safety, policy, legal, or account policy refused the operation." },
+    { "id": "malformed_response", "status": "active", "defaultRetryable": true, "description": "Provider result violated declared stream, schema, or media contract." },
+    { "id": "ambiguous_outcome", "status": "active", "defaultRetryable": false, "description": "The external effect may have occurred and requires reconciliation before retry." },
+    { "id": "permanent_rejection", "status": "active", "defaultRetryable": false, "description": "External system permanently rejected the valid request." },
+    { "id": "conflict", "status": "active", "defaultRetryable": true, "description": "Expected version, idempotency payload, or concurrent state conflicts with current authority." },
+    { "id": "data_policy", "status": "active", "defaultRetryable": false, "description": "Classification, residency, purpose, retention, or egress policy rejected the operation." },
+    { "id": "budget_exhausted", "status": "active", "defaultRetryable": false, "description": "A hard money, token, activity, invocation, or time budget is exhausted." },
+    { "id": "dependency_withdrawn", "status": "active", "defaultRetryable": false, "description": "Pinned model, tool, adapter, package, or protocol dependency is no longer available." },
+    { "id": "internal", "status": "active", "defaultRetryable": false, "description": "Unexpected adapter, runtime, or implementation defect." }
+  ]
+}

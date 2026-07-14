@@ -1,0 +1,210 @@
+---
+title: Lifecycle contracts
+description: Normative state and transition contracts for runs, activities, attempts, effects, invocations, approvals, worker leases, child links, and evaluation runs.
+---
+
+# Lifecycle contracts
+
+> **Status: Normative reference.** A top-level run status is a projection over these separate lifecycle records.
+
+## General rules
+
+Every lifecycle record has:
+
+```text
+stable ID
+owning run or resource reference
+status
+state/aggregate version
+created and updated timestamps
+terminal reason when applicable
+correlation and causation references
+```
+
+Transitions **MUST** use optimistic concurrency or equivalent serialization. Terminal records are immutable except for append-only annotations, late evidence, or versioned corrections that do not rewrite the historical transition.
+
+## Run lifecycle
+
+```text
+created
+-> admitted | rejected
+admitted -> queued
+queued -> running | cancelling
+running
+-> waiting_for_effect
+-> waiting_for_approval
+-> waiting_for_event
+-> retry_backoff
+-> paused
+-> reconciling
+-> cancelling
+-> completed | failed | timed_out | budget_stopped | policy_stopped
+waiting/retry/paused/reconciling
+-> running | cancelling | terminal
+cancelling -> cancelled | reconciling
+```
+
+Terminal run states:
+
+```text
+rejected
+completed
+failed
+cancelled
+timed_out
+budget_stopped
+policy_stopped
+```
+
+`completed` means the declared run completion contract is satisfied. It does not imply that every optional child, telemetry export, or asynchronous evaluation completed.
+
+## ActivityRun lifecycle
+
+```text
+planned -> ready -> running
+running -> waiting | completed | failed | cancelled
+waiting -> running | failed | cancelled | timed_out
+failed -> retry_scheduled | terminal_failed
+retry_scheduled -> running
+```
+
+`ActivityRun` remains one logical execution across worker transfers and may contain several `ActivityAttempt`s, branches, iterations, effects, and invocations.
+
+Terminal activity states:
+
+```text
+completed
+terminal_failed
+cancelled
+timed_out
+skipped
+```
+
+`skipped` requires a deterministic guard or completion policy and a recorded reason.
+
+## ActivityAttempt lifecycle
+
+```text
+scheduled -> running
+running -> succeeded | failed | cancelled | timed_out
+```
+
+An `ActivityAttempt` exists only when the complete activity restarts from its retry boundary. Worker resumption from durable state does not create an attempt.
+
+A successful attempt does not automatically mean the `ActivityRun` is complete; the activity result contract still determines completion.
+
+## Effect lifecycle
+
+```text
+proposed
+-> denied | awaiting_approval | authorized
+awaiting_approval -> denied | authorized | expired | cancelled
+authorized -> planned
+planned -> dispatching | satisfied_without_invocation | cancelled
+dispatching -> in_progress | succeeded | failed | outcome_unknown | cancelled
+in_progress -> succeeded | failed | outcome_unknown | cancelled
+outcome_unknown -> reconciling
+reconciling -> succeeded | failed | retryable_absent | manual_resolution
+retryable_absent -> dispatching
+manual_resolution -> succeeded | failed | cancelled
+```
+
+Terminal effect states:
+
+```text
+denied
+expired
+succeeded
+failed
+cancelled
+satisfied_without_invocation
+```
+
+`outcome_unknown` is not a terminal failure. A mutating effect in this state **MUST NOT** be blindly re-executed.
+
+## Invocation lifecycle
+
+```text
+created -> dispatching
+dispatching -> streaming | succeeded | failed | timed_out | cancelled | outcome_unknown
+streaming -> succeeded | failed | timed_out | cancelled | outcome_unknown
+outcome_unknown -> completed_with_external_evidence | failed | cancelled
+```
+
+Each invocation declares its role:
+
+```text
+execute
+safe_retry
+poll
+status
+reconcile
+cancel
+```
+
+One invocation belongs to exactly one effect. An invocation terminal state does not determine the effect terminal state without reconciliation and effect policy.
+
+## Approval lifecycle
+
+```text
+created -> delivered | delivery_failed
+delivered -> pending
+pending -> approved | denied | expired | revoked | cancelled
+approved -> consumed | invalidated | expired
+```
+
+An approval is consumed only when the exact bound effect/action is revalidated and execution proceeds. Any material action, policy, authority, or state change invalidates the approval.
+
+## WorkerLease lifecycle
+
+```text
+active -> renewed
+active/renewed -> released | expired | revoked
+```
+
+A lease carries a monotonic fencing token. A commit using an older token **MUST** be rejected even if the old worker later becomes reachable.
+
+Lease expiry or transfer does not change logical run/activity state by itself.
+
+## ChildRunLink lifecycle
+
+```text
+proposed -> authorized -> starting
+starting -> active | start_failed
+active -> completed | failed | cancelled | timed_out | detached
+```
+
+The link records parent run, child run, delegated task, grant, budget, deadline, cancellation policy, and result schema. Child state remains authoritative in the child run; the link is the parent’s coordination record.
+
+A late or duplicated child result is validated against the link status and immutable result digest before parent state changes.
+
+## EvaluationRun lifecycle
+
+```text
+created -> queued -> running
+running -> completed | failed | cancelled | inconclusive
+```
+
+An `EvaluationResult` records metric/gate outcomes. Evaluator unavailability, missing required evidence, or insufficient trial count produces `inconclusive` or `failed` according to the evaluation contract; it never silently becomes `passed`.
+
+## Projection rule
+
+A user-facing status such as `waiting_for_effect` or `reconciling` is derived from subordinate lifecycle records. The projection **MUST** be reproducible from authoritative state and events.
+
+Examples:
+
+```text
+Run waiting_for_approval
+    when at least one required Approval is pending
+    and no higher-priority cancellation/terminal condition exists
+
+Run reconciling
+    when a required mutating Effect is outcome_unknown/reconciling
+
+Run running
+    when runnable or in-progress required work exists
+```
+
+## Machine contracts
+
+Serialized status values and lifecycle fields are defined under `/contracts/schemas` and `/contracts/registries`. Implementations MAY expose richer internal states, but adapters **MUST** map them to the canonical lifecycle without losing material failure or ambiguity.

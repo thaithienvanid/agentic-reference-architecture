@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ara.dev/contracts/1.0/schemas/package-installation-revision.schema.json",
+  "title": "ARA PackageInstallationRevision",
+  "type": "object",
+  "required": [
+    "contractVersion",
+    "installationId",
+    "revision",
+    "tenant",
+    "packageReleaseRef",
+    "packageLockRef",
+    "packageLockDigest",
+    "requestedCapabilities",
+    "grantedCapabilities",
+    "verificationResultRefs",
+    "status",
+    "createdAt",
+    "digest"
+  ],
+  "properties": {
+    "contractVersion": { "const": "1.0.0" },
+    "installationId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "revision": { "type": "integer", "minimum": 1 },
+    "tenant": { "$ref": "common.schema.json#/$defs/TenantScope" },
+    "packageReleaseRef": { "$ref": "common.schema.json#/$defs/VersionRef" },
+    "packageLockRef": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "packageLockDigest": { "$ref": "common.schema.json#/$defs/ContentDigest" },
+    "requestedCapabilities": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "grantedCapabilities": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "configurationRef": { "type": "string", "minLength": 1 },
+    "configurationDigest": { "$ref": "common.schema.json#/$defs/ContentDigest" },
+    "secretPurposeRefs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "verificationResultRefs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "verifying", "active", "disabled", "quarantined", "rolled_back", "revoked"]
+    },
+    "previousRevision": { "type": "integer", "minimum": 1 },
+    "createdAt": { "$ref": "common.schema.json#/$defs/Instant" },
+    "activatedAt": { "$ref": "common.schema.json#/$defs/Instant" },
+    "digest": { "$ref": "common.schema.json#/$defs/ContentDigest" },
+    "extensions": { "$ref": "common.schema.json#/$defs/Extensions" }
+  },
+  "additionalProperties": false
+}

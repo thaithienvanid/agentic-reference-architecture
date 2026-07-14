@@ -1,0 +1,89 @@
+---
+title: Domain model and DDD guide
+description: Bounded contexts, aggregates, value objects, and domain-extension guidance aligned with the ARA resource model.
+---
+
+# Domain model and DDD guide
+
+> **Status: Informative.** Stable resource and version semantics are defined in [Resource and version model](/specification/resource-model).
+
+## Small shared kernel
+
+The shared kernel should contain only truly common semantics:
+
+```text
+typed identifiers
+TenantScope and ActorIdentity
+VersionRef and ContentDigest
+Money, Duration, Instant
+CapabilityScope and DataClassification
+correlation and causation metadata
+stable error categories
+```
+
+Do not create one universal aggregate containing every agent, run, message, memory, tenant, and package concept.
+
+## Recommended bounded contexts
+
+| Context | Owns |
+|---|---|
+| Agent Catalog | `Agent`, immutable `AgentVersion` |
+| Workflow Catalog | `Workflow`, immutable `WorkflowVersion`, activities, compatibility |
+| Deployment | Promotion and signed deployment snapshots |
+| Execution Management | Tasks, runs, lifecycle, budgets, approvals, terminal results |
+| Capability Catalog | Tools, skills, connectors, scopes |
+| Conversation | Conversations, messages, participants, channels |
+| Context and Memory | Context recipes, memory records, provenance, retention |
+| Policy and Governance | Policy versions, decisions, obligations, risk classes |
+| Evaluation | Suites, datasets, evaluators, runs, results, gates |
+| Tenant and Entitlements | Tenants, workspaces, quotas, isolation tiers |
+| Marketplace | Packages, releases, dependencies, installations, revocation |
+| Artifacts and Lineage | Immutable artifacts and derivation graph |
+| Metering and Billing | Usage, rating, chargeback, revenue share |
+
+These are logical boundaries, not a service-per-context mandate.
+
+## Aggregate placement
+
+| Concept | Placement | Guidance |
+|---|---|---|
+| `Agent` | Agent Catalog | Stable identity, ownership, lifecycle |
+| `AgentVersion` | Agent Catalog | Immutable published behavior |
+| `Workflow` | Workflow Catalog | Stable identity |
+| `WorkflowVersion` | Workflow Catalog | Immutable executable specification |
+| `Run` | Execution Management | Aggregate root for legal lifecycle |
+| `ActivityRun` | Journal/projection | Do not embed unbounded history in `Run` |
+| `ApprovalRequest` | Execution Management | Bound to exact effect/action digest |
+| `MemoryRecord` | Context and Memory | Scoped, provenanced, revocable |
+| `Artifact` | Artifacts and Lineage | Metadata aggregate; bytes external |
+| `PackageInstallationRevision` | Marketplace | Tenant-scoped exact dependency lock |
+
+## Domain extension rule
+
+A concept enters the shared core only when reusable across materially different applications.
+
+Synthetic research remains domain-specific:
+
+```text
+Study
+SyntheticParticipant
+ParticipantStateVersion
+ParticipantSession
+Contribution
+Deliberation
+Experiment
+```
+
+| Research concept | ARA mechanism |
+|---|---|
+| Study execution | `ExecutionPlanRun` |
+| Participant session | `ActivityRun` or child `AgentRun` |
+| Contribution | `Artifact` |
+| Participant memory | scoped `MemoryRecord` |
+| Deliberation | `WorkflowVersion` plus `Iteration` |
+| Model comparison | `ExperimentRun`, variants, and `ExperimentTrial`s |
+| Study quality | `EvaluationResult` |
+
+## Business state versus run state
+
+A durable domain object may remain active after a workflow finishes. Keep business lifecycle above workflow execution and connect them through explicit owner references and domain events.

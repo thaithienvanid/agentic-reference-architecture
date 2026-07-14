@@ -1,0 +1,304 @@
+---
+title: Adopt ARA
+description: A task-oriented path from one business outcome to a production-ready ARA implementation and reproducible conformance evidence.
+---
+
+# Adopt ARA
+
+> **Status: Informative how-to guide.** The [ARA specification](/specification/index) remains the normative authority.
+
+## Outcome
+
+At the end of this guide, a team has:
+
+- Selected ARA Core and only the additional modules justified by risk and scale.
+- Defined one domain-owned outcome and one thin vertical workflow.
+- Separated stable resources, immutable versions, and runtime executions.
+- Identified every semantic effect, invocation, runtime-control operation, and authorization boundary.
+- Chosen a runtime topology, persistence model, and recovery strategy.
+- Defined security, budget, evaluation, failure, and evidence contracts.
+- Validated machine-readable schemas and provider adapters.
+- Produced an architecture-review package and module-by-module conformance assessment.
+
+## Prerequisites
+
+Bring one real product scenario, not a platform abstraction:
+
+```text
+business owner and intended outcome
+representative inputs and prohibited outcomes
+affected systems and data classifications
+required human decisions
+latency, cost, availability, and recovery objectives
+legal, privacy, security, tenant, and regional constraints
+one production-like evaluation environment
+```
+
+Do not begin by choosing an agent framework, model provider, vector database, workflow engine, or microservice topology.
+
+## 1. Select the minimum modules
+
+ARA uses a required base plus composable modules:
+
+| Situation | Start with | Add when justified |
+|---|---|---|
+| Bounded model-assisted transformation | ARA Core | No durable module unless failures or waits require it |
+| Tool-using production agent | ARA Core | Durable for long-running work, uncertain mutations, durable waits, or replay |
+| Multi-day workflow, approval, signal, or recovery | Core + Durable | Enterprise Operations for shared cells/SLOs/provider lifecycle |
+| Shared internal or external tenant platform | Core + Multi-Tenant | Durable and Enterprise Operations according to execution and operations needs |
+| Third-party package execution | Core + Marketplace | Multi-Tenant, Enterprise Operations, and High-Assurance as risk requires |
+| High-impact operation | Core + High-Assurance | Durable and Enterprise Operations where recovery/availability is material |
+| Regulated deployment | Core + High-Assurance + Regulated | Add only the execution/platform modules required by the operating context |
+
+Convenience bundle:
+
+```text
+ARA Enterprise = Core + Durable + Enterprise Operations
+                 + Multi-Tenant when shared tenants exist
+```
+
+A single-tenant regulated application does not need to claim multi-tenant capabilities. Record the exact modules and optional interoperability profiles assessed; do not imply conformance to capabilities that were not evaluated.
+
+## 2. Define the outcome and deterministic invariants
+
+Write one bounded statement:
+
+```text
+For <actor>, when <trigger>, produce <typed outcome>
+within <deadline and budget>, using only <capabilities>,
+while preventing <prohibited outcomes>.
+```
+
+Assign ownership:
+
+| Concern | Owner |
+|---|---|
+| Business truth and invariants | Domain core/application bounded context |
+| Use-case admission and command/query orchestration | Application layer |
+| Legal workflow transition and next intent | Execution Kernel |
+| Live scheduling, waits, cancellation, recovery | Runtime Service |
+| Model proposal or classification | Model effect and adapter |
+| External mutation | Effect gateway and resource system |
+| Authorization | Identity, policy, capability, approval, and resource-side controls |
+| Quality and safety judgment | Evaluation plane and domain reviewers |
+| Operational diagnosis | Observability |
+| Authoritative execution evidence | Platform Run Journal and audit systems |
+
+Anything deterministic software or policy can decide reliably remains outside model discretion.
+
+## 3. Inventory resources, versions, and executions
+
+Use the canonical grammar:
+
+```text
+Agent -> AgentVersion -> AgentRun, when independent lifecycle exists
+Workflow -> WorkflowVersion -> WorkflowRun
+ExecutionPlan -> ExecutionPlanVersion -> ExecutionPlanRun
+Prompt -> PromptVersion -> CompiledPromptSnapshot
+Tool -> ToolVersion -> Effect -> Invocation
+Policy -> PolicyVersion -> PolicyDecision
+EvaluationSuite -> EvaluationSuiteVersion -> EvaluationRun
+HardGateRegistry -> HardGateRegistryVersion
+PackageRelease -> PackageLock -> PackageInstallationRevision
+```
+
+An independent `AgentRun` owns one root `WorkflowRun`; inline agent behavior does not require a second execution engine.
+
+Every production run pins an immutable `DeploymentSnapshot` resolving behavior, prompts, context recipes, tools, policies, model routes, package installation revisions, evaluation suites, contract/profile versions, and content digests. Never resolve `latest` during execution.
+
+See [Architecture boundaries](/specification/boundaries-and-use-cases) and [Resource and version model](/specification/resource-model).
+
+## 4. Define workflow, activity, branch, iteration, and child boundaries
+
+Create the smallest workflow that reaches the outcome.
+
+- Use an `Activity` where input/result, policy, budget, retry, evaluation, or observability matters independently.
+- Use a referenced workflow when internal work has dependencies, branches, waits, or several meaningful activities.
+- Use the least powerful activity kind that solves the task: deterministic task, bounded model call, explicit tool, human action, bounded agent activity, or referenced workflow.
+- Use an `ExecutionBranch` for an independent parallel path or candidate.
+- Use an `Iteration` for an intentional sequential cycle using updated evidence or state.
+- Create a child `WorkflowRun` or `AgentRun` only for an independent state, capability, budget, deadline, cancellation, result, failure, or evaluation lifecycle.
+- Freeze every activity input from exact bindings and source references; do not read arbitrary mutable output.
+- Key execution results by `ActivityRunId`, with branch/iteration scope when relevant.
+
+See [Execution model](/specification/execution-model) and [Workflows and execution plans](/handbook/workflows).
+
+## 5. Classify intents, runtime control, effects, and invocations
+
+List every operation and assign exactly one category:
+
+```text
+ExecutionIntent
+    pure kernel decision about what should happen next
+
+RuntimeControlOperation
+    journal/state commit, lease, checkpoint, queue, policy, budget,
+    telemetry or other internal coordination
+
+Effect
+    semantically material external or nondeterministic operation
+
+Invocation
+    one concrete adapter/provider call for an Effect
+```
+
+Typical effects include model generation, external tool/API calls, governed memory access, artifact publication, human approval, external-agent collaboration, sandbox execution, timers/event subscriptions, and child-run start.
+
+For each effect define:
+
+```text
+kind and semantic effect slot
+typed input and normalized digest
+authority-scope digest
+impact dimensions: determinism, data access, mutation,
+                   externality and compensability
+capability, policy, budget, approval and deadline
+idempotency or reconciliation
+provider/adapter route and data policy
+required audit, usage, telemetry and evaluation evidence
+```
+
+One logical operation is one `Effect`. A retry, poll, or reconciliation query is another `Invocation` for the same effect. A changed prompt, context, arguments, tool, objective, data policy, or authority creates a new effect. `ActivityAttempt` is provenance, not logical effect identity.
+
+## 6. Separate state, data, and evidence
+
+Create an ownership map for:
+
+```text
+domain state
+workflow/run state
+activity input snapshot and result
+conversation and message history
+working context / ContextSnapshot
+MemoryRecord
+Artifact
+Checkpoint
+Platform Run Journal
+Effect and Invocation ledgers
+trace, log, and metric
+AuditRecord
+UsageRecord
+EvaluationResult
+```
+
+Store large or sensitive content behind immutable protected references with digests and lineage. Treat vector/search indexes as derived views. Distinguish:
+
+```text
+operational resume     same run; reuse completed effects
+evidence replay        reconstruct state without external calls
+rerun                  new run from historical inputs and explicit versions
+```
+
+See [State, data, and evidence](/specification/data-and-evidence) and [Lifecycle contracts](/reference/lifecycles).
+
+## 7. Choose runtime, persistence, and platform topology
+
+Use the simplest topology that satisfies the failure contract:
+
+| Requirement | Starting point |
+|---|---|
+| Short, bounded, read-only work | Modular application plus request or queue worker |
+| Tool use with attribution and bounded retry | Runtime API/worker, relational state/effect records, governed gateways |
+| Long waits, approvals, signals, uncertain mutations, or recovery | ARA Durable runtime behind `DurableExecutionPort` |
+| Several teams or shared operations | Control plane, signed snapshots, governed gateways, execution cells |
+| Several tenants | Trusted tenant routing, scoped storage/caches/queues/telemetry, quotas and isolation tests |
+| Strong isolation or residency | Dedicated database, bucket, execution cell, or deployment tier |
+
+A durable implementation uses one atomic fenced `ExecutionCommitPort` boundary for state, journal, effect/invocation/approval/budget mutations, and outbox events. Worker ownership is temporary and proven with a `WorkerLease` and fencing token.
+
+A strong first production package usually includes one domain application, one `WorkflowVersion`, a pure Execution Kernel, application commands/queries, runtime API and worker, relational state and ledgers, artifact storage, model/tool gateways, policy and credential brokering, telemetry, and an evaluation release gate.
+
+Follow [Build an ARA Durable runtime](/handbook/runtime), [Implement an ARA adapter](/handbook/ports-and-adapters), and the [Durable backend profile](/reference/durable-backend-profile) where applicable.
+
+## 8. Define security and evaluation before autonomy
+
+Threat-model the path from untrusted input to every effect and output sink. Cover prompt injection, tenant leakage, poisoned tools/memory/packages, excessive agency, forged agent messages, deceptive approvals, unsafe sinks, credential leakage, evaluator manipulation, runaway loops, and unbounded spending.
+
+Derive child authority monotonically:
+
+```text
+childGrant = intersection(
+    parentDelegableGrant,
+    taskRequirements,
+    tenantEntitlements,
+    policyDecision,
+    dataAndRegionalPolicy,
+    allocatedBudget
+)
+```
+
+Use a credential broker to inject short-lived purpose- and audience-bound credentials at dispatch; do not return plaintext credentials into core code, prompts, run state, journal, or telemetry.
+
+Define an evaluation contract containing deterministic invariants, adapter contracts, semantic/trajectory metrics, environment verification, versioned hard gates, critical slices, trial policy, cost/latency limits, canary/rollback rules, and unknown/inconclusive behavior. No quality average can hide a failed required gate.
+
+## 9. Build one thin vertical slice
+
+Implement one complete path:
+
+```text
+authenticate and resolve trusted tenant/actor
+-> admit use case against exact DeploymentSnapshot
+-> execute one ActivityRun
+-> decide and authorize one Effect
+-> atomically commit effect intent before dispatch
+-> invoke through one adapter with brokered credential
+-> reconcile outcome and usage
+-> atomically commit state, journal, ledgers and outbox
+-> produce typed result/artifact
+-> evaluate and expose timeline, audit and cost evidence
+```
+
+Inject at least:
+
+1. Duplicate command or external signal.
+2. Worker death before and after provider dispatch.
+3. Timeout after a mutation may have committed.
+4. Stale lease commit.
+5. Approval expiry or digest mismatch.
+6. Rate limit and deadline expiry.
+7. Cancellation during work and waiting.
+8. Cross-tenant or authority-scope substitution.
+9. Malicious tool, document, package, or child output.
+10. Model route withdrawal or fallback incompatibility.
+
+Expand only after this path passes deterministic, contract, security, evaluation, and recovery gates.
+
+## 10. Produce review and conformance evidence
+
+The architecture-review package contains:
+
+1. Intended purpose, prohibited use, owner, risk class, and selected modules/profiles.
+2. Context, dependency, trust, execution, data, and deployment diagrams.
+3. Resource/version/run and `DeploymentSnapshot` inventory.
+4. Workflow, activity run, branch, iteration, effect, invocation, retry, and child map.
+5. State, context, memory, artifact, journal, audit, usage, and lineage map.
+6. Port/adapter inventory, capability matrix, and contract-test results.
+7. Threat model, capability grants, approvals, credentials, and residual risks.
+8. Evaluation contract, datasets, environments, gates, trials, baselines, and uncertainty.
+9. SLOs, budgets, provider lifecycle, recovery procedure, and game-day evidence.
+10. Machine-contract version/tree digest and validation output.
+11. Completed [Conformance checklist](/reference/conformance-checklist) with closed statuses, deviations, owners, and expiry dates.
+
+Freeze the package by implementation release, deployment digest, ARA version/publication commit, contract-tree digest, environment, and assessment date.
+
+## Validation
+
+Adoption is complete for the selected scope only when:
+
+- Every production run resolves to an immutable deployment snapshot.
+- Domain, application, Execution Kernel, Runtime Service, ports, and adapters obey inward dependencies.
+- Model output cannot directly mutate authoritative state.
+- Every semantic external/nondeterministic operation is represented and authorized as an effect.
+- Mutating effects demonstrate idempotency or reconciliation, including ambiguous outcomes.
+- Activity retry reuses prior completed effects according to semantic identity.
+- Trusted actor, capability, tenant, classification, residency, budget, and deadline context crosses protected boundaries.
+- State, context, memory, artifacts, checkpoints, telemetry, audit, usage, and evaluation remain separately governed.
+- The runtime survives declared failures without stale commits or repeated completed mutations.
+- Machine schemas, registries, fixtures, API/event profiles, documentation, and links validate.
+- Evaluation and hard-gate evidence covers the deployed configuration.
+- Every claimed module/profile has a closed checklist status; `deviation_accepted` is not reported as full conformance.
+- Known residual risks and operational limits are explicit.
+
+## Avoid overbuilding
+
+Pause expansion when a new service creates no distinct scaling, security, residency, availability, ownership, or commercial boundary; a child does not need an independent lifecycle; a memory store duplicates another authority; an abstraction lacks a second materially different use; autonomy has no measured benefit; or the team cannot test recovery, isolation, and mutation safety for existing complexity.

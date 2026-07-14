@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ara.dev/contracts/1.0/schemas/hard-gate-registry.schema.json",
+  "title": "ARA HardGateRegistryVersion",
+  "type": "object",
+  "required": ["registry", "registryVersion", "status", "entries"],
+  "properties": {
+    "registry": { "type": "string", "minLength": 1 },
+    "registryVersion": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][A-Za-z0-9.-]+)?$" },
+    "status": { "type": "string", "enum": ["draft", "active", "deprecated", "revoked"] },
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "applicability",
+          "subjectTypes",
+          "evaluatorType",
+          "evidenceSchema",
+          "severity",
+          "unknownPolicy"
+        ],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+          "status": { "type": "string", "enum": ["active", "deprecated", "revoked"] },
+          "applicability": { "type": "string", "minLength": 1 },
+          "subjectTypes": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "enum": ["agent_run", "workflow_run", "execution_plan_run", "package_release", "deployment_snapshot"]
+            }
+          },
+          "evaluatorType": { "type": "string", "enum": ["deterministic", "probabilistic", "human", "mixed"] },
+          "evidenceSchema": { "type": "string", "minLength": 1 },
+          "severity": { "type": "string", "enum": ["critical", "high", "medium", "low"] },
+          "unknownPolicy": { "type": "string", "enum": ["fail", "inconclusive", "escalate"] },
+          "threshold": {},
+          "requiredSlices": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+          "minimumTrials": { "type": "integer", "minimum": 1 },
+          "calibrationRef": { "type": "string", "minLength": 1 },
+          "retentionPolicyRef": { "type": "string", "minLength": 1 },
+          "replacementId": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

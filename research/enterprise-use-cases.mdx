@@ -1,0 +1,136 @@
+---
+title: Enterprise agentic use-case research
+description: Primary-source evidence, architectural selection criteria, and a prioritized portfolio of real-world enterprise agentic scenarios.
+---
+
+# Enterprise agentic use-case research
+
+**Retrieval date:** July 13, 2026. Product capabilities and market adoption are time-sensitive; revalidate sources before a major release.
+
+> **Status: Research.** Facts describe public documentation. Inferences synthesize reusable architecture implications. Recommendations select examples for ARA; they are not vendor claims or market rankings.
+
+## Selection method
+
+A scenario qualifies as a full ARA worked example when it satisfies most of these criteria:
+
+```text
+material enterprise demand
+a multi-step outcome rather than text generation alone
+one or more governed effects
+state or evidence that survives a request
+meaningful failure and recovery behavior
+security, privacy, approval, or tenant boundaries
+measurable outcome beyond subjective prose quality
+portability across providers and orchestration products
+```
+
+ARA deliberately avoids examples that are merely chat wrappers, one-shot summarizers, or product-specific demos.
+
+## Primary evidence
+
+| Public fact | Architecture inference | ARA recommendation |
+|---|---|---|
+| [GitHub documents that its cloud coding agent can research a repository, plan, fix bugs, implement incremental features, improve tests, update documentation, address technical debt, resolve merge conflicts, and work in an ephemeral environment](https://docs.github.com/en/copilot/concepts/agents/cloud-agent/about-cloud-agent). | Software delivery is a real agentic workflow with repository state, sandbox execution, tests, commits, review, audit, and rollback—not merely code completion. | Maintain a complete software-change example with a draft pull request as the result and human merge authority outside the agent. |
+| [ServiceNow publicly positions AI agents across incident resolution, customer service, security/risk, employee service, accounts payable, sourcing/procurement, and supplier lifecycle workflows](https://www.servicenow.com/products/ai-agents.html). | Enterprise demand clusters around high-volume cases and exceptions that already cross systems, roles, SLAs, policies, and audit boundaries. | Use customer service, IT incident response, and procure-to-pay as distinct examples because their risk and execution semantics differ. |
+| [SAP documents Joule assistants for buying, category management, procurement contracts, recurring receivables, cash, and treasury](https://www.sap.com/products/artificial-intelligence/ai-assistant.html). | Finance and procurement agents must combine document reasoning with deterministic accounting, authorization, exact system-of-record mutations, and reconciliation. | Rewrite the procurement demo as a broader procure-to-pay exception workflow with dual approval and ambiguous ERP outcome recovery. |
+| [OpenAI documents Codex sandboxing and approval controls](https://developers.openai.com/codex/agent-approvals-security), and [Anthropic documents Claude Code permissions, sandboxing, and security controls](https://code.claude.com/docs/en/security). | Coding-agent safety depends on the operating environment and authorization boundary, not prompt instructions alone. | Make sandbox image, network, repository scope, secret purpose, generated-code verification, and human review first-class in the software example. |
+| [NIST AI 600-1](https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.600-1.pdf) emphasizes lifecycle risk management, measurement, provenance, human oversight, security, and monitoring for generative AI. | Examples should show evaluation and governance throughout the lifecycle rather than append a score to the final output. | Every example includes deterministic assertions, hard gates, adversarial cases, operational metrics, residual risk, and release evidence. |
+
+## Prioritized full examples
+
+### 1. Software change delivery
+
+High demand because engineering organizations already delegate repository research, bug fixes, tests, documentation, and pull-request creation to coding agents.
+
+Architecture coverage:
+
+```text
+repository and issue context
+sandboxed code/tool execution
+long-running background session
+branch and artifact lineage
+CI and security verification
+human review and merge authority
+cost and model-route governance
+```
+
+### 2. Customer service case resolution
+
+High demand because service organizations handle large volumes of repetitive but policy-sensitive cases across chat, email, CRM, billing, orders, identity, and knowledge systems.
+
+Architecture coverage:
+
+```text
+conversation versus authoritative case state
+customer identity and consent
+retrieval provenance
+read-only and mutating tools
+SLA timers and escalation
+PII and regional policy
+human handoff with complete context
+quality, containment, and customer-outcome evaluation
+```
+
+### 3. IT incident response and controlled remediation
+
+High demand because incident work already requires event ingestion, evidence gathering, diagnosis, communication, change controls, rollback, and post-incident learning.
+
+Architecture coverage:
+
+```text
+correlated events and durable waits
+parallel diagnostic branches
+service ownership and blast radius
+read-only diagnostics versus production mutation
+change approval and maintenance windows
+ambiguous tool outcomes and rollback
+SLO, audit, and post-incident evidence
+```
+
+### 4. Procure-to-pay exception resolution
+
+High demand because invoices, purchase orders, receipts, contracts, supplier records, tax data, and payment controls regularly disagree and require expensive manual review.
+
+Architecture coverage:
+
+```text
+document extraction and provenance
+three-way match and deterministic arithmetic
+supplier and fraud policy
+segregation of duties
+ERP mutation with idempotency/reconciliation
+regional and retention requirements
+financial audit and cost attribution
+```
+
+### 5. Synthetic research experiment
+
+This is not a replacement for human research, but it is architecturally valuable because it exercises experiment variants, independent trials, persistent participant identities, deliberation iterations, scheduling fairness, and model sensitivity.
+
+## Additional enterprise candidates
+
+These are good pattern or future-example candidates, but do not all need full worked examples in ARA 1.0:
+
+| Candidate | Why useful | Why not currently a full example |
+|---|---|---|
+| Security-alert triage and remediation | High-impact tools, adversarial inputs, containment, incident evidence | Overlaps the incident-response execution shape; add when security-specific contracts need deeper treatment |
+| Employee onboarding and access fulfillment | Identity, HR, IT, approval, least privilege, long waits | Customer service and procurement already cover request/approval patterns |
+| Contract review and obligation tracking | Document evidence, legal review, deadlines, negotiation | Requires jurisdiction- and legal-practice-specific caveats |
+| Insurance claims | Documents, fraud, external parties, payments, human review | Industry rules vary substantially; useful for a regulated extension |
+| KYC/AML investigation | Entity resolution, provenance, sanctions, human decision, audit | High-risk domain that should follow independent legal and domain review |
+| Sales proposal/RFP response | Retrieval, drafting, pricing, approvals, source attribution | Often becomes a document-generation example unless downstream actions are included |
+| Supply-chain exception management | Events, inventory, logistics, suppliers, re-planning | Strong future multi-party/A2A scenario |
+| Healthcare administrative coordination | Scheduling, authorization, records, communications | Avoid clinical-decision implications without specialist review |
+
+## Example-design rules
+
+1. **Do not claim autonomy as the goal.** Use the least powerful control model that achieves the business outcome.
+2. **Keep system-of-record authority outside the model.** Model outputs become proposals or typed evidence.
+3. **Show at least one injected failure.** A happy path does not teach durable architecture.
+4. **Show human authority precisely.** “Human in the loop” is insufficient without action binding, timing, role, and escalation.
+5. **Measure the real outcome.** Resolution, successful change, restored service, correct accounting, or valid experiment evidence matters more than fluent text.
+6. **Disclose limitations.** Examples state what remains product-, domain-, provider-, and jurisdiction-specific.
+
+## Portfolio decision
+
+ARA 1.0 keeps five complete examples. New examples should be added only when they introduce a materially different trust boundary, execution shape, or conformance requirement. Otherwise extend the pattern catalog or one existing worked example.

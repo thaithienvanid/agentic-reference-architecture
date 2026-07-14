@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ara.dev/contracts/1.0/schemas/experiment-trial.schema.json",
+  "title": "ARA ExperimentTrial",
+  "type": "object",
+  "required": [
+    "contractVersion",
+    "experimentRunId",
+    "variantId",
+    "trialId",
+    "trialOrdinal",
+    "baselineSnapshotRef",
+    "baselineSnapshotDigest",
+    "subject",
+    "status",
+    "analysisDisposition"
+  ],
+  "properties": {
+    "contractVersion": { "const": "1.0.0" },
+    "experimentRunId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "variantId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "trialId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "trialOrdinal": { "type": "integer", "minimum": 1 },
+    "baselineSnapshotRef": { "type": "string", "minLength": 1 },
+    "baselineSnapshotDigest": { "$ref": "common.schema.json#/$defs/ContentDigest" },
+    "subject": {
+      "type": "object",
+      "required": ["type", "id"],
+      "properties": {
+        "type": { "type": "string", "enum": ["agent_run", "workflow_run", "execution_plan_run"] },
+        "id": { "$ref": "common.schema.json#/$defs/OpaqueId" }
+      },
+      "additionalProperties": false
+    },
+    "status": {
+      "type": "string",
+      "enum": ["scheduled", "running", "completed", "failed", "cancelled", "timed_out"]
+    },
+    "analysisDisposition": {
+      "type": "string",
+      "enum": ["included", "excluded_infrastructure", "excluded_protocol", "included_failure"]
+    },
+    "replacementOfTrialId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "replacementReason": { "type": "string", "minLength": 1 },
+    "resultRef": { "type": "string", "minLength": 1 },
+    "evaluationResultRefs": {
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+      "uniqueItems": true
+    },
+    "usageRef": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "startedAt": { "$ref": "common.schema.json#/$defs/Instant" },
+    "completedAt": { "$ref": "common.schema.json#/$defs/Instant" },
+    "extensions": { "$ref": "common.schema.json#/$defs/Extensions" }
+  },
+  "additionalProperties": false
+}

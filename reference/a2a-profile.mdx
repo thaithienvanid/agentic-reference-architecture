@@ -1,0 +1,203 @@
+---
+title: A2A interoperability profile
+description: Reference mapping from Agent2Agent agent cards, tasks, messages, artifacts, streaming, authentication, and versioning to ARA collaboration effects, local runs, policy, and evidence.
+---
+
+# A2A interoperability profile
+
+> **Status: Reference profile.** This profile becomes binding when declared by an implementation. Remote A2A task state remains adapter evidence and does not replace local ARA execution state.
+
+**Reviewed:** July 13, 2026. The latest released A2A specification reviewed here is `1.0.0`; its `spec/a2a.proto` is the single authoritative normative definition of protocol data objects and messages.
+
+## Protocol placement
+
+A2A supports discovery and communication among independent, potentially opaque agents through Agent Cards, tasks, messages, artifacts, streaming/asynchronous operations, version negotiation, and multiple protocol bindings.
+
+ARA treats A2A as an organizational or system-edge collaboration protocol:
+
+```text
+local WorkflowRun/AgentRun
+-> ExternalAgentGateway
+-> A2A adapter
+-> remote agent/task
+```
+
+Remote identity, capabilities, task state, messages, and artifacts are translated into local effects and evidence. They do not grant local authority or become local `RunState` automatically.
+
+## Mapping
+
+| A2A concept | ARA mapping |
+|---|---|
+| Agent Card | `ExternalAgentDescriptor` with provenance, signature, protocol/interface, capability, skill, and security metadata |
+| Agent skill | External capability descriptor; not a local `SkillVersion` until imported/qualified |
+| Send message/task creation | `external_agent.task` Effect and execute Invocation |
+| A2A Task | `RemoteTaskRef` linked to one local Effect |
+| Task status | Invocation/effect evidence; optionally drives validated local events |
+| Message | Authenticated external input/output artifact or collaboration message |
+| Artifact | External artifact imported with provenance and digest |
+| Streaming update | Invocation stream evidence and validated adapter event |
+| Push notification | Authenticated inbox event followed by local signal/transition |
+| Cancel task | Cancellation Invocation for the owning collaboration Effect |
+| Context ID | Remote conversation/task correlation; not local tenant or run authority |
+| Protocol binding | Adapter capability and endpoint configuration |
+
+## Discovery and Agent Cards
+
+Before use, an Agent Card MUST be:
+
+1. Retrieved over an approved authenticated channel.
+2. Bound to a verified provider identity and allowed endpoint.
+3. Signature-verified when signatures are provided/required.
+4. Checked for protocol and binding compatibility.
+5. Reviewed for declared capabilities, skills, media types, security schemes, and extensions.
+6. Pinned by digest and expiry/cache policy.
+7. Translated into an `ExternalAgentDescriptor` or quarantined.
+
+Agent Card text and skill descriptions are untrusted metadata and MUST NOT create local capability grants.
+
+## Collaboration effect
+
+Starting or continuing a remote A2A task is one logical `Effect`:
+
+```text
+Effect: external_agent.task
+├── Invocation 1: send message/create task
+├── Invocation 2: subscribe or poll status
+├── Invocation 3: fetch artifact
+└── EffectResult: validated remote result
+```
+
+A safe retry, poll, subscription reconnect, artifact fetch, or reconciliation query is another `Invocation` for the same effect. A changed remote task objective, authority, input digest, or selected agent creates a new effect.
+
+The effect records:
+
+```text
+external agent descriptor/version/digest
+protocol and binding version
+remote endpoint and provider identity
+local task and capability grant
+remote task/context IDs
+idempotency/correlation keys
+message and artifact digests
+status/cancel/reconciliation evidence
+```
+
+## Local versus remote execution
+
+A local `AgentRun` or `WorkflowRun` remains authoritative for local control flow. A remote A2A Task is not automatically a child ARA run because its internals may be opaque and governed elsewhere.
+
+Use one of two modes:
+
+### External collaboration effect
+
+Default across trust/organization boundaries. The remote task is one effect with typed result and evidence.
+
+### Federated child run
+
+Allowed only when both systems share a declared ARA federation profile that provides compatible run identity, capability, budget, cancellation, event, audit, and result contracts. The local system still records a `ChildRunLink` and does not import opaque remote internal state.
+
+## Authentication and authorization
+
+The adapter validates:
+
+```text
+server identity and TLS
+client/workload identity
+protocol security scheme
+local tenant/workspace and use-case authorization
+external agent allowlist/trust tier
+capability and data-policy constraints
+short-lived credential purpose
+```
+
+A remote Agent Card’s security requirement describes how to contact the remote agent; it does not authorize the local user or local effect.
+
+## Protocol versioning
+
+The adapter pins the requested A2A major/minor protocol version and binding. It MUST NOT silently downgrade when required capabilities or semantics would be lost.
+
+Patch-level specification changes may clarify behavior without changing protocol compatibility; deployment evidence still records the reviewed specification and adapter versions.
+
+## Idempotency
+
+The adapter supplies stable idempotency/correlation identifiers where the binding supports them. Duplicate message delivery or task creation MUST NOT create duplicate local effects or business mutations.
+
+If remote idempotency support is absent or unclear, the effect declares reconciliation and residual-risk policy before any irreversible local follow-up.
+
+## Streaming and asynchronous updates
+
+Streaming, subscriptions, and push notifications are delivery mechanisms, not authoritative local state.
+
+Every update passes through:
+
+```text
+sender/endpoint authentication
+protocol/version validation
+tenant and remote-task correlation
+deduplication and ordering policy
+schema/media validation
+artifact/message provenance
+local policy and state preconditions
+atomic local transition commit
+```
+
+A dropped stream does not imply remote task failure. The adapter polls or reconciles using the remote task ID when appropriate.
+
+## Messages and artifacts
+
+Remote messages and artifacts remain untrusted input. The adapter validates media type, size, schema, content digest, malware/active content, classification, and provenance before import.
+
+Imported artifacts receive local immutable references and lineage to remote agent, task, message, and protocol evidence.
+
+Remote persuasive text cannot authorize tools, approvals, credentials, or downstream sinks.
+
+## Cancellation
+
+A local cancellation creates an A2A cancel `Invocation` when supported. The local effect remains `cancelling` or `outcome_unknown` until remote evidence confirms cancellation or final completion.
+
+The runtime MUST NOT claim a remote task stopped merely because the client disconnected or sent a cancel request.
+
+## Failure and reconciliation
+
+Classify separately:
+
+```text
+remote rejection
+unsupported protocol/capability
+transport or stream failure
+remote task failed
+remote task cancelled
+remote state unknown
+artifact/message contract failure
+authentication/authorization failure
+provider policy refusal
+```
+
+Unknown remote state is reconciled through `GetTask`, subscription, or another authoritative binding operation. Local irreversible effects MUST wait for a validated remote outcome or explicit human/policy decision.
+
+## Multi-tenancy and data policy
+
+Remote task and context IDs are scoped by local tenant/workspace and external provider. Cache keys, push endpoints, subscriptions, credentials, artifacts, traces, and audit records MUST prevent cross-tenant correlation or leakage.
+
+The adapter enforces data classification, residency, retention, and allowed remote destinations before sending any message or artifact.
+
+## Contract tests
+
+```text
+Agent Card signature, cache expiry, and endpoint change
+unsupported protocol and explicit version negotiation
+silent-downgrade prevention
+duplicate task/message delivery and idempotency
+stream disconnect, reconnect, poll, and late update
+push-notification spoofing and SSRF protections
+malicious message/artifact and media mismatch
+remote task unknown outcome and reconciliation
+cancel request without confirmed cancellation
+cross-tenant task/context ID injection
+remote capability/skill drift after deployment
+local reauthorization before downstream effects
+```
+
+## Source
+
+See the official [Agent2Agent Protocol specification](https://a2a-protocol.org/latest/specification/).

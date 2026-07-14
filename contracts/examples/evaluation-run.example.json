@@ -1,0 +1,18 @@
+{
+  "contractVersion": "1.0.0",
+  "evaluationRunId": "evaluation_run_01K2E",
+  "subject": {
+    "type": "workflow_run",
+    "id": "run_01K2A",
+    "deploymentSnapshotDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+  },
+  "evaluationSuiteVersionRef": "procurement-agent-release@6.0.0",
+  "environmentDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "status": "completed",
+  "stateVersion": 4,
+  "createdAt": "2026-07-13T09:55:00Z",
+  "startedAt": "2026-07-13T09:56:00Z",
+  "completedAt": "2026-07-13T10:00:00Z",
+  "updatedAt": "2026-07-13T10:00:00Z",
+  "resultRef": "evaluation_result_01K2E"
+}

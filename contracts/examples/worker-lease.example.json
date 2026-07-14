@@ -1,0 +1,12 @@
+{
+  "contractVersion": "1.0.0",
+  "leaseId": "worker_lease_01K2L",
+  "runId": "run_01K2A",
+  "activityRunId": "activity_run_create_order_01",
+  "workerId": "worker_eu_17",
+  "fencingToken": 42,
+  "acquiredAt": "2026-07-12T08:04:10Z",
+  "expiresAt": "2026-07-12T08:04:40Z",
+  "status": "active",
+  "backendOwnershipRef": "temporal://namespace/ara/workflow/run_01K2A"
+}

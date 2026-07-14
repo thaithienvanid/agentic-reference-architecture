@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ara.dev/contracts/1.0/schemas/activity-attempt.schema.json",
+  "title": "ARA ActivityAttempt",
+  "type": "object",
+  "required": [
+    "contractVersion",
+    "activityAttemptId",
+    "activityRunId",
+    "ordinal",
+    "inputSnapshotRef",
+    "inputDigest",
+    "status",
+    "workerLeaseIds",
+    "createdAt",
+    "updatedAt"
+  ],
+  "properties": {
+    "contractVersion": { "const": "1.0.0" },
+    "activityAttemptId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "activityRunId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "ordinal": { "type": "integer", "minimum": 1 },
+    "inputSnapshotRef": { "type": "string", "minLength": 1 },
+    "inputDigest": { "$ref": "common.schema.json#/$defs/ContentDigest" },
+    "status": {
+      "type": "string",
+      "enum": ["scheduled", "running", "succeeded", "failed", "cancelled", "timed_out"]
+    },
+    "workerLeaseIds": {
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+      "uniqueItems": true
+    },
+    "createdAt": { "$ref": "common.schema.json#/$defs/Instant" },
+    "startedAt": { "$ref": "common.schema.json#/$defs/Instant" },
+    "completedAt": { "$ref": "common.schema.json#/$defs/Instant" },
+    "updatedAt": { "$ref": "common.schema.json#/$defs/Instant" },
+    "failureRef": { "type": "string", "minLength": 1 },
+    "terminalReason": { "type": "string", "minLength": 1 },
+    "extensions": { "$ref": "common.schema.json#/$defs/Extensions" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": { "enum": ["running", "succeeded", "failed", "cancelled", "timed_out"] }
+        },
+        "required": ["status"]
+      },
+      "then": { "required": ["startedAt"] }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": { "enum": ["succeeded", "failed", "cancelled", "timed_out"] }
+        },
+        "required": ["status"]
+      },
+      "then": { "required": ["completedAt", "terminalReason"] }
+    },
+    {
+      "if": {
+        "properties": { "status": { "const": "failed" } },
+        "required": ["status"]
+      },
+      "then": { "required": ["failureRef"] }
+    }
+  ],
+  "additionalProperties": false
+}

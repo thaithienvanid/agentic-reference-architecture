@@ -1,0 +1,92 @@
+---
+title: Evaluation-driven development
+description: A practical EDD lifecycle for agent, workflow, prompt, tool, and package development.
+---
+
+# Evaluation-driven development
+
+> **Status: Informative guide.** Evaluation-driven development applies test-first discipline to probabilistic systems.
+
+```mermaid
+flowchart LR
+    Need["Requirement or production failure"] --> Contract["Write evaluation contract"]
+    Contract --> Cases["Add dataset and environment cases"]
+    Cases --> Change["Implement smallest change"]
+    Change --> Fast["Deterministic and contract tests"]
+    Fast --> Semantic["Semantic and trajectory evaluation"]
+    Semantic --> Env["Environment and security verification"]
+    Env --> Gate{"Promotion gate"}
+    Gate -->|Fail| Change
+    Gate -->|Pass| Canary["Canary or shadow"]
+    Canary --> Prod["Production"]
+    Prod --> Curate["Curate failures"]
+    Curate --> Cases
+```
+
+## EDD sequence
+
+1. State the user or business outcome.
+2. Define deterministic invariants and prohibited outcomes.
+3. Add representative, boundary, adversarial, and historical failure cases.
+4. Define semantic, trajectory, cost, and latency metrics.
+5. Run the current version to establish a baseline.
+6. Implement the smallest behavior change.
+7. Compare distributions across `ExperimentTrial`s when stochasticity matters.
+8. Promote only if the canonical hard-gate registry passes and regression tolerances hold.
+9. Observe a canary and automatically roll back on declared triggers.
+10. Convert reviewed production failures into durable cases.
+
+## Evaluation contract
+
+```yaml
+kind: EvaluationSuiteVersion
+metadata:
+  name: procurement-agent-release
+  version: 6.0.0
+subject:
+  agent: procurement-order-agent@5.2.0
+datasets:
+  behavioral: procurement-goldens@6.3.0
+  environment: procurement-sandbox@3.1.0
+  adversarial: procurement-security@2.2.0
+metrics:
+  taskCompletion: { minimumMean: "0.90" }
+  toolCorrectness: { minimumMean: "0.98" }
+  argumentCorrectness: { minimumMean: "0.95" }
+hardGateRegistry: enterprise-agent-safety@1.0.0
+hardGates:
+  - no_cross_tenant_access
+  - no_unauthorized_tool_execution
+  - no_approval_bypass
+  - approval_action_digest_matches
+  - no_duplicate_irreversible_effect
+  - no_forbidden_data_egress
+  - hard_budget_enforced
+  - mandatory_audit_complete
+operational:
+  maximumP95Cost: { amount: "8.00", currency: USD }
+  maximumP95Duration: PT3M
+```
+
+## CI/CD tiers
+
+| Stage | Suite | Purpose |
+|---|---|---|
+| Developer | Unit, mocks, small golden slice | Fast feedback |
+| Pull request | Contracts, replay, representative DeepEval and Harbor smoke cases | Prevent obvious regression |
+| Nightly | Full datasets, repeated experiment trials, adversarial and fault injection | Distributional confidence |
+| Release | Production configuration and critical hard gates | Promotion evidence |
+| Canary | Sampled real traffic or shadow execution | Detect live regression |
+| Production | Online sampling and all incidents | Feedback loop |
+
+## Model-response mocking
+
+Use mocks to force invalid JSON, refusal, partial stream, repeated tool proposal, rate limit, timeout, malicious tool output, and no-progress behavior. Mocks prove control-flow handling; they do not replace real-model evaluation.
+
+## Baseline discipline
+
+A baseline pins subject versions, model-routing profile, dataset, evaluators, experiment-trial count, environment digest, cache and scheduling treatment, and thresholds. Compare a candidate against the strongest relevant baseline, not a deliberately weak implementation.
+
+## Stochastic confidence
+
+Report pass rate, mean, dispersion, confidence interval where appropriate, worst critical slice, and repeated-trial failure modes. A single passing sample is weak evidence. Each independent repetition is an `ExperimentTrial` referencing the `WorkflowRun` that performed it.

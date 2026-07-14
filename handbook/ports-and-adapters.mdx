@@ -1,0 +1,335 @@
+---
+title: Implement an ARA adapter
+description: A procedural guide for mapping model, tool, memory, durable backend, storage, policy, sandbox, protocol, evaluation, and evidence providers to canonical ARA ports.
+---
+
+# Implement an ARA adapter
+
+> **Status: Informative how-to guide.** Canonical port names and signatures live in [Reference interfaces](/reference/interfaces). This guide explains how to implement and verify them.
+
+## Outcome
+
+A completed adapter:
+
+- Implements one explicit ARA port or declared interoperability profile.
+- Accepts trusted execution or invocation context.
+- Normalizes provider requests, results, streams, usage, and errors.
+- Preserves run, activity, effect, invocation, tenant, actor, capability, and correlation identity.
+- Exposes materially different provider behavior through typed capabilities or namespaced extensions.
+- Keeps credentials and provider DTOs outside the core.
+- Passes reusable contract tests and a qualified real-provider verification suite.
+
+## Prerequisites
+
+Before writing provider code, identify:
+
+```text
+canonical port/profile and method
+provider operation or protocol version
+EffectImpact dimensions when the operation is an Effect
+trusted context and capability requirements
+input, output, event and error schemas
+capability and compatibility differences
+stream, cancellation and deadline semantics
+retryable versus safe-to-retry behavior
+idempotency or reconciliation strategy
+data classification, retention, residency and egress
+credential purpose and audience
+usage, audit, telemetry, lineage and evaluation obligations
+```
+
+Do not begin from a provider SDK and work inward. Begin from the canonical contract and map outward.
+
+## 1. Select the correct boundary
+
+Choose by architectural responsibility, not by vendor name:
+
+| Responsibility | Boundary |
+|---|---|
+| Model capability discovery, generation, streaming, cancellation | `ModelPort` |
+| Tool description, invocation, status, cancellation | `ToolPort` |
+| Governed memory search, put, revoke | `MemoryPort` |
+| Immutable artifact storage and retrieval | `ArtifactStorePort` |
+| Sandboxed code/script execution | `SandboxPort` |
+| Human approval delivery and revocation | `HumanApprovalPort` |
+| Timers, signals, suspension, durable recovery | `DurableExecutionPort` |
+| Atomic authoritative execution write | `ExecutionCommitPort` |
+| State, journal, lease, checkpoint, effect query/read operations | Corresponding execution infrastructure ports |
+| Policy, identity, entitlements | Corresponding governance ports |
+| Purpose-bound credential minting/injection | `CredentialBrokerPort` |
+| Evaluation, telemetry, audit, metering, integration | Corresponding evidence/integration ports |
+| External tool/resource protocol | MCP reference profile plus local ports |
+| External-agent collaboration | A2A reference profile plus local effects/policy |
+
+One adapter may implement several ports when the provider genuinely supplies those responsibilities, but each contract remains independently testable and replaceable. Authoritative transition writes do not bypass `ExecutionCommitPort` merely because one database implements several storage ports.
+
+## 2. Write the semantic contract before mapping the SDK
+
+For every method, record:
+
+```text
+responsibility and semantic owner
+preconditions and trusted inputs
+normalized output and terminal conditions
+stream and ordering behavior
+error categories
+retryable, safeToRetry and effectMayHaveOccurred
+cancellation guarantees and residual provider work
+idempotency/reconciliation behavior
+usage and evidence produced
+unsupported capabilities and compatibility policy
+```
+
+Provider DTOs, exceptions, connection objects, pagination tokens, retry wrappers, and transport sessions stop at the adapter boundary. Core modules receive platform-owned types.
+
+A provider feature that cannot be represented losslessly is:
+
+1. Exposed as a namespaced typed extension.
+2. Rejected as unsupported.
+3. Deliberately reduced through an explicit compatibility policy and evaluation.
+
+Never silently drop a behaviorally, financially, or legally material property.
+
+## 3. Carry trusted context and broker credentials
+
+Protected operations receive `ExecutionContext`; concrete external calls receive `InvocationContext`. A worker-owned authoritative commit also carries the `WorkerLease` and fencing token.
+
+Trusted context supplies:
+
+```text
+tenant and workspace
+actor and on-behalf-of identity
+root/parent/current run and activity scope
+branch, iteration, Effect and Invocation identity
+capability grant and policy references
+deadline and cancellation
+classification, purpose, retention and region
+credential purpose and audience
+correlation, audit, usage, telemetry and lineage
+```
+
+The request body and provider response are not trusted sources of tenant, identity, authority, or policy context.
+
+Use `CredentialBrokerPort` after policy evaluation and as close to dispatch as practical:
+
+```text
+adapter requests credential for declared purpose/audience
+-> broker validates grant, tenant, region and expiry
+-> broker mints or resolves a short-lived credential
+-> dispatcher injects it into the provider request
+-> core, prompt, state, journal, artifact and telemetry never receive plaintext
+```
+
+Reject an operation whose required provider scope cannot be derived from the trusted grant.
+
+## 4. Normalize capabilities explicitly
+
+Implement capability discovery when behavior varies by route, model, region, account, deployment, tool, protocol version, or sandbox class.
+
+Examples:
+
+```text
+structured output and schema dialect
+streaming, resumability and cancellation
+tool calling and parallel calls
+context and output limits
+idempotency-key and operation-status support
+regional availability, data use and retention mode
+sandbox filesystem, process, network and resource isolation
+batching, caching and asynchronous operation
+usage precision and billing dimensions
+MCP/A2A feature and version negotiation
+```
+
+A route decision uses normalized capabilities plus policy. Two provider identifiers are not interchangeable merely because they share a marketing category.
+
+Pin selected provider deployment, protocol version, adapter version, capability profile, and materially relevant configuration in the `DeploymentSnapshot` or invocation evidence.
+
+## 5. Normalize errors by operational meaning
+
+Map failures to the canonical model:
+
+```typescript
+interface PortError {
+  category: ErrorCategory;
+  code: string;
+  message: string;
+  retryable: boolean;
+  safeToRetry: boolean;
+  effectMayHaveOccurred: boolean;
+  retryAfter?: Duration;
+  externalReference?: string;
+}
+```
+
+Classify at least:
+
+- Authentication and authorization failure.
+- Invalid or unsupported request/capability.
+- Rate limit or capacity exhaustion.
+- Transient availability failure.
+- Deadline or cancellation.
+- Provider policy or safety refusal.
+- Schema, protocol, or response-contract failure.
+- Ambiguous external outcome.
+- Permanent external rejection.
+- Internal adapter defect.
+
+`retryable` does not imply `safeToRetry`. A timed-out read may be safe to reinvoke. A timed-out mutation may be retryable only after reconciliation.
+
+Preserve a sanitized external reference for support and reconciliation without exposing credentials, raw stack traces, sensitive payloads, or cross-tenant identifiers.
+
+## 6. Make every Invocation visible
+
+Disable hidden SDK retries where practical. Otherwise surface provider-attempt count, latency, usage, warnings, and final outcome as invocation evidence.
+
+| Provider/adapter action | Runtime meaning |
+|---|---|
+| Same operation and arguments, safe transport retry | New `Invocation` for the same `Effect` |
+| Poll or status lookup | New `Invocation` for the same `Effect` |
+| Reconciliation query | New `Invocation` for the same `Effect` |
+| Changed prompt, context, arguments, tool, objective, data policy, or authority | New `Effect` |
+| Whole activity restart | New `ActivityAttempt`; adapter does not create it |
+| Capacity unavailable before dispatch | Durable wait; no Invocation until a call occurs |
+
+An adapter does not create activity attempts, iterations, experiment trials, child runs, or business-domain state transitions.
+
+## 7. Implement streaming, asynchronous operations, and cancellation
+
+Normalize provider streams into typed events:
+
+```text
+started
+content or structured delta
+tool/action proposal
+usage update
+provider warning
+external operation accepted
+completed
+failed
+cancelled
+```
+
+Guarantee exactly one terminal adapter event. A connection close without a valid terminal condition is a classified failure, not implicit success.
+
+For asynchronous providers, persist the external operation reference and expose status/reconciliation. For cancellation:
+
+1. Stop local reading and resource consumption.
+2. Attempt provider cancellation when supported.
+3. Record whether provider work may continue.
+4. Preserve usage and external references already observed.
+5. Do not claim that a mutation was cancelled without authoritative evidence.
+
+Deadlines are absolute instants in trusted context and become provider-specific timeouts only at the boundary.
+
+## 8. Implement effect impact and mutation safety
+
+An adapter maps the operation’s actual behavior to `EffectImpact`:
+
+```text
+determinism
+read/write access
+none/idempotent/reversible/irreversible mutation
+internal/external/human boundary
+compensatable/mitigatable/not-compensatable
+```
+
+For mutating effects:
+
+- Derive the idempotency key from stable semantic effect identity and normalized input/authority digests.
+- Keep the key unchanged across invocations of that effect and across activity attempts.
+- Require durable `effect.planned` before dispatch.
+- Capture provider operation IDs, request/response digests, status and usage.
+- Implement authoritative status lookup or reconciliation when possible.
+- Mark uncertain outcomes explicitly.
+- Never retry an ambiguous irreversible operation blindly.
+
+If the provider has neither idempotency nor status lookup, document the residual risk and require alternate controls such as deterministic uniqueness, transactional outbox at the resource, compensation, manual resolution, stronger approval, or rejecting the integration.
+
+## 9. Protect data and protocol boundaries
+
+The adapter must not:
+
+- Copy credentials into run state, prompts, artifacts, logs, traces, or evaluation payloads.
+- Trust provider-returned tenant or actor fields over local context.
+- Send data to an undeclared region, endpoint, model-use mode, or retention mode.
+- Export raw sensitive content by default.
+- Reuse tenant-scoped clients, sessions, pools, or caches without enforced partitioning.
+- Treat an MCP server, A2A peer, tool description, Agent Card, remote policy decision, or remote task state as local authorization.
+
+Apply redaction before diagnostic export. Record content digests and protected payload references when full data is needed for governed audit or replay.
+
+For MCP and A2A, negotiate versions/capabilities, authenticate the peer, validate every imported schema/artifact/message, reauthorize effects locally, and preserve remote delivery/task evidence without importing protocol state as local `RunState`.
+
+## 10. Build and run the contract-test suite
+
+Every adapter runs reusable behavioral tests where applicable:
+
+| Area | Required cases |
+|---|---|
+| Capabilities | Supported, unsupported, route-specific, version drift |
+| Inputs | Valid, boundary, schema-invalid, forbidden classification/region |
+| Identity and tenancy | Correct scope, cross-tenant substitution, missing/attenuated grant |
+| Success | Normal result, stream, async operation, usage and evidence correlation |
+| Failure | Auth, invalid, capacity, transient, permanent, malformed response |
+| Time | Deadline before dispatch, in stream, during async operation |
+| Cancellation | Before dispatch, in flight, unsupported, late provider result |
+| Retry | Safe retry, hidden retry detection, stable effect identity |
+| Mutation | Duplicate, lost response, reconciliation, ambiguous outcome |
+| Evidence | Audit, telemetry, usage, lineage, redaction, external reference |
+| Concurrency | Client reuse, ordering, backpressure, tenant partitioning |
+| Protocol | Version negotiation, replay, forged peer, invalid schema/artifact |
+| Credential | Purpose/audience/expiry enforcement and absence from retained data |
+
+Use a simulator for deterministic edge cases and a qualified real-provider environment for integration behavior. A mock alone cannot prove provider idempotency, cancellation, retention, regional behavior, usage accuracy, or protocol interoperability.
+
+## Example: model adapter
+
+```text
+ModelRequest + InvocationContext
+-> validate route capability, data policy and budget
+-> compile provider request
+-> broker scoped credential
+-> invoke and normalize stream/action proposals
+-> reconcile usage and terminal condition
+-> return platform-owned result or PortError
+```
+
+Prompt compilation, tool authorization, policy decisions, and business mutation remain outside the model adapter.
+
+## Example: mutating tool adapter
+
+```text
+ToolRequest + InvocationContext
+-> validate schema, EffectImpact and capability grant
+-> broker credential and enforce network/region policy
+-> send stable idempotency key
+-> invoke provider operation
+-> normalize result or unknown outcome
+-> expose status/cancel/reconcile
+-> record usage and external operation reference
+```
+
+Approval, budget reservation, whole-activity retry, and reconciliation orchestration remain runtime responsibilities.
+
+## Validation
+
+The adapter is ready for production only when:
+
+- Its port/profile and capability matrix are explicit.
+- No provider/framework DTO or plaintext credential crosses into the core.
+- Every failure maps to stable operational semantics.
+- Retry, cancellation, streaming, asynchronous operation, and ambiguous outcomes are tested.
+- Tenant, actor, capability, classification, residency, purpose and deadline context are enforced.
+- Usage, audit, telemetry and lineage correlate to effect and invocation IDs.
+- Mutating operations demonstrate idempotency or reconciliation.
+- Protocol peers cannot import authority or cross tenant/data boundaries.
+- Machine contracts and fixtures validate.
+- A qualified real-provider test confirms assumptions that mocks cannot prove.
+- Provider, protocol, adapter and configuration versions are attributable in deployment/run evidence.
+
+Attach evidence to the applicable modules and profiles in the [Conformance checklist](/reference/conformance-checklist).
+
+## When adapters are not interchangeable
+
+Do not force a false common denominator. Record and evaluate differences in durability, ordering, retry, cancellation, schema support, model behavior, security boundary, retention, isolation, rate limits, evidence precision, and operational limits. Portability means the core owns required semantics and incompatibilities are explicit—not that every provider behaves identically.

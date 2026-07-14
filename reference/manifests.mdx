@@ -1,0 +1,399 @@
+---
+title: Manifest profile
+description: Reference agent, workflow, tool, prompt, policy, evaluation, hard-gate, package-release, lock, installation, and deployment manifests.
+---
+
+# Manifest profile
+
+> **Status: Reference profile.** Manifests are declarative control-plane inputs. Production compilation resolves references to exact immutable versions, locks, and digests. Machine-readable execution contracts live under `/contracts/schemas`.
+
+Money follows [Canonical conventions](/reference/conventions) and is serialized as decimal strings. Source package releases may declare compatibility constraints; activated installations and deployment snapshots may not contain unresolved ranges.
+
+## Agent version
+
+```yaml
+apiVersion: ara.dev/v1
+kind: AgentVersion
+metadata:
+  name: procurement-order-agent
+  version: 5.2.0
+  owner: team-procurement
+spec:
+  purpose: Create policy-compliant purchase-order drafts
+  entryWorkflow: procurement-order@3.0.0
+  instructions:
+    - procurement-agent-base@4.2.0
+  modelRequirements:
+    structuredOutput: true
+    toolCalling: true
+    minimumContextTokens: 64000
+    allowedRegions: [eu-west]
+    routingProfile: eu-enterprise-models@3.0.0
+  capabilities:
+    tools:
+      - contract.read@2.1.0
+      - vendor.read@3.0.0
+      - purchase-order.create@4.2.1
+    childAgents:
+      - procurement-research-agent@2.0.0
+      - procurement-compliance-agent@2.3.0
+    maximumChildDepth: 1
+  context:
+    recipe: procurement-context@4.0.0
+    memoryReadScopes: [workspace, agent]
+    memoryWriteScopes: [agent]
+  policyBundle: procurement-production-policy@7.0.0
+  budgets:
+    maximumCost: { amount: "12.00", currency: USD }
+    maximumActivities: 60
+    maximumModelEffects: 18
+    maximumToolEffects: 25
+    maximumWallTime: PT30M
+    maximumSuspendedTime: P7D
+  termination:
+    repeatedActionDigestLimit: 3
+    maximumNoProgressCycles: 5
+  resultSchema: ProcurementAgentResult@3.0.0
+  evaluations:
+    - procurement-correctness@6.0.0
+    - tool-policy-compliance@4.0.0
+```
+
+An independent `AgentRun` created from this version owns one root `WorkflowRun` of `entryWorkflow`. An inline `AgentActivity` references an `AgentVersion` without creating a separate `AgentRun`.
+
+## Workflow version
+
+```yaml
+apiVersion: ara.dev/v1
+kind: WorkflowVersion
+metadata:
+  name: procurement-order
+  version: 3.0.0
+spec:
+  inputSchema: ProcurementTask@2.0.0
+  outputSchema: ProcurementResult@3.0.0
+  stateSchema: ProcurementRunState@3.0.0
+  activities:
+    - id: load-context
+      type: task
+      outputSchema: ProcurementContextRefs@1.0.0
+    - id: research
+      type: agent
+      agent: procurement-research-agent@2.0.0
+      executionMode: child
+    - id: validate
+      type: task
+      input:
+        research:
+          fromActivityRun:
+            activityId: research
+            selection: single_required
+    - id: approve
+      type: human
+      policy: high-value-purchase-approval@5.0.0
+    - id: create-order
+      type: tool
+      tool: purchase-order.create@4.2.1
+      semanticEffectSlot: create-purchase-order
+  dependencies:
+    - [load-context, research]
+    - [research, validate]
+    - [validate, approve]
+    - [approve, create-order]
+  completion:
+    requiredActivities: [load-context, research, validate, approve, create-order]
+```
+
+Bindings identify exact execution instances or declared join/selection policies; they never read an arbitrary latest activity output.
+
+## Tool version
+
+```yaml
+apiVersion: ara.dev/v1
+kind: ToolVersion
+metadata:
+  name: purchase-order.create
+  version: 4.2.1
+spec:
+  inputSchema: PurchaseOrderCreate@4.0.0
+  outputSchema: PurchaseOrderCreated@2.0.0
+  effect:
+    kind: tool.invoke
+    impact:
+      determinism: externally_determined
+      dataAccess: write
+      mutation: irreversible
+      externality: external_service
+      compensability: mitigatable
+    idempotency:
+      supported: true
+      header: Idempotency-Key
+    reconciliation:
+      supported: true
+      operation: purchase-order.status-by-idempotency-key
+      policy: purchase-order-reconcile@2.0.0
+    compensation:
+      supported: true
+      policy: purchase-order-cancel@1.0.0
+  security:
+    requiredScopes: [erp.purchase_order.create]
+    credentialPurpose: tenant-erp-purchase-order-writer
+    networkPolicy: erp-private-endpoint
+    allowedDataClassifications: [internal, confidential]
+  execution:
+    timeout: PT30S
+    maximumOutputBytes: 1048576
+```
+
+## Prompt version
+
+```yaml
+apiVersion: ara.dev/v1
+kind: PromptVersion
+metadata:
+  name: procurement-research
+  version: 4.2.0
+spec:
+  messages:
+    - role: system
+      sections:
+        - platform-base@3.0.0
+        - procurement-rules@7.1.0
+    - role: user
+      template: |
+        Research this request: {{ request }}
+        Return only the required structured result.
+  variables:
+    - name: request
+      source: task
+      schemaRef: ProcurementResearchRequest@2.0.0
+      sensitivity: confidential
+  context:
+    recipe: procurement-research-context@2.3.0
+    maximumTokens: 24000
+    requireProvenance: true
+  outputSchema: ProcurementResearchResult@3.0.0
+  evaluations: [procurement-research-prompt@6.0.0]
+```
+
+## Policy version
+
+```yaml
+apiVersion: ara.dev/v1
+kind: PolicyVersion
+metadata:
+  name: high-value-purchase-approval
+  version: 5.0.0
+rules:
+  - id: require-dual-approval
+    action: tool.invoke
+    resource: purchase-order.create
+    when:
+      totalValueEur: { greaterThanOrEqual: 100000 }
+    decision: require_approval
+    approval:
+      allRoles: [procurement_manager, finance_controller]
+      bindTo:
+        - tenantId
+        - runId
+        - activityRunId
+        - effectId
+        - toolVersion
+        - normalizedArgumentsDigest
+        - capabilityGrantVersion
+        - policyVersion
+      expiresAfter: PT48H
+      revalidateBeforeExecution: true
+```
+
+## Evaluation suite version
+
+```yaml
+apiVersion: ara.dev/v1
+kind: EvaluationSuiteVersion
+metadata:
+  name: procurement-agent-release
+  version: 6.0.0
+spec:
+  datasets:
+    - procurement-goldens@6.3.0
+    - procurement-sandbox@3.1.0
+    - procurement-security@2.2.0
+  hardGateRegistry: enterprise-agent-safety@1.0.0
+  experiment:
+    minimumTrialsPerVariant: 3
+    schedulerTreatment: balanced_interleaving
+    cacheTreatment: disabled
+  metrics:
+    taskCompletion: { minimumMean: "0.90" }
+    toolCorrectness: { minimumMean: "0.98" }
+    argumentCorrectness: { minimumMean: "0.95" }
+  operational:
+    maximumP95Cost: { amount: "8.00", currency: USD }
+    maximumP95Duration: PT3M
+  inconclusivePolicy: fail_closed
+```
+
+## HardGateRegistryVersion
+
+```yaml
+apiVersion: ara.dev/v1
+kind: HardGateRegistryVersion
+metadata:
+  name: enterprise-agent-safety
+  version: 1.0.0
+gates:
+  - id: no_cross_tenant_access
+    applicability: multi_tenant_or_shared_data_plane
+    evidenceSchema: TenantIsolationEvidence@1.0.0
+    evaluator: deterministic
+    unknownPolicy: fail
+  - id: no_duplicate_irreversible_effect
+    applicability: irreversible_effect_present
+    evidenceSchema: EffectLedgerEvidence@1.0.0
+    evaluator: deterministic
+    unknownPolicy: fail
+```
+
+The complete canonical registry is `contracts/registries/hard-gates.json`; the matching validated representation is `contracts/examples/hard-gate-registry.example.json`.
+
+## PackageRelease
+
+A package release may declare compatibility and dependency constraints because it is a distributable source artifact, not an activated installation.
+
+```yaml
+apiVersion: ara.marketplace/v1
+kind: PackageRelease
+metadata:
+  package: com.example.procurement-suite
+  version: 2.4.0
+publisher:
+  id: publisher_example
+  verification: organization_verified
+contents:
+  agents: [procurement-order-agent@5.2.0]
+  workflows: [procurement-order@3.0.0]
+  tools: []
+  connectors: []
+  skills: []
+  prompts: [procurement-research@4.2.0]
+  policies: [high-value-purchase-approval@5.0.0]
+  evaluators: [procurement-correctness@6.0.0]
+  datasets: [procurement-goldens@6.3.0]
+  uiExtensions: []
+compatibility:
+  platformApi: ">=1.4 <2.0"
+  runtimeApi: ">=1.4 <2.0"
+dependencyConstraints:
+  - package: com.example.document-tools
+    version: ">=3.1 <4.0"
+requestedPermissions:
+  capabilities:
+    - contract.read
+    - vendor.read
+    - erp.purchase_order.create
+  network: [erp.private.example.invalid:443]
+  secretPurposes: [tenant-erp-purchase-order-writer]
+  childDelegation: [procurement-research-agent]
+supplyChain:
+  bundleDigest: sha256:1111111111111111111111111111111111111111111111111111111111111111
+  signatureBundle: sigstore://bundle/sha256/2222222222222222222222222222222222222222222222222222222222222222
+  sbom:
+    format: cyclonedx-json
+    digest: sha256:3333333333333333333333333333333333333333333333333333333333333333
+  provenance:
+    format: slsa-v1
+    digest: sha256:4444444444444444444444444444444444444444444444444444444444444444
+verification:
+  requiredTests:
+    - tenant-isolation
+    - no-secret-exfiltration
+    - sandbox-smoke
+commercial:
+  license: commercial-marketplace-v2
+  pricing: { model: per_successful_run, amount: "0.15", currency: USD }
+```
+
+## PackageLock
+
+A resolver creates an exact immutable lock:
+
+```yaml
+apiVersion: ara.marketplace/v1
+kind: PackageLock
+metadata:
+  id: package_lock_01K2P
+  root: com.example.procurement-suite@2.4.0
+resolved:
+  - package: com.example.procurement-suite
+    version: 2.4.0
+    digest: sha256:5555555555555555555555555555555555555555555555555555555555555555
+  - package: com.example.document-tools
+    version: 3.4.2
+    digest: sha256:6666666666666666666666666666666666666666666666666666666666666666
+resolver:
+  version: ara-package-resolver@1.0.0
+  generatedAt: 2026-07-13T10:00:00Z
+lockDigest: sha256:7777777777777777777777777777777777777777777777777777777777777777
+```
+
+An activated installation must use a `PackageLock`; unresolved dependency ranges are prohibited.
+
+## PackageInstallationRevision
+
+```yaml
+apiVersion: ara.marketplace/v1
+kind: PackageInstallationRevision
+metadata:
+  id: package_installation_01K2I
+  tenantId: tenant_acme_eu
+  revision: 7
+packageRelease: com.example.procurement-suite@2.4.0
+packageLockRef: package_lock_01K2P
+packageLockDigest: sha256:7777777777777777777777777777777777777777777777777777777777777777
+grantedPermissions:
+  capabilities:
+    - contract.read
+    - vendor.read
+    - erp.purchase_order.create
+  network: [erp.private.example.invalid:443]
+  secretPurposes: [tenant-erp-purchase-order-writer]
+configurationRef: config://tenant_acme_eu/procurement-suite/revision/7
+verificationEvidenceRefs:
+  - evaluation_result_01K2E
+  - sandbox_report_01K2S
+status: active
+installationDigest: sha256:8888888888888888888888888888888888888888888888888888888888888888
+```
+
+Granted permissions are an explicit subset of package requests, tenant entitlements, platform policy, data policy, and regional policy.
+
+## DeploymentSnapshot
+
+```yaml
+apiVersion: ara.dev/v1
+kind: DeploymentSnapshot
+metadata:
+  id: deployment_snapshot_01K2S
+  environment: production
+resources:
+  agent: procurement-order-agent@5.2.0
+  workflow: procurement-order@3.0.0
+  modelRoutingProfile: eu-enterprise-models@3.0.0
+  policyBundle: procurement-production-policy@7.0.0
+  hardGateRegistry: enterprise-agent-safety@1.0.0
+packageInstallations:
+  - id: package_installation_01K2I
+    revision: 7
+    digest: sha256:8888888888888888888888888888888888888888888888888888888888888888
+contractVersions:
+  runtime: 1.0.0
+  events: 1.0.0
+  manifests: 1.0.0
+  apiProfile: 1.0.0
+  eventProfile: 1.0.0
+digest: sha256:9999999999999999999999999999999999999999999999999999999999999999
+signatureRef: sigstore://bundle/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+```
+
+Production compilation resolves every transitive dependency, package installation, policy bundle, model route, adapter, schema, and contract profile to an exact version and digest. The complete executable snapshot representation is defined by `contracts/schemas/deployment-snapshot.schema.json`.

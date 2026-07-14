@@ -1,0 +1,214 @@
+---
+title: Releases, versions, and errata
+description: Specification and contract status, versioning, validation, release evidence, independent review, compatibility, and errata governance for ARA.
+---
+
+# Releases, versions, and errata
+
+> **Status: Project governance.** This page governs ARA publication; it does not add runtime requirements.
+
+## Publication status
+
+| Status | Meaning |
+|---|---|
+| **Draft** | Active design work; semantics and contracts may change without compatibility guarantees |
+| **Candidate** | Intended feature set is substantially complete and undergoing contract, implementation, assurance, and independent review |
+| **Stable** | Published baseline with reproducible specification/contracts and sufficient evidence for scoped technical conformance claims |
+| **Deprecated** | Retained, but new implementations should use a newer baseline |
+| **Superseded** | Replaced by an identified version and retained for history/migration |
+
+A pull-request branch is not Stable merely because it uses normative language or passes documentation lint. A release record identifies version, publication commit/digest, contract-tree digest, status, date, evidence, independent reviewers, open errata, and known deviations.
+
+ARA 1.0 remains **Candidate** until final merge-reference validation and release evidence are recorded. Stable status additionally requires the implementation and independent-review gates below.
+
+## Version identities
+
+ARA publishes related but distinct identities:
+
+```text
+ARA semantic version
+    meaning and compatibility intent
+
+publication commit or content digest
+    exact normative and informative documentation bytes
+
+contract release and contract-tree digest
+    exact schemas, registries, fixtures, and declared profiles
+
+implementation release and deployment digest
+    exact system assessed for conformance
+```
+
+“Latest ARA” is not reproducible.
+
+## Semantic and contract versioning
+
+ARA uses semantic release intent:
+
+```text
+MAJOR.MINOR.PATCH
+```
+
+| Change | Version effect | Example |
+|---|---|---|
+| Breaking semantic change | Major | Redefine `Effect`, weaken an invariant, alter required module semantics |
+| Compatible semantic addition | Minor | Add an optional effect kind, module, or non-conflicting requirement |
+| Breaking representation/profile change | Major contract/profile version | Remove a required field or change event meaning |
+| Compatible representation addition | Minor contract/profile version | Add optional field with declared tolerant-reader behavior |
+| Editorial or compatible defect correction | Patch | Clarify text or repair a fixture without changing meaning |
+
+A content digest identifies exact bytes; it does not replace semantic compatibility promises.
+
+## Change classes
+
+### Semantic
+
+Changes what a conforming implementation must mean or do. Update:
+
+```text
+specification
+normative reference and machine contracts
+conformance checklist and test kit
+consequential ADRs
+guides, diagrams, examples and evaluation gates
+compatibility/migration and release record
+```
+
+### Representation or interoperability profile
+
+Changes a field, lifecycle state, event, interface, JSON Schema, registry, OpenAPI/AsyncAPI profile, manifest, MCP/A2A mapping, or durable-backend mapping without intentionally changing architecture meaning. Version the contract/profile and provide readers, aliases, upcasters, or migration rules when multiple forms may exist.
+
+### Procedural or explanatory
+
+Changes how a reader performs or understands a task without changing normative semantics. It must not introduce an implicit requirement.
+
+### Research or evidence
+
+Updates a time-sensitive claim, source, product comparison, example selection, assurance method, or evaluated baseline. Record the reviewed version/date and whether any recommendation changes.
+
+### Editorial
+
+Improves wording, accessibility, navigation, or presentation without changing semantics or representation. If reasonable implementers could behave differently, classify the change more strongly.
+
+## Candidate release gates
+
+A Candidate publication requires:
+
+- Normative pages and machine contracts identify their authority and version.
+- All schemas pass meta-schema validation.
+- Every non-common schema has a conforming executable fixture.
+- Registries have unique immutable identifiers and required metadata.
+- OpenAPI/AsyncAPI and documentation JSON/YAML parse and references resolve.
+- Navigation contains no missing, duplicate, shadowed, or unintended orphan public page.
+- Canonical terminology, hard gates, lifecycle states, redirects, and example identifiers remain consistent.
+- The final merge reference passes the pinned CI workflow.
+- Release notes identify unresolved implementation and independent-review evidence.
+
+Candidate means reviewable and implementable; it is not a conformance or operational claim.
+
+## Stable release gates
+
+A Stable ARA baseline requires all Candidate gates plus:
+
+1. **Semantic consistency.** No unresolved contradiction among specification, normative reference, contracts, examples, and conformance checklist.
+2. **Transaction safety evidence.** Atomic transition commit, fencing, effect-before-dispatch, idempotency, reconciliation, cancellation, and replay are demonstrated.
+3. **Concurrency evidence.** Branches, iterations, repeated activity runs, joins, approvals, and stale-worker races are tested.
+4. **Portability evidence.** At least two materially different runtime or durable-backend implementations/adapters pass the same relevant contract/conformance tests.
+5. **Provider evidence.** At least two materially different model adapters and representative tool, policy, credential, sandbox, and artifact adapters are qualified.
+6. **Protocol evidence.** Declared MCP/A2A/OpenAPI/AsyncAPI profiles pass interoperability and negative/security tests.
+7. **Security evidence.** Baseline and selected module hard gates, threat-model cases, sandbox, credential, tenant, and supply-chain controls are independently reviewed.
+8. **Evaluation evidence.** Datasets, environments, evaluator versions, repeated trials, calibration, uncertainty, and fail-closed/inconclusive behavior are reproducible.
+9. **Operational evidence.** Load, soak, failure injection, backup/restore, provider withdrawal, and relevant disaster-recovery objectives are exercised.
+10. **Marketplace evidence.** If included, package locking, granting, verification, isolation, upgrade, rollback, quarantine, revocation, and usage attribution are tested.
+11. **Documentation evidence.** Representative readers can locate and complete adoption, runtime, adapter, example, and conformance tasks.
+12. **Independent review.** At least one reviewer or implementation team outside the primary authoring path samples requirement-to-evidence traceability and records residual findings.
+
+A stable specification may still have open noncritical errata and known limitations when they are explicit and do not make conformance materially ambiguous.
+
+## Stable release package
+
+A Stable release publishes:
+
+1. Semantic version and exact publication commit/content digest.
+2. Normative page inventory and digests.
+3. Contract release, contract-tree digest, schemas, registries, fixtures, and declared profiles.
+4. Composable conformance-module definitions and convenience bundles.
+5. Change log, compatibility statement, and migration notes.
+6. Accepted ADR changes and unresolved decision risks.
+7. CI, contract, implementation, interoperability, security, evaluation, and resilience evidence.
+8. Independent review record and response.
+9. Open errata, known deviations, limitations, and review expiry dates.
+10. Primary-source retrieval/review dates.
+11. Signature/provenance evidence for distributed release artifacts when applicable.
+
+## Errata
+
+An erratum records a defect in a published baseline.
+
+| Class | Treatment |
+|---|---|
+| Editorial | Correct in the next patch and identify the affected section |
+| Contract ambiguity | Publish a bounded interpretation, compatibility guidance, and validation case |
+| Incorrect fixture/example | Correct it and add a regression check |
+| Security/safety defect | Publish advisory, affected modules/profiles, mitigations, and urgency |
+| Breaking semantic defect | Publish an explicit replacement version; do not rewrite history |
+
+An erratum records:
+
+```text
+ARA version, publication identity, and contract-tree digest
+affected page/section/contract
+problem and correct interpretation
+compatibility, security, and conformance impact
+workaround or migration
+verification evidence
+status and resolution version
+```
+
+The current site may display corrected text, but release records preserve what changed and why.
+
+## Compatibility promises
+
+- A patch should not intentionally break a conforming implementation of the same minor version.
+- A minor release preserves prior core meaning while adding compatible optional semantics/contracts.
+- A major release may break compatibility and supplies migration guidance, alias/upcaster strategy, and redirects.
+- Historical events, deployments, and evidence remain attributable to the versions actually used.
+- Unknown required capability, event, gate, or module identifiers produce explicit incompatibility rather than silent ignore.
+
+A reproducible conformance statement identifies:
+
+```text
+ARA semantic version and publication identity
+contract release/tree digest
+implementation release and deployment digest
+claimed modules, bundles and optional profiles
+assessment date and environment
+closed statuses, deviations and inconclusive items
+evidence-package digest and independent reviewer
+```
+
+## Change proposal workflow
+
+```text
+problem, incident, implementation evidence, or research
+-> identify semantic and contract owners
+-> write semantic, representation, conformance and migration diff
+-> update or add an ADR when consequential
+-> update tests, fixtures, examples and checklist
+-> validate candidate merge reference
+-> implementation and independent review
+-> candidate publication
+-> close Stable gates
+-> stable publication
+```
+
+Large changes may use design proposals. If the project adopts a formal proposal process, `rfcs/` may be reserved for proposals; published normative authority remains `specification/`.
+
+## Maintenance rules
+
+- Never silently replace a published term or contract meaning.
+- Never use mutable `latest` references in deployment or conformance evidence.
+- Preserve moved public URLs through redirects and remove redirects that shadow live pages.
+- Keep retired names only in bounded migration notes or consolidated review history.
+- Revalidate time-sensitive vendor, protocol, legal, security, standards, and documentation-platform claims before Stable publication.
+- Separate technical conformance from legal certification, security attestation, and ongoing operational assurance.

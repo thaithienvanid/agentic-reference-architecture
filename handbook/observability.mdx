@@ -1,0 +1,96 @@
+---
+title: Observability, audit, and lineage
+description: Trace hierarchy, execution identities, metrics, logging, progress, sampling, audit, and data lineage.
+---
+
+# Observability, audit, and lineage
+
+> **Status: Informative guide.** Observability explains operations; it does not replace run state, audit, evaluation, or billing.
+
+## Evidence separation
+
+| Record | Answers |
+|---|---|
+| Platform Run Journal | What authoritatively happened? |
+| Trace | What causal path and latency occurred? |
+| Metric | What aggregate health and trend exists? |
+| Structured log | What diagnostic event occurred? |
+| Evaluation result | Was behavior good, safe, and correct? |
+| Audit record | Who authorized and executed what? |
+| Usage record | What consumption is attributable to whom? |
+
+## Trace hierarchy
+
+```text
+execution_plan.run
+└── workflow.run
+    └── activity.run
+        ├── activity.attempt (only for whole-activity restart)
+        ├── execution.branch or iteration (when present)
+        ├── effect
+        │   └── invocation
+        ├── context.compile
+        ├── policy.evaluate
+        └── approval.wait
+```
+
+Experiment context is linked rather than inserted as a generic runtime child:
+
+```text
+experiment.run
+└── experiment.variant
+    └── experiment.trial -> workflow.run link
+```
+
+`worker.lease` is infrastructure ownership evidence and may be represented by a span/event linked to the run or activity; it is not logical workflow work.
+
+One activity may produce several effects and spans. Do not force a one-node/one-span mapping.
+
+## Stable attributes
+
+```text
+tenant.id_hash, workspace.id_hash, region
+execution_plan_run.id, workflow.run.id, activity.run.id
+activity_attempt.id, branch.id, iteration.id
+experiment.id, experiment_variant.id, experiment_trial.id
+effect.id, invocation.id, worker_lease.id
+workflow/agent/prompt/tool/policy versions, deployment.digest
+model.route, provider.identifier
+side_effect.class, data.classification
+usage.input_tokens, usage.output_tokens, usage.cost
+retry.count, completion.reason, fallback.route, cache.status
+```
+
+Run, effect, invocation, trial, and lease IDs belong in traces and logs, not high-cardinality metric labels.
+
+## Agentic golden signals
+
+Extend latency, traffic, errors, and saturation with quality, cost, progress, and safety. Progress includes new evidence, contradictions resolved, required fields completed, score improvement, repeated-action count, and cost delta.
+
+## Metrics
+
+- Run starts, terminal states, active/suspended duration, and recovery latency.
+- Model latency, tokens, cost, rate limits, invalid output, cache, and fallback.
+- Tool success, timeout, ambiguous outcome, reconciliation, and policy denial.
+- Branch/iteration count, marginal quality, and abandoned work.
+- Experiment-trial variance and failure distribution.
+- Agent delegation, no-progress, loop detection, and escalation.
+- Context tokens, compaction, retrieval, and memory-policy rejection.
+- Approval count, denial, expiry, wait duration, and revalidation failure.
+- Evaluation regressions, tenant fairness, sandbox saturation, and cost per successful outcome.
+
+## Content handling
+
+Do not collect raw secrets, authorization headers, private hidden reasoning, or full sensitive prompts by default. Record versions, digests, source references, token counts, and protected payload references. Apply redaction before export.
+
+## Sampling
+
+Keep failed runs, security events, policy denials, ambiguous effects, budget stops, sandbox findings, and evaluation regressions. Tail-sample successful low-risk runs and high-volume read-only effects.
+
+## Cross-run causality
+
+Use a separate trace per workflow run, a shared execution-plan or experiment ID, span links, and artifact/decision lineage. Avoid week-long monolithic traces.
+
+## Observability tests
+
+Prove root spans, effect/journal correlation, invocation lineage, worker-lease transitions, usage accuracy, absence of sensitive fields, failed-trace retention, cross-run links, bounded metric labels, and trace continuity across worker loss.

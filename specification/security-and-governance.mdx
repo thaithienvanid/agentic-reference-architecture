@@ -1,0 +1,177 @@
+---
+title: Security and governance
+description: Normative baseline and advanced trust boundaries, capabilities, policy, approvals, agent communication, credentials, sandboxes, supply chain, and residual-risk requirements.
+---
+
+# Security and governance
+
+> **Status: Normative baseline for ARA Core; additional requirements apply to Multi-Tenant, Enterprise Operations, Marketplace, High-Assurance, and Regulated modules.**
+
+## Security rule
+
+Prompt instructions and probabilistic guardrails are not authorization controls. Identity, capability, data, network, budget, approval, credential, package, and sink policies are enforced at deterministic boundaries around effects and invocations.
+
+## Core trust boundaries
+
+```text
+user/external input -> application
+retrieved or remembered content -> model context
+model proposal -> effect authorization
+runtime -> model provider
+runtime -> tool/external system
+runtime -> credential broker
+parent run -> child run
+agent/peer message -> recipient
+human-facing explanation -> approval decision
+generated output -> HTML, SQL, shell, code, email, or other sink
+telemetry/evaluation payload -> external backend or judge
+```
+
+Multi-tenant and marketplace deployments add:
+
+```text
+tenant -> shared infrastructure
+package -> sandbox/platform
+publisher -> marketplace
+execution cell -> regional/global control plane
+```
+
+## Baseline capability grants
+
+Every run that may produce effects **MUST** receive a scoped capability grant. A child run’s effective grant **MUST** be an explicit attenuation of delegated parent authority.
+
+```text
+childGrant = intersection(
+  parentDelegableGrant,
+  taskRequirements,
+  tenantEntitlements,
+  currentPolicyDecision,
+  dataPolicy,
+  regionalPolicy,
+  allocatedBudget
+)
+```
+
+Attenuation rules:
+
+- Deny overrides allow.
+- Child expiry **MUST NOT** exceed parent expiry.
+- Child budget **MUST NOT** exceed its explicit allocation.
+- Data classification, region, egress, and retention constraints **MUST NOT** be weakened.
+- Delegation depth **MUST** decrease.
+- Undelegated tools, models, secrets, memory scopes, and child-creation authority **MUST NOT** appear in the child grant.
+- The receiver **MUST** reauthorize effects locally; a peer’s policy decision is not local authority.
+
+A grant identifies subject, audience, tenant/workspace where applicable, allowed operations/resources, constraints, issued/expiry time, parent grant, delegation depth, budget allocation, and provenance.
+
+## Effect authorization
+
+Before first invocation, every mutating or externally sensitive effect **MUST** pass:
+
+```text
+schema validation
+domain validation
+capability-grant validation
+policy evaluation
+data, region, and egress validation
+budget reservation
+approval when required
+durable effect commit
+```
+
+Resource-side authorization remains active. A gateway allow decision does not disable the target system’s own controls.
+
+## Credentials
+
+Long-lived plaintext credentials **MUST NOT** enter the Execution Kernel, run state, journal, prompt, artifact, log, or telemetry.
+
+The runtime passes a secret purpose or credential-profile reference to a credential broker. The broker resolves or mints a short-lived credential only after capability, tenant, region, and policy checks and injects it at adapter dispatch.
+
+A credential grant SHOULD bind:
+
+```text
+subject and audience
+provider/resource
+allowed operations
+tenant/workspace
+region and network destination
+issued/expiry time
+run/effect correlation
+```
+
+## Human approval
+
+Approval binds:
+
+```text
+tenant, run, activity, effect
+tool/resource version
+normalized argument digest
+policy and capability-grant versions
+approver identity and authority
+expiry and expected run version
+```
+
+The approver SHOULD see a deterministically normalized action view generated from the exact effect schema and arguments. Agent-authored persuasion or explanation is displayed separately as untrusted content. Any material action, policy, authority, or state change invalidates the approval.
+
+High-Assurance deployments SHOULD require independent approver authentication, protected evidence, conflict handling, and fallback/escalation procedures.
+
+## Inter-agent communication
+
+Peer and child-agent messages **MUST** be authenticated and replay-protected across trust boundaries. Messages bind sender, audience, parent/child run IDs, task/result schema, content digest, capability-grant reference, nonce/message ID, issue/expiry time, protocol version, correlation/causation, and channel/signature evidence.
+
+Peer output is untrusted input and passes schema, provenance, classification, policy, and sink-safety validation. External A2A tasks and messages remain adapter evidence until translated into local commands, artifacts, or effects.
+
+## Output handling
+
+Model and agent output **MUST** be encoded or parameterized for the destination sink. HTML, Markdown, SQL, shell, code, email, document renderers, and API arguments each require sink-specific controls. Structured output validation does not replace destination safety.
+
+## Sandboxing
+
+Generated code, customer scripts, and marketplace packages execute with explicit image digest, CPU/memory, filesystem, process, network, secret, artifact, and deadline policies. Network is denied by default for untrusted code.
+
+No sandbox eliminates all escape risk. High-risk workloads require stronger isolation, dedicated pools, host monitoring, rapid credential rotation, and destroy/rebuild procedures.
+
+## Memory and retrieval
+
+Memory and retrieval records carry tenant/subject scope, provenance, source trust, classification, purpose, retention, and revocation. Indirect prompt injection, data poisoning, stale authority, and cross-subject leakage require preventive and detective controls.
+
+Untrusted retrieved text **MUST NOT** create capabilities, approvals, or credentials.
+
+## Protocol security
+
+MCP and A2A are interoperability protocols, not local authorization authorities. Their sessions, capability declarations, agent cards, task states, and tool annotations are validated and translated at adapters. Local tenant, capability, policy, budget, approval, and sink controls remain authoritative.
+
+See [MCP profile](/reference/mcp-profile) and [A2A profile](/reference/a2a-profile).
+
+## Supply chain
+
+Marketplace and internal packages SHOULD use signed immutable releases, publisher identity, provenance, SBOM, exact dependency locks, allowed registries, vulnerability/secret/malware scanning, prompt/tool-description injection tests, sandbox verification, runtime behavior monitoring, quarantine, and revocation.
+
+An activated package installation **MUST** use tenant-granted capabilities, not the publisher’s requested capabilities directly.
+
+## Probabilistic guardrails
+
+Classifiers and model-based guardrails MAY add defense in depth but **MUST NOT** be the sole enforcement for authorization, tenant isolation, spending limits, approvals, data egress, or irreversible effects. Their false-positive, false-negative, drift, availability, and evaluator-manipulation behavior require evaluation.
+
+A guardrail outage or inconclusive result follows an explicit fail-open, fail-closed, or escalate policy based on deployment risk; the default for high-impact effects is fail closed or human escalation.
+
+## Multi-tenant requirements
+
+When ARA Multi-Tenant is claimed:
+
+- Tenant context **MUST** come from authenticated identity and trusted routing.
+- State, caches, queues, indexes, artifacts, memory, secrets, telemetry, audit, usage, package installations, and deletion workflows **MUST** be tenant-scoped.
+- Cross-tenant negative tests **MUST** cover every storage and delivery boundary.
+- Telemetry SHOULD use a controlled pseudonymous tenant identifier rather than raw business identifiers.
+- Shared capacity **MUST** apply fairness, quotas, and noisy-neighbor controls.
+
+## Audit
+
+Mandatory audit records use independently protected append-only storage, sequence validation, tamper evidence, restricted break-glass access, and retention by policy. Telemetry loss **MUST NOT** silently erase required audit evidence.
+
+If mandatory audit cannot be durably recorded, the runtime **MUST** stop or enter an explicit degraded policy state rather than claim successful governed execution.
+
+## Residual risk
+
+Every threat-model entry SHOULD state trust boundary, attack path, preventive control, detective control, recovery, and residual risk. ARA reduces blast radius and improves evidence; it does not eliminate model error, prompt injection, compromised providers, malicious insiders, sandbox escape, human error, or correlated evaluator failure.

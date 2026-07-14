@@ -1,0 +1,172 @@
+asyncapi: 3.0.0
+info:
+  title: ARA Event Delivery Profile
+  version: 1.0.0
+  description: >-
+    Optional interoperable delivery profile for Agentic Reference Architecture
+    execution and integration events. Broker delivery is not the Platform Run
+    Journal and does not replace canonical state or audit evidence.
+defaultContentType: application/json
+servers:
+  production:
+    host: broker.example.invalid
+    protocol: kafka
+    description: Illustrative enterprise event broker
+channels:
+  canonicalRunEvents:
+    address: ara.run.events.v1
+    description: Ordered semantic execution events projected from the Platform Run Journal.
+    messages:
+      runEvent:
+        $ref: '#/components/messages/RunEvent'
+  externalRunSignals:
+    address: ara.run.signals.v1
+    description: Authenticated, deduplicated external events intended for waiting runs.
+    messages:
+      externalSignal:
+        $ref: '#/components/messages/ExternalSignal'
+  integrationEvents:
+    address: ara.integration.events.v1
+    description: At-least-once bounded-context integration events emitted through an outbox.
+    messages:
+      integrationEvent:
+        $ref: '#/components/messages/IntegrationEvent'
+operations:
+  receiveCanonicalRunEvents:
+    action: receive
+    channel:
+      $ref: '#/channels/canonicalRunEvents'
+    messages:
+      - $ref: '#/channels/canonicalRunEvents/messages/runEvent'
+  sendExternalRunSignals:
+    action: send
+    channel:
+      $ref: '#/channels/externalRunSignals'
+    messages:
+      - $ref: '#/channels/externalRunSignals/messages/externalSignal'
+  receiveIntegrationEvents:
+    action: receive
+    channel:
+      $ref: '#/channels/integrationEvents'
+    messages:
+      - $ref: '#/channels/integrationEvents/messages/integrationEvent'
+components:
+  messages:
+    RunEvent:
+      name: RunEvent
+      title: Canonical ARA run event
+      summary: Portable semantic execution event projected from the run journal.
+      correlationId:
+        location: $message.payload#/correlationId
+      headers:
+        type: object
+        required: [messageId, tenantScope, runId, runSequence, schemaVersion]
+        properties:
+          messageId:
+            type: string
+          tenantScope:
+            type: string
+          runId:
+            type: string
+          runSequence:
+            type: integer
+            minimum: 0
+          schemaVersion:
+            type: string
+          traceparent:
+            type: string
+        additionalProperties: false
+      payload:
+        $ref: '../schemas/event-envelope.schema.json'
+    ExternalSignal:
+      name: ExternalSignal
+      title: External run signal
+      summary: Authenticated event persisted to an inbox before durable execution is signaled.
+      correlationId:
+        location: $message.payload#/correlationKey
+      headers:
+        type: object
+        required: [messageId, idempotencyKey, tenantScope, sender]
+        properties:
+          messageId:
+            type: string
+          idempotencyKey:
+            type: string
+          tenantScope:
+            type: string
+          sender:
+            type: string
+          signatureRef:
+            type: string
+          traceparent:
+            type: string
+        additionalProperties: false
+      payload:
+        type: object
+        required: [targetRunId, correlationKey, eventType, schemaVersion, occurredAt, payload]
+        properties:
+          targetRunId:
+            type: string
+          correlationKey:
+            type: string
+          eventType:
+            type: string
+            pattern: '^[a-z][a-z0-9_.-]*$'
+          schemaVersion:
+            type: string
+          occurredAt:
+            type: string
+            format: date-time
+          payload:
+            type: object
+          payloadDigest:
+            type: string
+            pattern: '^sha256:[A-Fa-f0-9]{64}$'
+        additionalProperties: false
+    IntegrationEvent:
+      name: IntegrationEvent
+      title: ARA integration event
+      summary: Bounded-context event delivered at least once from a transactional outbox.
+      correlationId:
+        location: $message.payload#/correlationId
+      headers:
+        type: object
+        required: [messageId, tenantScope, eventType, schemaVersion]
+        properties:
+          messageId:
+            type: string
+          tenantScope:
+            type: string
+          eventType:
+            type: string
+          schemaVersion:
+            type: string
+          sourceAggregate:
+            type: string
+          traceparent:
+            type: string
+        additionalProperties: false
+      payload:
+        type: object
+        required: [eventId, eventType, schemaVersion, occurredAt, correlationId, payloadDigest]
+        properties:
+          eventId:
+            type: string
+          eventType:
+            type: string
+            pattern: '^[a-z][a-z0-9_.-]*$'
+          schemaVersion:
+            type: string
+          occurredAt:
+            type: string
+            format: date-time
+          correlationId:
+            type: string
+          causationId:
+            type: string
+          payloadDigest:
+            type: string
+            pattern: '^sha256:[A-Fa-f0-9]{64}$'
+          payloadRef:
+            type: string
+        additionalProperties: false
