@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ara.dev/contracts/1.0/schemas/activity-run.schema.json",
+  "title": "ARA ActivityRun",
+  "type": "object",
+  "required": [
+    "contractVersion",
+    "activityRunId",
+    "rootRunId",
+    "runId",
+    "workflowVersionRef",
+    "activityId",
+    "inputSnapshotRef",
+    "inputDigest",
+    "executionScopePath",
+    "status",
+    "stateVersion",
+    "attemptIds",
+    "effectIds",
+    "createdAt",
+    "updatedAt"
+  ],
+  "properties": {
+    "contractVersion": { "const": "1.0.0" },
+    "activityRunId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "rootRunId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "parentRunId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "runId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "workflowVersionRef": { "$ref": "common.schema.json#/$defs/VersionRef" },
+    "activityId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "inputSnapshotRef": { "type": "string", "minLength": 1 },
+    "inputDigest": { "$ref": "common.schema.json#/$defs/ContentDigest" },
+    "branchId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "iterationId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "executionScopePath": { "type": "string", "minLength": 1 },
+    "status": {
+      "type": "string",
+      "enum": [
+        "planned",
+        "ready",
+        "running",
+        "waiting",
+        "failed",
+        "retry_scheduled",
+        "completed",
+        "terminal_failed",
+        "cancelled",
+        "timed_out",
+        "skipped"
+      ]
+    },
+    "stateVersion": { "type": "integer", "minimum": 0 },
+    "attemptIds": {
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+      "uniqueItems": true
+    },
+    "effectIds": {
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+      "uniqueItems": true
+    },
+    "resultRef": { "type": "string", "minLength": 1 },
+    "failureRef": { "type": "string", "minLength": 1 },
+    "retryAt": { "$ref": "common.schema.json#/$defs/Instant" },
+    "createdAt": { "$ref": "common.schema.json#/$defs/Instant" },
+    "updatedAt": { "$ref": "common.schema.json#/$defs/Instant" },
+    "terminalReason": { "type": "string", "minLength": 1 },
+    "extensions": { "$ref": "common.schema.json#/$defs/Extensions" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "status": { "const": "completed" } },
+        "required": ["status"]
+      },
+      "then": { "required": ["resultRef"] }
+    },
+    {
+      "if": {
+        "properties": { "status": { "enum": ["failed", "terminal_failed"] } },
+        "required": ["status"]
+      },
+      "then": { "required": ["failureRef"] }
+    },
+    {
+      "if": {
+        "properties": { "status": { "const": "retry_scheduled" } },
+        "required": ["status"]
+      },
+      "then": { "required": ["failureRef", "retryAt"] }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": ["terminal_failed", "cancelled", "timed_out", "skipped"]
+          }
+        },
+        "required": ["status"]
+      },
+      "then": { "required": ["terminalReason"] }
+    }
+  ],
+  "additionalProperties": false
+}
