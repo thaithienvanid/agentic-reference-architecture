@@ -11,7 +11,7 @@
     "role",
     "adapterRef",
     "status",
-    "startedAt"
+    "createdAt"
   ],
   "properties": {
     "contractVersion": { "const": "1.0.0" },
@@ -38,6 +38,7 @@
         "completed_with_external_evidence"
       ]
     },
+    "createdAt": { "$ref": "common.schema.json#/$defs/Instant" },
     "startedAt": { "$ref": "common.schema.json#/$defs/Instant" },
     "completedAt": { "$ref": "common.schema.json#/$defs/Instant" },
     "usageRef": { "type": "string", "minLength": 1 },
@@ -67,8 +68,38 @@
     {
       "if": {
         "properties": {
-          "status": { "enum": ["succeeded", "failed", "timed_out", "cancelled", "completed_with_external_evidence"] }
-        }
+          "status": {
+            "enum": [
+              "dispatching",
+              "streaming",
+              "succeeded",
+              "failed",
+              "timed_out",
+              "cancelled",
+              "outcome_unknown",
+              "completed_with_external_evidence"
+            ]
+          }
+        },
+        "required": ["status"]
+      },
+      "then": { "required": ["startedAt"] }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "succeeded",
+              "failed",
+              "timed_out",
+              "cancelled",
+              "outcome_unknown",
+              "completed_with_external_evidence"
+            ]
+          }
+        },
+        "required": ["status"]
       },
       "then": { "required": ["completedAt"] }
     },
@@ -76,10 +107,15 @@
       "if": {
         "properties": {
           "status": { "enum": ["failed", "timed_out", "outcome_unknown"] }
-        }
+        },
+        "required": ["status"]
       },
       "then": { "required": ["error"] }
     }
   ],
+  "dependentRequired": {
+    "workerLeaseId": ["fencingToken"],
+    "fencingToken": ["workerLeaseId"]
+  },
   "additionalProperties": false
 }
