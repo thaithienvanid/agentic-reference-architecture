@@ -1,13 +1,40 @@
 ---
-title: State, effect, invocation, and event schemas
-description: Canonical examples for parallel-safe run state, activity results, effects, invocations, worker leases, events, approvals, and atomic execution commits.
+title: State, execution, and event contracts
+description: Canonical contract map and bounded examples for run state, activity results, effects, invocations, approvals, leases, events, and atomic commits.
 ---
 
-# State, effect, invocation, and event schemas
+# State, execution, and event contracts
 
-> **Status: Normative reference examples.** Field conventions follow [Canonical conventions](/reference/conventions). Machine-readable schemas under `/contracts/schemas` control exact representation.
+> **Status: Normative reference.** The specification owns semantic meaning. The versioned files under `/contracts` own exact serialized representation for the declared ARA contract profile.
+
+## Contract map
+
+| Concept | JSON Schema | Executable fixture |
+|---|---|---|
+| Run state | `contracts/schemas/run-state.schema.json` | `contracts/examples/run-state.example.json` |
+| Activity result | `contracts/schemas/activity-result.schema.json` | `contracts/examples/activity-result.example.json` |
+| Effect | `contracts/schemas/effect.schema.json` | `contracts/examples/effect.example.json` |
+| Invocation | `contracts/schemas/invocation.schema.json` | `contracts/examples/invocation.example.json` |
+| Approval | `contracts/schemas/approval.schema.json` | `contracts/examples/approval.example.json` |
+| Worker lease | `contracts/schemas/worker-lease.schema.json` | `contracts/examples/worker-lease.example.json` |
+| Child-run link | `contracts/schemas/child-run-link.schema.json` | `contracts/examples/child-run-link.example.json` |
+| Event envelope | `contracts/schemas/event-envelope.schema.json` | `contracts/examples/event-envelope.example.json` |
+| Atomic transition commit | `contracts/schemas/transition-commit.schema.json` | `contracts/examples/transition-commit.example.json` |
+
+Every fixture is validated against the schema with the matching base name. Bounded snippets on this page explain important fields; they do not replace those executable files.
+
+## Representation rules
+
+- Omitted means not supplied or not applicable. `null` is used only when a schema assigns it a distinct meaning.
+- Content digests use `sha256:` followed by exactly 64 hexadecimal characters.
+- Status values and legal transitions come from [Lifecycle contracts](/reference/lifecycles).
+- Historical events and completed results are immutable.
+- Execution scope uses `ActivityRunId`, plus branch or iteration identity when present.
+- Sensitive payloads remain behind protected references and digests.
 
 ## Run state
+
+`RunState` is a compact current projection. It supports concurrent and repeated activity executions by keying them with `ActivityRunId` rather than a single current activity.
 
 ```json
 {
@@ -17,10 +44,11 @@ description: Canonical examples for parallel-safe run state, activity results, e
   "tenant": {
     "tenantId": "tenant_acme_eu",
     "workspaceId": "workspace_procurement",
-    "homeRegion": "eu-west"
+    "homeRegion": "eu-west",
+    "telemetryTenantId": "tenant_hash_4F2A"
   },
   "deploymentSnapshotRef": "deployment_snapshot_01K2S",
-  "deploymentSnapshotDigest": "sha256:394e...",
+  "deploymentSnapshotDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
   "status": "waiting_for_approval",
   "stateVersion": 27,
   "runSequence": 141,
@@ -51,50 +79,52 @@ description: Canonical examples for parallel-safe run state, activity results, e
       "consumed": { "amount": "3.82", "currency": "USD" }
     }
   },
-  "variables": {
-    "vendorId": "V-77"
-  },
-  "checkpointRef": "artifact://sha256/a82f..."
+  "variables": { "vendorId": "V-77" },
+  "checkpointRef": "artifact://sha256/5555555555555555555555555555555555555555555555555555555555555555"
 }
 ```
 
-The state supports multiple concurrent/repeated `ActivityRun`s. Large histories and provider payloads remain behind immutable references.
+Large histories, model payloads, documents, and artifact bytes do not belong in this projection.
 
 ## Activity result
+
+An `ActivityResult` is the committed typed output of one exact `ActivityRun`. It may contain a bounded inline value, immutable artifact references, or both.
 
 ```json
 {
   "contractVersion": "1.0.0",
   "activityResultId": "activity_result_01K2R",
+  "rootRunId": "run_01K2A",
   "runId": "run_01K2A",
-  "activityRunId": "activity_run_research_01",
   "activityId": "research",
-  "branchId": null,
-  "iterationId": null,
+  "activityRunId": "activity_run_research_01",
   "schemaRef": "ProcurementResearchResult@3",
   "inlineValue": {
     "vendorId": "V-77",
     "riskScore": 0.42
   },
-  "artifactRefs": ["artifact://sha256/abc123"],
-  "digest": "sha256:919d...",
+  "artifactRefs": [
+    "artifact://sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  ],
+  "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
   "completedAt": "2026-07-12T08:04:01Z"
 }
 ```
 
 ## Effect
 
+An `Effect` records one logical external or nondeterministic operation. Its semantic identity is stable across provider retries and whole-activity restarts when the requested operation and authority remain unchanged.
+
 ```json
 {
   "contractVersion": "1.0.0",
   "effectId": "effect_01K2B",
-  "semanticEffectKey": "sha256:semantic-effect-key",
+  "semanticEffectSlot": "create-order",
+  "semanticEffectKey": "effect-key:create-order:8ea7",
   "rootRunId": "run_01K2A",
   "runId": "run_01K2A",
   "activityRunId": "activity_run_create_order_01",
   "activityAttemptId": "activity_attempt_create_order_02",
-  "branchId": null,
-  "iterationId": null,
   "executionScopePath": "run_01K2A/create-order",
   "kind": "tool.invoke",
   "toolRef": "purchase-order.create@4.2.1",
@@ -105,17 +135,24 @@ The state supports multiple concurrent/repeated `ActivityRun`s. Large histories 
     "externality": "external_service",
     "compensability": "mitigatable"
   },
-  "inputDigest": "sha256:8ea7...",
-  "authorityScopeDigest": "sha256:authority...",
-  "idempotencyKey": "tenant_acme_eu/effect/sha256:semantic-effect-key",
+  "inputDigest": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+  "authorityScopeDigest": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+  "idempotencyKey": "tenant_acme_eu/effect/effect-key:create-order:8ea7",
+  "reconciliationPolicyRef": "purchase-order-reconcile@2.0.0",
+  "compensationPolicyRef": "purchase-order-cancel@1.0.0",
+  "capabilityGrantRef": "capability_grant_01K2G",
+  "policyDecisionRefs": ["policy_decision_01K2P"],
+  "approvalIds": ["approval_01K2C"],
   "status": "outcome_unknown",
   "invocationIds": ["invocation_01K2I1", "invocation_01K2I2"]
 }
 ```
 
-`activityAttemptId` records which restart issued the invocation; it is not part of logical effect identity.
+`activityAttemptId` is provenance. It is not part of logical effect identity. A mutating effect declares idempotency, reconciliation, or both.
 
 ## Invocation
+
+An `Invocation` is one concrete adapter or provider call for exactly one effect. Retry, status, poll, cancel, and reconciliation calls are separate invocations with distinct ordinals and roles.
 
 ```json
 {
@@ -131,11 +168,15 @@ The state supports multiple concurrent/repeated `ActivityRun`s. Large histories 
   "completedAt": "2026-07-12T08:04:13Z",
   "usageRef": "usage_01K2U",
   "workerLeaseId": "worker_lease_01K2L",
-  "fencingToken": 42
+  "fencingToken": 42,
+  "externalRequestDigest": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+  "externalResponseDigest": "sha256:9999999999999999999999999999999999999999999999999999999999999999"
 }
 ```
 
-## Approval
+## Approval and worker ownership
+
+An approval binds an exact effect action and expected state. A `WorkerLease` separately grants temporary fenced processing authority; it is not approval or logical work.
 
 ```json
 {
@@ -144,17 +185,16 @@ The state supports multiple concurrent/repeated `ActivityRun`s. Large histories 
   "runId": "run_01K2A",
   "activityRunId": "activity_run_create_order_01",
   "effectId": "effect_01K2B",
-  "actionDigest": "sha256:778c...",
+  "actionDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
   "policyVersionRef": "high-value-purchase-approval@5.0.0",
   "capabilityGrantRef": "capability_grant_01K2G",
   "expectedStateVersion": 27,
   "requiredRoles": ["procurement_manager", "finance_controller"],
+  "decisions": [],
   "status": "pending",
   "expiresAt": "2026-07-14T10:00:00Z"
 }
 ```
-
-## Worker lease
 
 ```json
 {
@@ -166,11 +206,14 @@ The state supports multiple concurrent/repeated `ActivityRun`s. Large histories 
   "fencingToken": 42,
   "acquiredAt": "2026-07-12T08:04:10Z",
   "expiresAt": "2026-07-12T08:04:40Z",
-  "status": "active"
+  "status": "active",
+  "backendOwnershipRef": "temporal://namespace/ara/workflow/run_01K2A"
 }
 ```
 
 ## Canonical event envelope
+
+The envelope preserves tenant scope, ordering, aggregate concurrency, causation, actor attribution, execution scope, classification, and protected payload identity.
 
 ```json
 {
@@ -192,62 +235,49 @@ The state supports multiple concurrent/repeated `ActivityRun`s. Large histories 
   "activityId": "create-order",
   "activityRunId": "activity_run_create_order_01",
   "activityAttemptId": "activity_attempt_create_order_02",
-  "branchId": null,
-  "iterationId": null,
   "effectId": "effect_01K2B",
   "invocationId": "invocation_01K2I2",
   "workerLeaseId": "worker_lease_01K2L",
   "actor": {
     "type": "service",
     "id": "runtime-worker",
-    "onBehalfOf": "user_887"
+    "onBehalfOf": "user_887",
+    "authnMethod": "workload_identity"
   },
   "correlationId": "corr_5501",
   "causationId": "evt_01K2C",
   "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
   "dataClassification": "confidential",
-  "payloadDigest": "sha256:65fe...",
-  "payloadRef": "payload://encrypted/sha256/65fe...",
+  "payloadDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "payloadRef": "payload://encrypted/sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   "retentionPolicyRef": "regulated-execution@7.0.0"
 }
 ```
 
 ## Atomic transition commit
 
-```json
-{
-  "contractVersion": "1.0.0",
-  "runId": "run_01K2A",
-  "expectedStateVersion": 27,
-  "expectedRunSequence": 141,
-  "workerLeaseId": "worker_lease_01K2L",
-  "fencingToken": 42,
-  "events": [
-    {
-      "eventType": "effect.reconciled",
-      "schemaVersion": "1.0.0",
-      "payloadDigest": "sha256:effect-reconciled"
-    }
-  ],
-  "nextStateRef": "state://run_01K2A/version/28",
-  "effectMutations": ["effect_01K2B:succeeded"],
-  "invocationMutations": ["invocation_01K2I2:succeeded"],
-  "approvalMutations": [],
-  "budgetMutations": ["budget_reservation_01:reconciled"],
-  "outboxEventIds": ["integration_evt_01"]
+An authoritative transition carries the complete next state, typed ledger mutations, canonical events, and integration outbox events in one fenced consistency unit.
+
+```typescript
+interface TransitionCommit {
+  events: readonly NewRunEvent[];
+  nextState: RunState;
+  effectMutations: readonly LedgerMutation[];
+  invocationMutations: readonly LedgerMutation[];
+  approvalMutations: readonly LedgerMutation[];
+  budgetMutations: readonly LedgerMutation[];
+  outboxEvents: readonly IntegrationEvent[];
 }
 ```
 
-The implementation verifies expected state version, run sequence, and fencing token, then commits journal, projection, ledgers, and outbox atomically.
+The executable fixture demonstrates reconciliation of an uncertain purchase-order mutation. The implementation verifies `expectedStateVersion`, `expectedRunSequence`, `workerLeaseId`, and `fencingToken`, then commits the journal, current-state projection, ledgers, and outbox atomically. A conflict rejects the complete unit.
 
-## Event categories
+## Event categories and authority
 
 - Domain events carry business meaning.
 - Execution events describe run, activity, effect, invocation, approval, child-link, and lease lifecycles.
 - Integration events cross bounded contexts through the outbox.
-- Audit events carry authoritative security and governance evidence.
+- Audit events carry independently protected security and governance evidence.
 - Telemetry signals support operations and may be sampled.
 
-## Lifecycle authority
-
-Status values and legal transitions are defined in [Lifecycle contracts](/reference/lifecycles). Historical events are immutable. Compatible evolution uses explicit contract/schema versions and readers or upcasters.
+The Platform Run Journal is authoritative for portable ARA execution facts. A broker, trace backend, durable-engine history, projection table, or checkpoint does not replace it. See [Lifecycle contracts](/reference/lifecycles), [Durable backend profile](/reference/durable-backend-profile), and [Contract catalog](/reference/contract-catalog).
