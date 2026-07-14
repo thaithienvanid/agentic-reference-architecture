@@ -34,24 +34,33 @@ Workflow state SHOULD be compact, typed, versioned, and limited to control-relev
 
 ```typescript
 interface RunState {
+  contractVersion: ContractVersion;
   runId: RunId;
+  rootRunId: RunId;
+  parentRunId?: RunId;
+  tenant: TenantScope;
+  deploymentSnapshotRef: DeploymentSnapshotRef;
+  deploymentSnapshotDigest: ContentDigest;
   stateVersion: number;
   runSequence: number;
   status: RunStatus;
 
   activeActivityRunIds: readonly ActivityRunId[];
-  activityRuns: ReadonlyMap<ActivityRunId, ActivityRunRef>;
-  activityResults: ReadonlyMap<ActivityRunId, ActivityResultRef>;
+  activityRuns: readonly ActivityRunRef[];
+  activityResults: readonly ActivityResultRef[];
 
   pendingEffectIds: readonly EffectId[];
   pendingApprovalIds: readonly ApprovalId[];
   childRunIds: readonly RunId[];
 
-  variables: TypedStateValue;
-  budget: BudgetState;
-  terminalResult?: ExecutionResultRef;
+  variables: Readonly<Record<string, unknown>>;
+  budgets: BudgetState;
+  checkpointRef?: CheckpointRef;
+  terminalResultRef?: ExecutionResultRef;
 }
 ```
+
+The machine-readable owner is `contracts/schemas/run-state.schema.json`.
 
 The state model **MUST NOT** assume one current activity or one result per `ActivityId`. Parallel branches, repeated activities, nested workflows, and iterations require execution-instance identity.
 
@@ -152,6 +161,8 @@ update effect, invocation, approval, and budget ledgers
 insert integration outbox records
 commit or reject the entire unit
 ```
+
+The serialized transition contains the complete `nextState`, typed ledger mutations, canonical events, and outbox events. A reference to a separately written future state is not an equivalent atomic commit unless the storage protocol proves the same all-or-nothing semantics.
 
 Integration buses are at-least-once delivery mechanisms, not the canonical source of run truth. Projections and indexes are rebuildable from authoritative records.
 
