@@ -1,0 +1,16 @@
+{
+  "contractVersion": "1.0.0",
+  "activityResultId": "activity_result_01K2R",
+  "rootRunId": "run_01K2A",
+  "runId": "run_01K2A",
+  "activityId": "research",
+  "activityRunId": "activity_run_research_01",
+  "schemaRef": "ProcurementResearchResult@3",
+  "inlineValue": {
+    "vendorId": "V-77",
+    "riskScore": 0.42
+  },
+  "artifactRefs": ["artifact://sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"],
+  "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "completedAt": "2026-07-12T08:04:01Z"
+}

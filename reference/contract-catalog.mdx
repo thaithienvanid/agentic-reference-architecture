@@ -1,0 +1,176 @@
+---
+title: Contract catalog
+description: Authority, inventory, versioning, validation, and compatibility rules for ARA machine-readable schemas, registries, API profiles, and fixtures.
+---
+
+# Contract catalog
+
+> **Status: Normative reference.** This page identifies the machine-readable artifacts that realize ARA semantics. The [specification](/specification/index) owns meaning; a named contract owns serialized representation for its declared version/profile.
+
+## Authority model
+
+```text
+Specification
+    owns semantic meaning
+
+Machine-readable contract
+    owns exact serialized shape for its declared version/profile
+
+Reference prose
+    indexes and explains the contract
+
+Guide or worked example
+    demonstrates use without redefining either owner
+```
+
+When prose and a published machine contract disagree about field shape or serialized value, the contract named by the applicable profile controls that representation. When a contract appears to change architectural meaning, the specification controls and the mismatch is an erratum.
+
+## Contract inventory
+
+### JSON Schema Draft 2020-12
+
+| Schema | Represents |
+|---|---|
+| `common.schema.json` | Shared identifiers, versions, digests, money, time, tenant/actor scope, execution scope, effect impact, and extensions |
+| `run-state.schema.json` | Current run projection keyed by activity-run identity |
+| `activity-run.schema.json` | One logical execution of an activity and its lifecycle |
+| `activity-attempt.schema.json` | One whole-activity restart from a declared retry boundary |
+| `activity-result.schema.json` | Typed committed output of one `ActivityRun` |
+| `effect.schema.json` | Logical external or nondeterministic operation and semantic identity |
+| `invocation.schema.json` | One concrete adapter/provider call for an effect |
+| `approval.schema.json` | Action-bound approval request and decisions |
+| `worker-lease.schema.json` | Temporary worker ownership and fencing evidence |
+| `child-run-link.schema.json` | Parent/child execution contract and lifecycle link |
+| `event-envelope.schema.json` | Canonical execution-event envelope and causation metadata |
+| `transition-commit.schema.json` | Self-contained atomic fenced execution transition |
+| `capability-grant.schema.json` | Scoped, audience-bound, attenuable authority |
+| `deployment-snapshot.schema.json` | Immutable executable resolution of versions and contracts |
+| `experiment-trial.schema.json` | Independent repetition from a frozen experiment baseline |
+| `evaluation-run.schema.json` | Evaluation execution lifecycle |
+| `evaluation-result.schema.json` | Metrics, hard gates, uncertainty, and evidence |
+| `hard-gate-registry.schema.json` | Versioned hard-gate definitions and unknown policies |
+| `package-lock.schema.json` | Exact transitive package resolution |
+| `package-installation-revision.schema.json` | Tenant grants, configuration, verification, and active package revision |
+
+Every schema except `common.schema.json` has a matching executable fixture under `contracts/examples/`.
+
+### Registries
+
+| Registry | Purpose |
+|---|---|
+| `effect-kinds.json` | Canonical effect-kind identifiers and impact defaults |
+| `event-types.json` | Canonical serialized event identifiers and lifecycle ownership |
+| `error-categories.json` | Stable operational error categories |
+| `hard-gates.json` | Canonical baseline hard-gate IDs and applicability |
+| `conformance-modules.json` | Composable ARA module identifiers and dependencies |
+
+### Interoperability profiles
+
+| Artifact | Status | Purpose |
+|---|---|---|
+| `openapi/ara-api-profile.yaml` | Optional OpenAPI 3.1.1 profile | Run commands/queries, approval, external-event ingestion, resume, evidence replay, and rerun |
+| `asyncapi/ara-events-profile.yaml` | Optional AsyncAPI 3.0.0 profile | Canonical event delivery, external signals, and bounded-context integration events |
+
+MCP, A2A, and durable-backend mappings are specified in their reference-profile pages and may gain machine profiles in compatible contract releases.
+
+## Contract tree
+
+```text
+contracts/
+├── README.md
+├── schemas/
+│   ├── common.schema.json
+│   ├── run-state.schema.json
+│   ├── activity-run.schema.json
+│   ├── activity-attempt.schema.json
+│   ├── activity-result.schema.json
+│   ├── effect.schema.json
+│   ├── invocation.schema.json
+│   ├── approval.schema.json
+│   ├── worker-lease.schema.json
+│   ├── child-run-link.schema.json
+│   ├── event-envelope.schema.json
+│   ├── transition-commit.schema.json
+│   ├── capability-grant.schema.json
+│   ├── deployment-snapshot.schema.json
+│   ├── experiment-trial.schema.json
+│   ├── evaluation-run.schema.json
+│   ├── evaluation-result.schema.json
+│   ├── hard-gate-registry.schema.json
+│   ├── package-lock.schema.json
+│   └── package-installation-revision.schema.json
+├── registries/
+│   ├── effect-kinds.json
+│   ├── event-types.json
+│   ├── error-categories.json
+│   ├── hard-gates.json
+│   └── conformance-modules.json
+├── examples/
+│   └── *.example.json
+├── openapi/
+│   └── ara-api-profile.yaml
+└── asyncapi/
+    └── ara-events-profile.yaml
+```
+
+## Schema rules
+
+Every schema:
+
+- **MUST** declare JSON Schema Draft 2020-12.
+- **MUST** have a stable `$id` and explicit contract version.
+- **MUST** reject undeclared fields unless an extension point is intentional.
+- **MUST** distinguish required, optional, omitted, and nullable values.
+- **MUST** use canonical names from [Canonical conventions](/reference/conventions).
+- **MUST** define namespaced extension points where provider- or profile-specific data is permitted.
+- **MUST NOT** embed plaintext credentials, authorization headers, or private hidden reasoning.
+- **MUST** use canonical 64-hex SHA-256 strings wherever `ContentDigest` applies.
+
+Cross-record rules that JSON Schema cannot prove—such as monotonic fencing, effect reuse across activity attempts, or hard-gate aggregation—belong in contract-test and conformance suites.
+
+## Registry rules
+
+Registries are versioned immutable datasets. Each entry identifies its ID, status, semantic owner, applicability, required behavior/evidence, and replacement metadata where applicable.
+
+Serialized events, errors, effects, hard gates, and conformance modules **MUST** use registered identifiers unless a namespaced extension is declared. Duplicate IDs and silent reuse of a retired meaning are prohibited.
+
+## Example-fixture rules
+
+Each `*.example.json` file is validated against the schema with the matching base name. Fixtures are executable contract tests, not decorative prose.
+
+Documentation SHOULD link to or embed generated/copy-verified fixtures and SHOULD NOT maintain a conflicting representation. Placeholder digests are prohibited in fixtures and in parsed JSON/YAML documentation examples.
+
+## API and event-profile rules
+
+- Commands are idempotent and normally asynchronous.
+- Trusted tenant and actor scope is derived from identity/routing, not caller-supplied body fields.
+- Operational resume, evidence replay, and rerun remain distinct operations.
+- Broker delivery is at least once and does not replace the Platform Run Journal.
+- External signals are authenticated, persisted to an inbox, deduplicated, and correlated before durable execution is signaled.
+- Raw provider errors, credentials, and cross-tenant identifiers are never part of the portable profile.
+
+## Compatibility
+
+- Patch releases correct defects without intentionally changing meaning.
+- Minor releases add compatible optional fields, new registries/profiles, or enum values only with declared tolerant-reader behavior.
+- Major releases may remove or redefine fields and require migration guidance.
+- Historical events remain readable through versioned readers or upcasters.
+- Renames retain aliases until the next major release unless security requires faster removal.
+- Unknown required capability, event, hard-gate, or conformance-module identifiers produce explicit incompatibility rather than silent ignore.
+
+## Validation
+
+The pinned validation suite runs:
+
+```bash
+python -m pip install --requirement requirements-docs.txt
+python scripts/check_contracts.py
+python scripts/check_doc_consistency.py
+python -m json.tool docs.json > /dev/null
+mint validate
+mint broken-links
+```
+
+`check_contracts.py` verifies schema meta-validity, fixture conformance, canonical digests, registry uniqueness, hard-gate consistency, OpenAPI/AsyncAPI structure and references, and JSON/YAML documentation fences.
+
+A Stable ARA publication records the exact contract-tree digest, validation output, implementation/conformance evidence, and independent review. Passing contract syntax alone does not prove a conforming or operationally effective implementation.

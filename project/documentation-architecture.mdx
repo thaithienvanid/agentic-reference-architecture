@@ -1,0 +1,392 @@
+---
+title: Documentation architecture
+description: Authority, reader jobs, page contracts, machine-contract ownership, example portfolio, quality, maintenance, and publication rules for ARA.
+---
+
+# Documentation architecture
+
+> **Status: Project governance.** This page governs the documentation and contract set; it does not add runtime requirements.
+
+## Goal
+
+ARA must let a reader answer these questions without searching through competing complete explanations:
+
+| Question | Primary destination |
+|---|---|
+| What does ARA require and mean? | **Specification** |
+| What exact field, interface, lifecycle, registry, schema, or profile applies? | **Reference** and `contracts/` |
+| How do I adopt, implement, integrate, operate, or assess it? | **Guides** |
+| Why is the architecture shaped this way? | Explanation guides, ADRs, and research |
+| Which reusable composition should I apply? | **Patterns** |
+| What does a complete production scenario look like? | **Enterprise worked examples** |
+| How is ARA published, corrected, and validated? | **Project** governance |
+
+## Research basis
+
+The documentation model combines:
+
+- [Diátaxis](https://diataxis.fr/) separation of task-oriented how-to, exact reference, explanation, and learning needs.
+- [RFC 7322](https://www.rfc-editor.org/rfc/rfc7322.html) and BCP 14 discipline for clear technical publication and normative language.
+- [Google developer documentation guidance](https://developers.google.com/style) for direct, consistent, project-specific prose.
+- [JSON Schema](https://json-schema.org/draft/2020-12), [OpenAPI](https://spec.openapis.org/oas/v3.1.1.html), and [AsyncAPI](https://www.asyncapi.com/docs/reference/specification/v3.0.0) for executable representation contracts.
+- Mintlify tabs, groups, roots, landing pages, and redirects for reader navigation.
+
+ARA adds a separate normative specification layer and machine-contract layer because conformance semantics and exact interoperable representation cannot live safely inside ordinary guides or examples.
+
+## Authority order
+
+```text
+Normative specification
+    owns semantic meaning and invariants
+
+Normative reference and named machine contracts
+    own exact terminology, interfaces, lifecycles and representations
+
+Accepted ADRs
+    record consequential rationale and revisit conditions
+
+Informative guides
+    explain and operationalize canonical rules
+
+Patterns and worked examples
+    compose and demonstrate existing semantics
+
+Research and project review history
+    provide evidence and historical context
+```
+
+A lower-authority artifact may explain, operationalize, or illustrate a higher-authority rule. It must not redefine it.
+
+| Content class | Authority | Primary job |
+|---|---|---|
+| Specification | Normative | Semantics, invariants, ownership, modules, conformance |
+| Machine contract | Normative for declared representation/profile | Exact fields, schemas, registries, API/event shape |
+| Normative reference | Normative when marked | Canonical names, interfaces, lifecycles, constraints |
+| Reference profile | Optional until declared | Concrete API, protocol, backend, manifest, or telemetry mapping |
+| Reference checklist | Assessment aid | Map requirements to evidence and closed status |
+| ADR | Decision record | Context, alternatives, consequences, revisit conditions |
+| How-to guide | Informative | Complete and verify one task |
+| Explanation guide | Informative | Mental model, alternatives, trade-offs, failure modes |
+| Pattern | Informative | Reusable composition with use/avoid guidance |
+| Worked example | Informative | Complete end-to-end scenario; no new requirements |
+| Research | Evidence | Facts, inferences, ARA recommendations, dates, sources |
+| Review history | Historical | Consolidated decisions/remediation; not current authority |
+
+## Reader-facing architecture
+
+The site has five stable top-level journeys:
+
+1. **Specification** — normative semantics and composable conformance modules.
+2. **Guides** — adoption, application design, runtime integration, security, evaluation, and operations.
+3. **Reference** — exact terminology, contracts, lifecycles, interoperability profiles, checklist, and diagrams.
+4. **Patterns & examples** — reusable compositions and five complete enterprise scenarios.
+5. **Project** — decisions, releases, roadmap, research, review history, and maintenance.
+
+A new top-level tab requires reader evidence that an important job cannot be served by a landing page or navigation group.
+
+Repository authority map:
+
+```text
+specification/  normative semantic specification
+contracts/      exact machine-readable schemas, registries, fixtures and profiles
+reference/      terminology, interfaces, lifecycles, profiles, checklist and diagrams
+guides/         adoption and reader pathways
+handbook/       application, runtime, integration, security and operations guides
+evaluation/     evaluation-driven development and framework adapters
+implementation/ module layout, rollout, testing and resilience
+patterns/       reusable compositions
+examples/       enterprise worked examples
+research/       primary evidence, use cases, findings and comparisons
+decisions/      ADRs and decision guidance
+project/        documentation, release and review governance
+```
+
+The repository does not maintain a live RFC-named, standards-claiming, or second specification tree. `specification/` is the semantic authority; `contracts/` is the representation authority for declared versions.
+
+## Documentation-mode mapping
+
+| Reader need | Location |
+|---|---|
+| Follow a practical adoption path | `guides/adoption.mdx` and one worked example |
+| Build or operate a component | How-to and implementation guides |
+| Look up exact machinery | Reference pages and machine contracts |
+| Understand alternatives/trade-offs | Explanation guides, ADRs, research |
+| Determine mandatory conformance | Specification, named contracts, checklist |
+| Verify a complete system shape | Enterprise worked examples |
+
+A page normally serves one primary mode. Cross-link rather than combining procedure, lookup, rationale, and several scenarios into one book-sized page.
+
+## Reader journeys
+
+| Reader | Entry point | Expected result |
+|---|---|---|
+| Product/domain architect | Adoption guide + relevant example | Minimum justified modules and review package |
+| Application engineer | Boundaries and use cases | Correct domain/application/runtime separation |
+| Runtime engineer | Execution/runtime specification + runtime guide | Recoverable fenced runtime design |
+| Provider/protocol integrator | Interfaces + adapter/MCP/A2A/backend profile | Qualified adapter and contract tests |
+| Platform architect | Platform specification | Tenant, cell, deployment and operations design |
+| Security/risk reviewer | Security specification + threats/examples | Evidence-backed control and residual-risk review |
+| Evaluation engineer | Evaluation specification + EDD guide | Versioned evaluation contract and hard gates |
+| Conformance assessor | Specification + contracts + checklist | Reproducible module/profile claim |
+| Maintainer | This page + release governance | Consistent, reviewable semantic/contract change |
+
+## Page contracts
+
+Every public MDX page declares `title` and `description` frontmatter and states status when authority could be ambiguous.
+
+### Specification
+
+```text
+status and applicability
+terms/model and ownership
+normative requirements
+failure, security and compatibility implications
+conformance consequences
+links to exact contracts/reference
+```
+
+Use uppercase BCP 14 terms only for normative meaning. Keep tutorials, implementation procedure, and vendor mapping elsewhere.
+
+### Normative reference and machine contract
+
+```text
+status, version and scope
+canonical fields/interfaces/lifecycles/registries
+required, optional, omitted and nullable behavior
+constraints, errors and compatibility
+mechanically checkable schema and fixture
+```
+
+Machine contracts must have stable IDs/versions, reject undeclared data unless an extension point is intentional, and validate in CI.
+
+### Reference profile or checklist
+
+A profile maps a concrete transport/protocol/backend representation to ARA semantics and becomes binding only when declared. A checklist maps canonical requirements to evidence and closed statuses; it cannot weaken, strengthen, or replace the owner.
+
+### How-to guide
+
+```text
+outcome
+prerequisites
+ordered actions and decisions
+failure/security/operations handling
+validation and evidence
+avoidance or next step
+```
+
+A component inventory without an executable procedure is explanation, not how-to.
+
+### Explanation guide
+
+```text
+problem/question
+mental model
+alternatives and trade-offs
+failure, security, cost and operational implications
+decision guidance
+canonical links
+```
+
+### Pattern
+
+```text
+intent
+use when / avoid when
+structure and participants
+state, failure, security and cost behavior
+evaluation and observability
+concrete application
+```
+
+A pattern composes existing semantics; it does not add a universal core type for every technique.
+
+### Worked example
+
+Every full example states:
+
+```text
+why the enterprise scenario is selected
+business outcome and non-goals
+applicable modules
+bounded contexts and exact resource versions
+workflow/activity/effect/invocation map
+state, artifacts, lineage, telemetry, audit and usage
+security and human authority
+failure injection and recovery
+evaluation contract, hard gates and metrics
+limitations and what the scenario teaches
+```
+
+The maintained ARA 1.0 portfolio is intentionally small:
+
+```text
+software change delivery
+customer service case resolution
+IT incident response
+procure-to-pay exception resolution
+synthetic research experiment
+```
+
+A new full example must introduce a materially different trust boundary, execution shape, conformance need, or high-demand domain. Otherwise extend a pattern or an existing example.
+
+### Research and review history
+
+Research distinguishes **Fact**, **Inference**, and **ARA Recommendation**, cites primary sources per material claim, records reviewed version/date, and states uncertainty. Comparison matrices define their scoring rubric and assumptions. Review history consolidates durable decisions/remediation without becoming current authority.
+
+## Canonical ownership
+
+| Concern | Canonical owner |
+|---|---|
+| Scope, modules, invariants, publication identity | `specification/index.mdx` |
+| Clean/Hexagonal boundaries and application use cases | `specification/boundaries-and-use-cases.mdx` |
+| Resource/version/deployment semantics | `specification/resource-model.mdx` |
+| Activity/effect/invocation/retry/iteration/child semantics | `specification/execution-model.mdx` |
+| Kernel/runtime/lease/journal/atomic commit/recovery | `specification/runtime.mdx` |
+| State/context/memory/artifacts/evidence | `specification/data-and-evidence.mdx` |
+| Planes/cells/tenancy/marketplace | `specification/platform.mdx` |
+| Security invariants | `specification/security-and-governance.mdx` |
+| Evaluation, hard gates, conformance modules | `specification/evaluation-and-conformance.mdx` |
+| Naming/serialization | `reference/conventions.mdx` |
+| Port signatures | `reference/interfaces.mdx` |
+| Lifecycle states | `reference/lifecycles.mdx` |
+| State/event representations | `reference/events-and-state.mdx` and matching schemas |
+| Machine-contract inventory/compatibility | `reference/contract-catalog.mdx` + `contracts/` |
+| Conformance evidence record | `reference/conformance-checklist.mdx` |
+| Enterprise example portfolio | `examples/index.mdx` |
+| Publication/versioning/errata | `project/releases-and-errata.mdx` |
+| Documentation governance | `project/documentation-architecture.mdx` |
+
+Summaries link to these owners instead of maintaining independent complete definitions.
+
+## Duplication review
+
+Before retaining content, ask:
+
+1. Does it answer a different reader question from the canonical owner?
+2. Does it add procedure, rationale, lookup value, evidence mapping, pattern, or one complete scenario?
+3. Can copied definitions or lists be generated or replaced with links?
+4. Can the owner change without reviewers remembering another full copy?
+5. Is authority obvious from title and first screen?
+6. Does navigation match the page’s primary job?
+7. Does an example or fixture conflict with a machine contract?
+
+If not, merge useful material into the owner, preserve the public URL with a redirect, and remove the duplicate.
+
+## Content budgets
+
+| Page/artifact | Default unit |
+|---|---|
+| Specification page | One semantic boundary or conformance concern |
+| Normative reference | One coherent contract/lifecycle family |
+| Machine schema | One independently versionable representation |
+| Registry | One identifier namespace |
+| Checklist | One composable assessment path |
+| How-to | One verifiable reader outcome |
+| Explanation | One mental model or decision cluster |
+| Pattern | One reusable composition |
+| Worked example | One complete scenario |
+| Landing page | Entry choices and minimal orientation |
+
+A page is long enough to finish its job and no longer. Do not split merely to increase page count or combine topics merely to imitate a book.
+
+## Change propagation
+
+A semantic change is complete only when affected artifacts agree:
+
+```text
+specification rule
+-> normative reference and machine schema/registry
+-> executable fixture and contract validation
+-> conformance checklist and test kit
+-> ADR when consequential
+-> guides and decision tables
+-> diagrams
+-> worked examples and manifests
+-> evaluation gates and datasets
+-> compatibility/migration/release/redirects
+-> deterministic documentation checks
+```
+
+Classify every change as semantic, representation/profile, procedural/explanatory, navigation/redirect, research/evidence, or project history.
+
+## Navigation rules
+
+- Keep five top-level tabs stable without reader evidence for change.
+- Give each major section a landing page.
+- Use task-oriented group names and short page lists.
+- Put a page where its intended reader looks, not where a code-owning team sits.
+- Do not list one page in multiple navigation locations; cross-link.
+- Navigate every public MDX page or explicitly mark it hidden/draft.
+- A redirect source must not shadow a live page.
+- Preserve moved URLs through compatibility review.
+- Keep machine contracts outside Mintlify page inventory but link them from Reference and repository views.
+
+## Quality model
+
+| Dimension | Review question |
+|---|---|
+| Correctness | Does content match semantic owners, machine contracts, and current primary sources? |
+| Findability | Can the intended reader reach it and the next task quickly? |
+| Authority clarity | Is specification, contract, profile, procedure, example, research, or history obvious? |
+| Completeness | Can the artifact finish its stated job, including failure and validation? |
+| Economy | Is it free of competing definitions and unnecessary repetition? |
+| Reproducibility | Are versions, commits, digests, environments, evidence, dates and assumptions explicit? |
+| Maintainability | Can semantic/contract changes propagate predictably and mechanically? |
+
+## Content lifecycle and review triggers
+
+```text
+proposal -> draft -> reviewed -> candidate -> published
+-> corrected or versioned -> deprecated -> redirected or archived
+```
+
+Review is triggered by semantic terminology/boundary changes; schema/interface/event/lifecycle/module/profile changes; stale provider/legal/security claims; failed page or contract checks; navigation moves; repeated reader confusion; new example domains; and release baselines.
+
+Machine contracts are immutable within a published release. Compatible readers/upcasters and explicit new versions handle evolution.
+
+## Reader evidence and continuous improvement
+
+Review search failures, repeated backtracking, broken inbound links, time to task, completion, support questions, weak onward navigation, accessibility findings, contract failures, implementation divergence, and conformance gaps.
+
+Before Stable publication, representative readers should be able to:
+
+```text
+select composable modules
+find effect-versus-invocation and retry semantics
+implement atomic fenced runtime commits
+implement provider and protocol failure handling
+trace an ambiguous mutation through reconciliation
+use a worked example to build one vertical slice
+locate machine schemas and validate fixtures
+prepare a reproducible conformance claim
+find publication status and errata
+```
+
+Analytics guide review but do not replace reader testing or independent implementation.
+
+## Publication and errata
+
+Stable publications identify semantic version, publication commit/digest, contract release/tree digest, validation evidence, known deviations, and independent review. Corrections and semantic/representation changes follow [Releases, versions, and errata](/project/releases-and-errata). Published history is never silently rewritten.
+
+## Quality gates
+
+CI verifies:
+
+- Valid `docs.json` with exactly five tabs.
+- Existing, unique navigation targets and group roots.
+- No unintended orphan or duplicate public page.
+- Required specification, reference, guide, example, research, and governance pages.
+- Frontmatter and authority boundaries.
+- How-to, checklist, portfolio, and documentation-governance contracts.
+- No live retired RFC/audit/competing specification tree.
+- Unique redirects with no live-page shadowing.
+- Canonical terminology, conformance modules, gates, state transitions, money, digests, and publication identity.
+- JSON Schema meta-validity and fixture conformance.
+- Registry uniqueness and hard-gate consistency.
+- OpenAPI/AsyncAPI structure and references.
+- JSON/YAML code fences.
+- Mintlify validation and internal links.
+
+## Maintenance principle
+
+> Prefer one authoritative definition and executable contract plus several purposeful views over several nearly identical complete documents.

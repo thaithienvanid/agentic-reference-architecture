@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ara.dev/contracts/1.0/schemas/capability-grant.schema.json",
+  "title": "ARA CapabilityGrant",
+  "type": "object",
+  "required": [
+    "contractVersion",
+    "grantId",
+    "subject",
+    "audience",
+    "tenant",
+    "capabilities",
+    "constraints",
+    "issuedAt",
+    "expiresAt",
+    "delegationDepthRemaining",
+    "provenance"
+  ],
+  "properties": {
+    "contractVersion": { "const": "1.0.0" },
+    "grantId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "parentGrantId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "subject": { "$ref": "common.schema.json#/$defs/ActorIdentity" },
+    "audience": { "type": "string", "minLength": 1 },
+    "tenant": { "$ref": "common.schema.json#/$defs/TenantScope" },
+    "capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["operation", "resource"],
+        "properties": {
+          "operation": { "type": "string", "pattern": "^[a-z][a-z0-9_.:-]*$" },
+          "resource": { "type": "string", "minLength": 1 },
+          "conditions": { "type": "object" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "constraints": {
+      "type": "object",
+      "required": ["regions", "dataClassifications", "networkDestinations"],
+      "properties": {
+        "regions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "dataClassifications": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "networkDestinations": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "secretPurposes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "memoryScopes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "maximumCost": { "$ref": "common.schema.json#/$defs/Money" }
+      },
+      "additionalProperties": false
+    },
+    "issuedAt": { "$ref": "common.schema.json#/$defs/Instant" },
+    "expiresAt": { "$ref": "common.schema.json#/$defs/Instant" },
+    "delegationDepthRemaining": { "type": "integer", "minimum": 0 },
+    "budgetAllocationRef": { "type": "string", "minLength": 1 },
+    "policyDecisionRefs": {
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+      "uniqueItems": true
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["issuer", "reason", "digest"],
+      "properties": {
+        "issuer": { "$ref": "common.schema.json#/$defs/ActorIdentity" },
+        "reason": { "type": "string", "minLength": 1 },
+        "digest": { "$ref": "common.schema.json#/$defs/ContentDigest" }
+      },
+      "additionalProperties": false
+    },
+    "extensions": { "$ref": "common.schema.json#/$defs/Extensions" }
+  },
+  "additionalProperties": false
+}

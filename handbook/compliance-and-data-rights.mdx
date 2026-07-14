@@ -1,0 +1,112 @@
+---
+title: Compliance mapping and data rights
+description: Applicability-oriented control mapping, shared-responsibility boundaries, retention, erasure, legal hold, and evidence design.
+---
+
+# Compliance mapping and data rights
+
+> **Status: Informative.** This architecture provides control mechanisms and evidence patterns; it does not certify compliance or replace legal, privacy, security, or conformity assessment.
+
+**Research review date:** July 12, 2026. Regulatory applicability and dates must be revalidated for each deployment.
+
+## Shared-responsibility model
+
+| Responsibility | Platform | Application/domain owner | Tenant/operator | External assurance |
+|---|---|---|---|---|
+| Durable run evidence, access controls, policy hooks | Provides mechanisms | Configures domain requirements | Operates identities and data | Audits implementation/effectiveness |
+| Intended purpose and risk classification | Supplies metadata fields | Owns intended use and prohibited use | Approves deployment context | Legal/regulatory determination |
+| Dataset and model suitability | Supplies lineage/evaluation contracts | Validates domain fitness | Selects approved routes | Independent testing where required |
+| Human oversight | Supplies action-bound approval and escalation | Defines decision authority | Assigns trained approvers | Governance/conformity review |
+| Data rights and retention | Supplies scoped storage, lineage, deletion workflow | Defines lawful retention/use | Processes requests and legal holds | Privacy/legal review |
+
+## EU AI Act-oriented capability map
+
+The European Commission describes high-risk system obligations including risk management, data quality/governance, logging and traceability, documentation, human oversight, accuracy, robustness, and cybersecurity. The architecture maps these capability areas as follows:
+
+| Capability area | ARA mechanism | Primary evidence |
+|---|---|---|
+| Intended purpose and risk management | Versioned deployment metadata, risk classification, ADRs, evaluation suite | Deployment snapshot, decision records, risk register |
+| Data governance | Provenance, classification, context recipes, dataset versions, memory lifecycle | Dataset cards, lineage graph, access and deletion records |
+| Logging and traceability | Canonical run journal, audit ledger, effect/invocation identity | Event sequence, policy decisions, effect and invocation records |
+| Technical documentation | Manifests, interfaces, model/tool cards, architecture docs | Signed release and documentation bundle |
+| Human oversight | Action-bound approval, escalation, pause/resume, normalized approval view | Approval request/decision, authority and expiry evidence |
+| Accuracy and robustness | Deterministic tests, semantic/trajectory evaluation, environment tests, canaries | Evaluation results, incident and rollback records |
+| Cybersecurity | Least privilege, gateways, sandboxing, signed packages, threat model | Policy, sandbox, supply-chain and security-test evidence |
+
+Applicability depends on the system’s intended purpose, role in the value chain, deployment context, and current law. See the [European Commission AI Act overview](https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai) and the [official regulation text](https://eur-lex.europa.eu/eli/reg/2024/1689/oj).
+
+## NIST AI RMF GenAI profile alignment
+
+NIST AI 600-1 organizes GenAI risk-management actions under GOVERN, MAP, MEASURE, and MANAGE. ARA supports those functions through:
+
+- **GOVERN:** ownership, policies, risk tiers, package governance, decision records, independent review.
+- **MAP:** intended purpose, actors, affected populations, data/model/tool dependencies, regional and tenant context.
+- **MEASURE:** versioned datasets, evaluator calibration, red-team cases, production slices, uncertainty and residual-risk reporting.
+- **MANAGE:** promotion gates, capability reduction, fallback, revocation, incident response, rollback, and continuous monitoring.
+
+The profile also emphasizes feedback, independent assessment, provenance, privacy, and the ability to withdraw or revoke data where applicable. See [NIST AI 600-1](https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.600-1.pdf).
+
+## GDPR and privacy-rights architecture
+
+The platform must not assume that an immutable event log permits retaining personal data indefinitely. The recommended design separates durable event metadata from erasable payloads.
+
+```text
+Canonical event metadata
+  -> payload digest + protected payload reference
+
+Sensitive payload
+  -> tenant/subject-scoped encryption key
+  -> retention and legal-hold policy
+
+Deletion workflow
+  -> authenticate request and determine scope
+  -> resolve lineage and derived copies
+  -> apply legal-hold exceptions
+  -> delete payloads and rebuild derived indexes
+  -> destroy eligible encryption keys
+  -> append non-sensitive deletion evidence
+```
+
+### Required deletion capabilities
+
+- Subject, tenant, artifact, memory, conversation, and dataset lookup by authoritative lineage.
+- Deletion propagation to caches, vector/search indexes, evaluation copies, exports, and pending jobs.
+- Tombstones preventing accidental rehydration from stale replicas or imports.
+- Legal-hold records that identify the authority, scope, and expiry of retained data.
+- Backup-expiry policy and restore procedures that reapply deletion tombstones.
+- Auditable completion and exception reporting.
+
+### Crypto-shredding limitations
+
+Destroying a scoped encryption key can make protected payloads inaccessible while preserving non-sensitive event evidence. It is one technical mechanism, not an automatic legal determination that erasure obligations are satisfied. Shared keys, plaintext exports, provider retention, backups, model training, and derived data require separate treatment.
+
+See the [official GDPR text](https://eur-lex.europa.eu/eli/reg/2016/679/oj).
+
+## Retention classes
+
+Retention must be policy-resolved rather than embedded as unexplained labels such as `regulated-7y`.
+
+```text
+retentionPolicyRef
+legalBasisRef
+purposeRef
+subjectScope
+minimum/maximum period
+legalHoldRef
+payloadDeletionMode
+metadataRetentionMode
+```
+
+## Control assurance
+
+Before regulated or high-impact use, perform:
+
+- Applicability and role analysis.
+- Data protection impact assessment where required.
+- Model and vendor due diligence.
+- Accessibility and human-oversight design review.
+- Independent security testing and red teaming.
+- Evidence-retention and deletion rehearsal.
+- Incident, recall, rollback, and regulator/customer notification planning.
+
+The architecture should state unmet obligations explicitly rather than implying that architectural controls alone create compliance.

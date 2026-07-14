@@ -1,0 +1,13 @@
+{
+  "contractVersion": "1.0.0",
+  "activityAttemptId": "activity_attempt_create_order_01",
+  "activityRunId": "activity_run_create_order_01",
+  "ordinal": 1,
+  "inputSnapshotRef": "artifact://sha256/1111111111111111111111111111111111111111111111111111111111111111",
+  "inputDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "status": "running",
+  "workerLeaseIds": ["worker_lease_01K2L"],
+  "createdAt": "2026-07-12T08:03:50Z",
+  "startedAt": "2026-07-12T08:03:51Z",
+  "updatedAt": "2026-07-12T08:04:14Z"
+}

@@ -1,0 +1,287 @@
+---
+title: Execution model
+description: Canonical semantics for agent and workflow runs, activities, retries, iterations, branches, effects, invocations, worker leases, child execution, and experiments.
+---
+
+# Execution model
+
+> **Status: Normative**
+
+## Naming rule
+
+`Run` is reserved for an independently addressable, durable logical execution. Subordinate scopes use qualified nouns rather than another generic `Run`.
+
+```text
+ExecutionPlanRun
+└── WorkflowRun
+    └── ActivityRun
+        ├── ActivityAttempt       optional whole-activity restart
+        ├── ExecutionBranch      optional parallel candidate/path
+        ├── Iteration            optional sequential cycle with updated state
+        └── Effect               zero or more logical external/nondeterministic operations
+            └── Invocation       zero or more concrete adapter/provider calls
+
+WorkerLease                     temporary runtime ownership; not logical work
+```
+
+The core does not define unqualified `Step`, `Round`, `AttemptRun`, `TrialRun`, `SubAgent`, `SubWorkflow`, or `ExecutionEpisode`.
+
+## Agent run and workflow run
+
+ARA uses one workflow execution substrate:
+
+```text
+AgentVersion
+└── entryWorkflowVersionRef
+
+AgentRun
+├── agentVersionRef
+├── taskSnapshotRef
+├── rootWorkflowRunId
+├── capability and budget allocation
+└── resultRef
+
+WorkflowRun
+└── performs executable control flow
+```
+
+An independent `AgentRun` **MUST** own exactly one root `WorkflowRun`. An inline `AgentActivity` references an `AgentVersion` but creates no independent `AgentRun`. A child agent creates a separate `AgentRun` and root `WorkflowRun` through a delegation contract.
+
+## Workflow and activity
+
+A `WorkflowVersion` defines control flow, typed activities, dependencies, bindings, policies, budgets, and completion.
+
+A `WorkflowRun` is one durable execution of that exact version.
+
+An `Activity` is one semantic unit of workflow work. An `ActivityRun` is one logical execution of that activity.
+
+An activity is atomic at the boundary where independent input/output contracts, policy, budget, retry, evaluation, or observability matter. If internal work has meaningful dependencies, branches, waits, or several activities, it **SHOULD** be modeled as a referenced workflow rather than an opaque step list.
+
+BPMN uses Activity as the general work concept and Task for an atomic unit; durable workflow systems similarly separate activity identity, execution, and retry attempts. ARA adopts `Activity` while keeping its runtime model framework-independent.
+
+## Activity kinds
+
+```text
+TaskActivity        deterministic local logic
+ModelActivity       one bounded model effect
+AgentActivity       bounded multi-effect agent behavior in the parent lifecycle
+ToolActivity        one explicit capability effect
+HumanActivity       approval, review, or data entry
+WorkflowActivity    reference to another WorkflowVersion
+DecisionActivity    guarded branch selection
+ParallelActivity    fork with explicit join
+IterationActivity   repeated body with a completion policy
+EventActivity       wait for a correlated external event
+TimerActivity       durable time wait
+EvaluationActivity  explicit quality/safety assessment
+```
+
+## Execution intent, runtime control, effect, and invocation
+
+These four concepts have different scopes:
+
+| Concept | Meaning |
+|---|---|
+| `ExecutionIntent` | Pure decision emitted by the Execution Kernel about what should happen next |
+| `RuntimeControlOperation` | Internal coordination such as journal/state commit, checkpoint, lease, queue, deterministic policy evaluation, or telemetry export |
+| `Effect` | Semantically material external or nondeterministic operation whose outcome may affect execution |
+| `Invocation` | One concrete adapter/provider call used to realize, poll, cancel, or reconcile an effect |
+
+Default classification:
+
+| Operation | Effect? |
+|---|---|
+| Model generation | Yes |
+| External tool/API | Yes |
+| Governed memory read/write | Yes |
+| Artifact write to governed storage | Yes |
+| Human approval request | Yes |
+| External-agent task | Yes |
+| Sandbox execution | Yes |
+| Durable timer or external-event subscription | Yes |
+| Child-run start | Yes, represented as `child_run.start` |
+| Journal/state/outbox commit | No; runtime control |
+| Worker-lease acquire/renew/release | No; runtime control |
+| Checkpoint write | No; runtime control |
+| Deterministic local policy evaluation | No; record `PolicyDecision` |
+| Best-effort telemetry export | No; runtime control/evidence delivery |
+
+An implementation MAY classify additional semantically material operations as effects but **MUST NOT** hide an external mutation or nondeterministic result as an unrecorded runtime-control operation.
+
+## Activity attempt
+
+An `ActivityAttempt` exists only when the complete `ActivityRun` restarts from its declared retry boundary using the same immutable activity input snapshot.
+
+```text
+ActivityRun: render-report
+├── ActivityAttempt 1 -> process failure before durable result
+└── ActivityAttempt 2 -> succeeds
+```
+
+Worker loss does not automatically create an activity attempt. If the activity resumes from durable state, it remains the same `ActivityRun` under a new `WorkerLease`.
+
+### Effect reuse across attempts
+
+`ActivityAttempt` is execution provenance, not logical effect identity.
+
+- A completed effect from an earlier attempt **MUST** be reused.
+- An ambiguous effect **MUST** be reconciled before a new mutating invocation.
+- A denied, cancelled, or failed effect remains recorded.
+- A changed prompt, context, arguments, tool, objective, data policy, or authority creates a new effect.
+- A new invocation MAY be added to an existing effect.
+
+A stable `semanticEffectKey` SHOULD be derived from:
+
+```text
+activityRunId
++ semanticEffectSlot
++ normalizedInputDigest
++ authorityScopeDigest
+```
+
+It **MUST NOT** depend on a random invocation ID or activity-attempt ordinal.
+
+## Worker lease
+
+A `WorkerLease` is temporary infrastructure ownership:
+
+```typescript
+interface WorkerLease {
+  leaseId: LeaseId;
+  runId: RunId;
+  activityRunId?: ActivityRunId;
+  workerId: WorkerId;
+  fencingToken: bigint;
+  acquiredAt: Instant;
+  expiresAt: Instant;
+}
+```
+
+An expired worker **MUST NOT** commit after a newer fencing token has been issued. Lease changes are infrastructure evidence and do not create new logical work.
+
+## Effect and invocation
+
+An `Effect` is one logical request to cross the deterministic state boundary. An `Invocation` is one concrete adapter/provider call used to realize or reconcile that effect.
+
+```text
+ActivityRun -> 0..N Effects
+Effect      -> 0..N Invocations
+Invocation  -> exactly one Effect
+```
+
+An effect may have zero invocations when policy denies it, cancellation occurs before dispatch, evidence replay supplies the historical result, or an approved exact cache satisfies it.
+
+Example:
+
+```text
+Effect: create purchase order
+├── Invocation 1: execute POST; response lost
+├── Invocation 2: reconcile by idempotency key
+└── EffectResult: succeeded; order already existed
+```
+
+A safe transport retry, poll, cancellation request, or reconciliation query creates another `Invocation` for the same effect. A semantic retry that changes behaviorally or legally material input creates a new `Effect`.
+
+Adapters **SHOULD** disable hidden automatic retries or surface them as invocation evidence. Otherwise cost, rate-limit, and reconciliation records are incomplete.
+
+## Effect impact
+
+Each effect declares independent impact dimensions rather than one overloaded side-effect label:
+
+```typescript
+interface EffectImpact {
+  determinism: "nondeterministic" | "externally_determined";
+  dataAccess: "none" | "read" | "write";
+  mutation: "none" | "idempotent" | "reversible" | "irreversible";
+  externality: "internal_service" | "external_service" | "human";
+  compensability: "not_applicable" | "compensatable" | "mitigatable" | "not_compensatable";
+}
+```
+
+A model call is normally nondeterministic compute with external data exposure but no business mutation. A payment may be an irreversible external write that is only mitigatable.
+
+## Iteration
+
+An `Iteration` is an intentional sequential cycle that consumes updated state, evidence, or objectives.
+
+```text
+Iteration 1 -> discover contradictions
+Iteration 2 -> investigate unresolved contradictions
+```
+
+A domain may expose a qualified name such as `DeliberationRound`, `InterviewRound`, or `TournamentRound`; each maps to an `Iteration`.
+
+## Execution branch
+
+An `ExecutionBranch` is an independent parallel path, candidate, or local variant inside an activity strategy. Branches consume explicit input snapshots and return immutable results. They **MUST NOT** mutate shared state directly.
+
+Each activity execution record MAY carry:
+
+```text
+activityRunId
+activityId
+activityAttemptId?
+branchId?
+iterationId?
+parentRunId?
+rootRunId
+executionScopePath
+```
+
+A join consumes exact `ActivityRunId` or explicit deterministic join-result references, not an ambiguous activity name.
+
+## Experiment extension
+
+Trials belong to an experiment/evaluation bounded context, not the universal runtime core:
+
+```text
+ExperimentRun
+├── ExperimentVariant A
+│   ├── ExperimentTrial A1 -> ExecutionSubjectRef
+│   └── ExperimentTrial A2 -> ExecutionSubjectRef
+└── ExperimentVariant B
+    └── ExperimentTrial B1 -> ExecutionSubjectRef
+```
+
+An `ExecutionSubjectRef` may identify an `AgentRun`, `WorkflowRun`, or `ExecutionPlanRun`. An `ExperimentTrial` is one independent repetition from a frozen baseline. It is not a retry. A lightweight implementation may store experiment ID, variant ID, trial ordinal, and baseline-snapshot reference directly on the execution subject instead of creating a separate trial aggregate.
+
+A provider-native term such as Harbor `Trial` maps to this evaluation-domain concept only when it represents an independent repetition. It never maps to an invocation retry.
+
+## Inline and child execution
+
+A `WorkflowActivity` or `AgentActivity` may execute in two modes:
+
+- **Inline:** compiled into the parent `WorkflowRun`; no independent run identity.
+- **Child:** starts a separate `WorkflowRun` or `AgentRun` with its own state, result, budget, deadline, failure status, cancellation, capability grant, and evidence.
+
+“Child” is a runtime relationship, not a resource type.
+
+## Explicit data binding
+
+```text
+Activity A completes
+-> validate result
+-> commit result and events
+-> evolve workflow state
+-> resolve Activity B bindings to exact execution instances
+-> create immutable input snapshot
+-> start Activity B
+```
+
+Bindings **MUST** specify whether they consume:
+
+- One exact `ActivityRun` result.
+- All results from one branch set.
+- Results from one iteration.
+- A deterministic join result.
+- An exact artifact or prior-run reference.
+
+Retries of the same logical activity **SHOULD** reuse the same activity input snapshot. A new iteration or semantic effect may receive a new snapshot.
+
+## Qualified use of step and round
+
+- `PlanStep`: proposed item in a plan artifact.
+- `UIProgressStep` or `RunTimelineStep`: presentation projection.
+- `DeliberationRound`: domain label for an iteration.
+
+Unqualified `Step` and `Round` are not canonical runtime entities.

@@ -1,0 +1,88 @@
+---
+title: Research findings
+description: Traceable architectural and documentation principles extracted from primary product documentation, specifications, and papers.
+---
+
+# Research findings
+
+**Retrieval/review date:** July 13, 2026. Product and protocol behavior is time-sensitive; revalidate the linked primary source before relying on a claim in a release or procurement decision.
+
+## Evidence labels
+
+- **Fact:** directly documented public behavior in the linked primary source.
+- **Inference:** a reasonable architectural conclusion from that behavior; not a claim about private implementation.
+- **ARA Recommendation:** the design choice adopted by this specification.
+
+## Execution, security, and operating environment
+
+| Traceable evidence | Inference | ARA Recommendation |
+|---|---|---|
+| **Fact:** [OpenAI Codex documents separate technical sandbox capability and approval policy](https://developers.openai.com/codex/agent-approvals-security). [Claude Code documents permissions, sandboxing, hooks, and security controls](https://code.claude.com/docs/en/security). | Prompt instructions cannot reliably enforce filesystem, network, secret, or mutation authority. | Enforce capability, policy, sandbox, credential, approval, budget, and resource-side authorization around effects. |
+| **Fact:** [Temporal documents deterministic Workflow replay and Event History](https://docs.temporal.io/workflows), while [Activities represent external work](https://docs.temporal.io/activities). | Durable state evolution and external/nondeterministic work need separate contracts. | Keep a pure `ExecutionKernel`, typed `Effect`/`Invocation`, and a backend-neutral `DurableExecutionPort`; do not expose backend history as the public ARA model. |
+| **Fact:** [LangGraph documents checkpoints, threads, durable execution, and stores](https://docs.langchain.com/oss/python/langgraph/persistence). | Framework state, checkpoints, and long-term memory are useful but serve different scopes and should not become one universal enterprise model. | Translate graph/framework objects at adapters; separate run state, checkpoint, context, memory, artifact, and evidence. |
+| **Fact:** [BPMN defines Activity as a general work concept](https://www.omg.org/spec/BPMN/2.0.2/). Temporal also separates Activity definitions/executions from attempts. | A semantic work unit needs a precise definition/runtime distinction, while generic “step” is overloaded. | Use `Activity` and `ActivityRun`; qualify plan/UI steps, iterations, branches, and activity attempts. |
+| **Fact:** Distributed lease and lock systems use expiring ownership; [the Chubby paper](https://research.google/pubs/the-chubby-lock-service-for-loosely-coupled-distributed-systems/) describes sequencing tokens for stale-client protection. | Expiring ownership alone does not stop a resumed stale worker from committing. | Use `WorkerLease` plus monotonic fencing and verify it in the atomic execution commit. |
+
+## Frameworks, orchestrators, and platform boundaries
+
+| Traceable evidence | Inference | ARA Recommendation |
+|---|---|---|
+| **Fact:** [Airflow](https://airflow.apache.org/docs/apache-airflow/stable/index.html), [Dagster](https://docs.dagster.io/), and [Prefect](https://docs.prefect.io/v3/get-started) emphasize scheduled/data/Python workflows, state, and recovery. | Data orchestrators are strong for ingestion, batch inference, asset production, and evaluation pipelines, but not automatically the primary interactive agent runtime. | Use them as data/evaluation-plane adapters unless their lifecycle semantics satisfy the selected ARA modules. |
+| **Fact:** [Dify](https://docs.dify.ai/) and [Langflow](https://docs.langflow.org/) expose visual workflows/components and integrations. | Visual authoring is a control-plane capability; authoring graphs need translation and validation before deployment. | Import/compile visual definitions into immutable ARA resources and deployment snapshots rather than adopting their native node model as the universal domain. |
+| **Fact:** [MCP 2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25) standardizes hosts, clients, servers, tools, resources, prompts, sampling, roots, and elicitation. | Protocol interoperability does not supply local tenancy, effect durability, or authorization. | Map MCP at tool/resource/context edges and reauthorize every effect locally. |
+| **Fact:** [A2A](https://a2a-protocol.org/latest/specification/) standardizes external agent discovery, tasks, messages, artifacts, streaming, idempotency, and version negotiation. | A remote task lifecycle is not the local workflow state machine, and a peer policy decision is not local authority. | Map remote tasks to collaboration effects, preserve remote evidence, and keep local run state, grants, budgets, and policy authoritative. |
+
+## Evaluation and evidence
+
+| Traceable evidence | Inference | ARA Recommendation |
+|---|---|---|
+| **Fact:** [DeepEval documents component- and trace-level agent evaluation](https://deepeval.com/guides/guides-ai-agent-evaluation), including planning, tool use, task completion, and efficiency. | Final-text quality alone cannot evaluate an agent trajectory. | Evaluate plans, tool choice, arguments, effects, policy, efficiency, and terminal outcome through `EvaluationPort`. |
+| **Fact:** [Harbor documents tasks executed in controlled environments with verifiers](https://www.harborframework.com/docs/core-concepts). | Semantic judgment and environment-state verification are complementary. | Combine deterministic/environment verifiers with semantic, trajectory, human, and online evaluation. |
+| **Fact:** [OpenTelemetry defines portable telemetry](https://opentelemetry.io/docs/), while GenAI conventions remain an evolving mapping. | Sampled vendor telemetry cannot be the sole source of execution truth, audit, billing, or replay. | Own stable run/effect/invocation/audit/usage schemas; map them to pinned telemetry conventions at an adapter. |
+| **Fact:** [NIST AI 600-1](https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.600-1.pdf) emphasizes lifecycle governance, measurement, provenance, monitoring, human oversight, security, and residual risk. | Evaluation must be versioned, risk-based, continuous, and tied to the deployed configuration. | Make evaluation contracts and hard gates part of deployable behavior and conformance evidence. |
+
+## Enterprise use-case findings
+
+| Traceable evidence | Inference | ARA Recommendation |
+|---|---|---|
+| **Fact:** [GitHub documents its cloud coding agent handling repository research, planning, bug fixes, incremental features, tests, documentation, technical debt, merge conflicts, and draft pull requests](https://docs.github.com/en/copilot/concepts/agents/cloud-agent/about-cloud-agent). | Software change delivery is a stateful sandbox workflow with repository, CI, review, and provenance boundaries. | Maintain a complete software-delivery example with human merge authority. |
+| **Fact:** [ServiceNow publicly positions AI agents for customer service, incident resolution, security/risk, employee workflows, accounts payable, procurement, and supplier lifecycle](https://www.servicenow.com/products/ai-agents.html). | High-demand enterprise agent systems commonly coordinate existing cases, roles, systems, policies, SLAs, and audit evidence. | Use customer service, incident response, and procure-to-pay as distinct examples rather than one generic “enterprise agent.” |
+| **Fact:** [SAP lists Joule assistants for buying, category management, procurement contracts, receivables, cash, and treasury](https://www.sap.com/products/artificial-intelligence/ai-assistant.html). | Finance and procurement require document reasoning plus exact arithmetic, segregation of duties, system-of-record mutation, and reconciliation. | Use a procure-to-pay exception workflow to teach high-integrity effects and approval binding. |
+
+See [Enterprise agentic use-case research](/research/enterprise-use-cases) for selection criteria and additional candidates.
+
+## Machine-readable specification findings
+
+| Traceable evidence | Inference | ARA Recommendation |
+|---|---|---|
+| **Fact:** [JSON Schema Draft 2020-12](https://json-schema.org/draft/2020-12), [OpenAPI 3.1.1](https://spec.openapis.org/oas/v3.1.1.html), and [AsyncAPI 3.0.0](https://www.asyncapi.com/docs/reference/specification/v3.0.0) provide machine-readable representation contracts. | Pseudocode and prose alone allow independently reasonable but incompatible implementations. | Publish schemas, registries, fixtures, and optional API/event profiles, and validate them in CI. |
+| **Fact:** [CloudEvents](https://github.com/cloudevents/spec) provides an interoperable event envelope, and [W3C PROV-O](https://www.w3.org/TR/prov-o/) provides provenance concepts. | Integration standards help at boundaries but do not define ARA’s authoritative run semantics. | Permit CloudEvents/PROV adapters while retaining the Platform Run Journal and ARA lineage identities. |
+
+## Documentation-architecture findings
+
+| Traceable evidence | Inference | ARA Recommendation |
+|---|---|---|
+| **Fact:** [Diátaxis](https://diataxis.fr/) separates tutorials, how-to guides, reference, and explanation. | Different reader jobs should not compete in one book-sized page. | Maintain Specification, Guides, Reference, Patterns & examples, and Project journeys. |
+| **Fact:** [The RFC Editor defines RFCs as publications in the RFC Series](https://www.rfc-editor.org/series/rfc/). | An independent architecture publication should not use RFC as its stable normative root unless it participates in that series. | Use `specification/`; reserve a future `rfcs/` area only for design proposals. |
+| **Fact:** [RFC 7322](https://www.rfc-editor.org/rfc/rfc7322.html) stresses clear, consistent technical publication, and [BCP 14](https://www.rfc-editor.org/rfc/rfc8174.html) constrains normative keywords. | Terms need one owner and normative language must be unambiguous. | Keep semantics in the specification, exact representations in normative reference/contracts, and lower-authority pages linked rather than duplicated. |
+| **Fact:** [Mintlify supports tabs, roots, groups, and redirects](https://www.mintlify.com/docs/organize/navigation). | Navigation and compatibility are part of documentation architecture. | Keep five reader journeys, one navigation location per page, landing pages, and redirects that do not shadow live content. |
+
+## What must not enter the portable core
+
+```text
+provider SDK request/response classes
+framework graph-state and node classes
+durable-engine history types
+vector-database hit classes
+MCP/A2A session and remote-task objects
+OpenTelemetry span objects
+evaluation-framework test-case objects
+cloud-specific resource handles
+plaintext provider credentials
+```
+
+## Uncertainty and private architecture
+
+For products whose private internals are not published, ARA limits factual claims to public specifications, source repositories, interfaces, and documented behavior. Architectural inferences are labeled and do not claim reverse-engineering knowledge.
+
+The five-tab documentation model, composable conformance modules, execution ontology, contract tree, and example portfolio are ARA recommendations. External sources provide evidence and constraints; they do not mandate the exact ARA design.

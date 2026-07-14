@@ -1,0 +1,96 @@
+---
+title: Review and refinement history
+description: Consolidated record of the architecture, terminology, documentation, security, operations, and release-readiness reviews applied to ARA 1.0.
+---
+
+# Review and refinement history
+
+> **Status: Project review record.** Current requirements live in the [ARA specification](/specification/index) and marked normative [Reference](/reference/index) pages.
+
+## Scope
+
+ARA 1.0 was refined through repeated architecture, terminology, distributed-systems, security, evaluation, enterprise-platform, marketplace, and documentation reviews. This page preserves the durable conclusions without retaining superseded drafts or duplicate audit reports.
+
+## Consolidated decisions
+
+- Use one stable-resource to immutable-version to durable-execution grammar.
+- Reserve `Run` for independently addressable durable executions.
+- Use `Activity`, `ActivityRun`, `ActivityAttempt`, `ExecutionBranch`, `Iteration`, `Effect`, `Invocation`, and `WorkerLease` with one meaning each.
+- Keep `ExperimentTrial` in the experiment/evaluation bounded context rather than the universal runtime kernel.
+- Separate the Execution Kernel, Runtime Service, durable backend, Run Journal, Effect Ledger, workers, and governed gateways.
+- Treat model output as a proposal; deterministic code, policy, resource authorization, and humans protect invariants.
+- Keep domain state, workflow state, context, memory, artifacts, checkpoints, telemetry, audit, usage, and evaluation distinct.
+- Make evaluation contracts, hard gates, replay evidence, cost governance, tenant isolation, and recovery part of production readiness.
+- Use one normative `specification/` root, exact `reference/` contracts, task-oriented guides, reusable patterns, worked examples, and explicit project governance.
+
+## Terminology and path decision
+
+The normative directory is `specification/`. Former `/rfc` URLs redirect for compatibility.
+
+The RFC Editor describes RFCs as documents in the RFC Series produced through defined publication streams. ARA is an independent technical specification, not an RFC Series publication or a formal standards-body standard. The project may reserve `rfcs/` in the future for an explicit design-proposal process without confusing proposals with the published specification.
+
+## Documentation cleanup
+
+The final documentation architecture is:
+
+```text
+specification/  normative semantics and conformance
+reference/      exact contracts, schemas, profiles, and checklist
+guides/         adoption and reader pathways
+handbook/       application, runtime, integration, security, and operations guides
+evaluation/     evaluation-driven development and adapters
+implementation/ repository layout, rollout, testing, and resilience
+patterns/       reusable compositions
+examples/       complete scenarios
+decisions/      ADRs and decision guidance
+research/       primary evidence and comparisons
+project/        publication and documentation governance
+```
+
+Duplicate specification summaries and dated audit pages were removed or consolidated. Historical public paths are retained through redirects rather than live duplicate documents.
+
+## Major review outcomes
+
+### Contract and terminology consistency
+
+- Unified stable identity, immutable version, and runtime execution naming.
+- Separated whole-activity restart, worker resume, semantic iteration, experiment repetition, effect identity, and concrete invocation.
+- Normalized policy identifiers, money representation, event names, sequence fields, state transitions, port names, and journal ownership.
+- Established one canonical hard-gate registry and one source for each major semantic concern.
+
+### Security, compliance, and governance
+
+- Added deterministic effect authorization, action-bound approval, inter-agent authentication, replay protection, sink-specific output controls, and package capability grants.
+- Added tenant isolation, data-rights, legal-hold, deletion, backup-restore, and tamper-evidence guidance.
+- Distinguished technical conformance from legal certification, security attestation, and operational assurance.
+
+### Runtime and operational readiness
+
+- Defined the Execution Kernel, Runtime Service, durable execution boundary, WorkerLease fencing, Run Journal, Effect Ledger, and reconciliation model.
+- Added load, soak, chaos, disaster recovery, sandbox, provider withdrawal, model lifecycle, cost governance, and release-evidence requirements.
+- Clarified that logical parallelism is scheduled through physical provider, tenant, budget, and regional capacity controls.
+
+### Evaluation-driven development
+
+- Combined deterministic tests, semantic and trajectory evaluation, environment verification, adversarial testing, human review, and online feedback.
+- Positioned DeepEval and Harbor as replaceable evaluation adapters rather than owners of production execution semantics.
+- Defined experiment variants and independent trials without placing generic trial concepts in the runtime core.
+
+### Documentation architecture
+
+- Separated normative specification, exact reference, how-to guidance, explanation, patterns, examples, research, and project governance.
+- Added task-oriented adoption, runtime, adapter, and conformance paths.
+- Added release/errata governance, canonical ownership, redirects, page contracts, and automated consistency checks.
+
+## Release readiness
+
+ARA 1.0 remains a candidate until the final merge ref passes:
+
+```bash
+python scripts/check_doc_consistency.py
+python -m json.tool docs.json > /dev/null
+mint validate
+mint broken-links
+```
+
+A stable publication records the semantic version, exact commit or digest, validation evidence, known deviations, and open errata.

@@ -1,0 +1,15 @@
+{
+  "contractVersion": "1.0.0",
+  "approvalId": "approval_01K2C",
+  "runId": "run_01K2A",
+  "activityRunId": "activity_run_create_order_01",
+  "effectId": "effect_01K2B",
+  "actionDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "policyVersionRef": "high-value-purchase-approval@5.0.0",
+  "capabilityGrantRef": "capability_grant_01K2G",
+  "expectedStateVersion": 27,
+  "requiredRoles": ["procurement_manager", "finance_controller"],
+  "decisions": [],
+  "status": "pending",
+  "expiresAt": "2026-07-14T10:00:00Z"
+}

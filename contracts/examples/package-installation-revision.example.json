@@ -1,0 +1,35 @@
+{
+  "contractVersion": "1.0.0",
+  "installationId": "package_installation_01K2I",
+  "revision": 7,
+  "tenant": {
+    "tenantId": "tenant_acme_eu",
+    "workspaceId": "workspace_procurement",
+    "homeRegion": "eu-west"
+  },
+  "packageReleaseRef": "com.example.procurement-suite@2.4.0",
+  "packageLockRef": "package_lock_01K2P",
+  "packageLockDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "requestedCapabilities": [
+    "contract.read",
+    "vendor.read",
+    "erp.purchase_order.create"
+  ],
+  "grantedCapabilities": [
+    "contract.read",
+    "vendor.read",
+    "erp.purchase_order.create"
+  ],
+  "configurationRef": "artifact://sha256/2222222222222222222222222222222222222222222222222222222222222222",
+  "configurationDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+  "secretPurposeRefs": ["tenant-erp-purchase-order-writer"],
+  "verificationResultRefs": [
+    "evaluation_result_tenant_isolation_01",
+    "evaluation_result_sandbox_smoke_01"
+  ],
+  "status": "active",
+  "previousRevision": 6,
+  "createdAt": "2026-07-13T09:00:00Z",
+  "activatedAt": "2026-07-13T10:00:00Z",
+  "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+}

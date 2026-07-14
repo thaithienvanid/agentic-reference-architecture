@@ -1,0 +1,186 @@
+---
+title: Canonical conventions
+description: Normative naming grammar, serialization, identifiers, versions, execution scopes, money, time, events, package resolution, and compatibility.
+---
+
+# Canonical conventions
+
+> **Status: Normative reference.** APIs, manifests, schemas, examples, telemetry mappings, and adapters follow this profile.
+
+## Naming grammar
+
+| Scope | Rule | Examples |
+|---|---|---|
+| Stable catalog identity | Plain singular noun | `Agent`, `Workflow`, `Tool`, `Prompt`, `Policy` |
+| Immutable behavior/configuration | `Version` suffix | `AgentVersion`, `WorkflowVersion`, `ToolVersion` |
+| Immutable distribution artifact | `Release` suffix | `PackageRelease` |
+| Exact dependency resolution | `Lock` suffix | `PackageLock` |
+| Independently durable execution | `Run` suffix | `WorkflowRun`, `AgentRun`, `ExecutionPlanRun` |
+| Subordinate whole-work retry | Qualified `Attempt` | `ActivityAttempt`; never generic `AttemptRun` |
+| Intentional sequential repetition | Plain noun | `Iteration` |
+| Parallel path or candidate | Qualified noun | `ExecutionBranch` |
+| Logical external/nondeterministic operation | Plain noun | `Effect` |
+| Concrete adapter/provider call | Plain noun | `Invocation` |
+| Temporary worker ownership | `Lease` suffix | `WorkerLease` |
+| Experiment replicate | Qualified domain noun | `ExperimentTrial` |
+| Immutable execution input | `Snapshot` suffix | `InputSnapshot`, `ContextSnapshot`, `DeploymentSnapshot` |
+| Committed output | `Result` suffix | `ActivityResult`, `EvaluationResult` |
+| Immutable content | `Artifact` | `Artifact`, `EvidenceArtifact` |
+
+The normative core does not define unqualified `Step`, `Round`, `AttemptRun`, `TrialRun`, `SubAgent`, `SubWorkflow`, or `ExecutionEpisode`.
+
+Qualified names are allowed where semantics are explicit: `PlanStep`, `UIProgressStep`, `RunTimelineStep`, and `DeliberationRound`.
+
+## Resource references
+
+Human-readable immutable references use:
+
+```text
+<name>@<semantic-version>
+```
+
+Example: `purchase-order.create@4.2.1`.
+
+Production deployments resolve every reference to an exact content digest. Versions communicate compatibility intent; digests identify exact content.
+
+## Identifiers
+
+Identifiers are opaque strings with a type prefix where useful:
+
+```text
+run_01K2A
+activity_run_12
+activity_attempt_2
+branch_01K2B
+iteration_01K2T
+effect_01K2E
+invocation_01K2I
+worker_lease_01K2L
+```
+
+Clients **MUST NOT** infer tenant, time, order, or authority from an identifier.
+
+## Execution-scope fields
+
+| Field | Meaning |
+|---|---|
+| `rootRunId` | Top-most durable run for one execution tree |
+| `parentRunId` | Immediate parent run when child execution exists |
+| `runId` | Owning run for the record |
+| `activityId` | Activity identity inside one `WorkflowVersion` |
+| `activityRunId` | One logical execution instance of an activity |
+| `activityAttemptId` | Optional whole-activity restart provenance |
+| `branchId` | Optional parallel candidate/path scope |
+| `iterationId` | Optional intentional sequential-cycle scope |
+| `executionScopePath` | Stable ordered scope path for lineage and joins |
+
+`ActivityId` and `ActivityRunId` are not interchangeable. Bindings and committed results use execution-instance identity.
+
+## Effect impact
+
+Effects declare independent dimensions rather than one overloaded side-effect enum:
+
+```text
+determinism: nondeterministic | externally_determined
+dataAccess: none | read | write
+mutation: none | idempotent | reversible | irreversible
+externality: internal_service | external_service | human
+compensability: not_applicable | compensatable | mitigatable | not_compensatable
+```
+
+A model call can be nondeterministic external compute with no business mutation. A payment can be an irreversible external write that is only mitigatable.
+
+## Money and quantities
+
+Money is a decimal string plus ISO 4217 currency:
+
+```json
+{ "amount": "8.00", "currency": "USD" }
+```
+
+Binary floating-point serialization is prohibited for money.
+
+## Time and duration
+
+- Instants use RFC 3339 UTC timestamps.
+- Durations use ISO 8601 durations.
+- Deadlines are absolute instants.
+- Timeouts are durations.
+- Timestamps record both event occurrence and durable recording when those may differ.
+
+## Event naming
+
+Canonical serialized event types use dotted lowercase and MUST appear in the versioned event registry:
+
+```text
+run.started
+activity.completed
+effect.planned
+invocation.started
+invocation.completed
+approval.requested
+```
+
+Namespaced extensions use a reverse-domain or package prefix. Language classes may be PascalCase if an explicit adapter mapping exists.
+
+## Version and sequence fields
+
+| Field | Meaning |
+|---|---|
+| `contractVersion` | Version of one machine-readable contract family |
+| `schemaVersion` | Serialized payload schema version |
+| `stateVersion` | Optimistic-concurrency version of current state |
+| `aggregateVersion` | Version of the emitting aggregate |
+| `runSequence` | Monotonic canonical event order within one run |
+| `attemptOrdinal` | Order of qualified activity attempts |
+| `invocationOrdinal` | Order of invocations for one effect |
+| `iterationOrdinal` | Order of intentional iterations |
+| `trialOrdinal` | Order of experiment trials within a variant |
+| `fencingToken` | Monotonic authority token for WorkerLease commits |
+
+These fields are not interchangeable.
+
+## Properties and enums
+
+Serialized property names use `camelCase`. Enum values use `snake_case` unless an external protocol requires another representation.
+
+Unknown enum values are rejected unless the applicable contract explicitly declares tolerant-reader behavior. Unknown namespaced extension fields may be retained without interpretation when the schema permits them.
+
+## Context and tenancy
+
+Every protected state, artifact, memory, event, audit, usage, and adapter operation carries trusted tenant/workspace context derived from authenticated identity and routing.
+
+Telemetry MAY use a pseudonymous tenant correlation ID rather than a raw business identifier. The privileged mapping remains outside ordinary telemetry systems.
+
+## Payloads
+
+Large or sensitive content is stored by immutable reference and digest. Canonical events contain metadata and protected payload references rather than duplicating full content.
+
+Secrets are represented by purpose/profile references. Plaintext credentials MUST NOT be serialized into ARA contracts.
+
+## Optional values
+
+Omitted means not supplied or not applicable. `null` is used only when the schema assigns it a distinct meaning.
+
+## Package constraints and locks
+
+`PackageRelease` and compatibility manifests MAY declare version constraints. Before activation:
+
+```text
+constraints
+-> PackageLock with exact versions and digests
+-> PackageInstallationRevision
+-> DeploymentSnapshot
+```
+
+Activated installation revisions and production deployments **MUST NOT** contain unresolved version ranges, mutable tags, or `latest` references.
+
+## Compatibility and migration
+
+- Published versions and historical events are immutable.
+- Compatible schema changes use new versions and readers/upcasters.
+- Renames require an alias/deprecation map for a bounded migration.
+- Required unknown capability, gate, or contract identifiers cause explicit incompatibility.
+- Machine-readable contracts use versioned `$id` values and published digests.
+- Examples that share an identifier describe the same scenario.
+- A semantic change updates specification, contracts, registries, examples, conformance evidence, and migration guidance together.

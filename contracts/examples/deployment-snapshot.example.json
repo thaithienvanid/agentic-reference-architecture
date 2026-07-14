@@ -1,0 +1,55 @@
+{
+  "contractVersion": "1.0.0",
+  "deploymentSnapshotId": "deployment_snapshot_01K2S",
+  "environment": "production",
+  "resourceVersions": [
+    {
+      "kind": "agent",
+      "ref": "procurement-order-agent@5.2.0",
+      "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+    },
+    {
+      "kind": "workflow",
+      "ref": "procurement-order@3.0.0",
+      "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+    },
+    {
+      "kind": "model_routing_profile",
+      "ref": "eu-enterprise-models@3.0.0",
+      "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+    },
+    {
+      "kind": "policy_bundle",
+      "ref": "procurement-production-policy@7.0.0",
+      "digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+    },
+    {
+      "kind": "hard_gate_registry",
+      "ref": "enterprise-agent-safety@1.0.0",
+      "digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+    }
+  ],
+  "packageInstallations": [
+    {
+      "installationId": "package_installation_01K2I",
+      "revision": 7,
+      "digest": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+      "packageLockDigest": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+    }
+  ],
+  "contractVersions": {
+    "runtime": "1.0.0",
+    "events": "1.0.0",
+    "manifests": "1.0.0",
+    "apiProfile": "1.0.0",
+    "eventProfile": "1.0.0",
+    "mcpProfile": "2025-11-25",
+    "a2aProfile": "1.0",
+    "durableBackendProfile": "1.0.0"
+  },
+  "validFrom": "2026-07-12T08:00:00Z",
+  "expiresAt": "2026-08-12T08:00:00Z",
+  "digest": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+  "signatureRef": "sigstore://bundle/sha256/9999999999999999999999999999999999999999999999999999999999999999",
+  "provenanceRef": "provenance://sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+}

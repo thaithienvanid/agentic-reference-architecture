@@ -1,0 +1,79 @@
+{
+  "registry": "ara.effect-kinds",
+  "registryVersion": "1.0.0",
+  "entries": [
+    {
+      "id": "model.generate",
+      "status": "active",
+      "semanticOwner": "specification/execution-model",
+      "description": "Request nondeterministic model generation or structured output.",
+      "defaultImpact": {
+        "determinism": "nondeterministic",
+        "dataAccess": "read",
+        "mutation": "none",
+        "externality": "external_service",
+        "compensability": "not_applicable"
+      }
+    },
+    {
+      "id": "tool.invoke",
+      "status": "active",
+      "semanticOwner": "specification/execution-model",
+      "description": "Invoke a qualified tool or external API; exact impact is declared by ToolVersion."
+    },
+    {
+      "id": "memory.read",
+      "status": "active",
+      "semanticOwner": "specification/data-and-evidence",
+      "description": "Read governed reusable memory or a derived retrieval view."
+    },
+    {
+      "id": "memory.write",
+      "status": "active",
+      "semanticOwner": "specification/data-and-evidence",
+      "description": "Create, supersede, or revoke governed memory."
+    },
+    {
+      "id": "artifact.write",
+      "status": "active",
+      "semanticOwner": "specification/data-and-evidence",
+      "description": "Persist immutable content and lineage in governed artifact storage."
+    },
+    {
+      "id": "approval.request",
+      "status": "active",
+      "semanticOwner": "specification/security-and-governance",
+      "description": "Request action-bound human approval or typed human input."
+    },
+    {
+      "id": "timer.schedule",
+      "status": "active",
+      "semanticOwner": "specification/runtime",
+      "description": "Schedule a durable timer or deadline wake-up."
+    },
+    {
+      "id": "event.subscribe",
+      "status": "active",
+      "semanticOwner": "specification/runtime",
+      "description": "Create a durable correlated wait for an authenticated external event."
+    },
+    {
+      "id": "child_run.start",
+      "status": "active",
+      "semanticOwner": "specification/execution-model",
+      "description": "Start an independently durable child WorkflowRun or AgentRun."
+    },
+    {
+      "id": "sandbox.execute",
+      "status": "active",
+      "semanticOwner": "specification/security-and-governance",
+      "description": "Execute code or customer/package workloads inside a governed sandbox."
+    },
+    {
+      "id": "external_agent.task",
+      "status": "active",
+      "semanticOwner": "reference/a2a-profile",
+      "description": "Start or continue a task on an external agent through a collaboration adapter."
+    }
+  ]
+}

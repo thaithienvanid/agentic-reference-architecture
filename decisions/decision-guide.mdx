@@ -1,0 +1,87 @@
+---
+title: Architecture decision guide
+description: Practical decision trees for workflows, agents, retry scope, experiments, state, isolation, and platform scope.
+---
+
+# Architecture decision guide
+
+> **Status: Informative.** Canonical names are defined by the [ARA specification](/specification/index).
+
+## Deterministic or agentic?
+
+```mermaid
+flowchart TB
+    Known{"Can code or rules determine the correct next action?"}
+    Deterministic["Deterministic workflow"]
+    Cognition{"Is one bounded model transformation sufficient?"}
+    Model["ModelActivity"]
+    Choice{"Must a model choose among several legal actions?"}
+    Agent["AgentActivity"]
+    Independent{"Needs independent lifecycle or authority?"}
+    Child["Child AgentRun"]
+
+    Known -->|Yes| Deterministic
+    Known -->|No| Cognition
+    Cognition -->|Yes| Model
+    Cognition -->|No| Choice
+    Choice -->|No| Deterministic
+    Choice -->|Yes| Independent
+    Independent -->|No| Agent
+    Independent -->|Yes| Child
+```
+
+## Activity or workflow?
+
+Use an activity for one bounded semantic unit with one input and result contract. Use a referenced workflow when internal work has dependencies, branches, waits, several activities, or separately meaningful policy or evaluation.
+
+## Inline or child?
+
+Use inline execution when work shares parent state, budget, cancellation, and lifecycle. Use a child `WorkflowRun` or `AgentRun` when it needs independent identity, state, budget, deadline, permissions, cancellation, failure, result, or evaluation.
+
+## Workflow or execution plan?
+
+Use a workflow to coordinate activities inside one run. Use an execution plan when separate workflow runs have independent versions, ownership, schedules, decisions, or cross-day dependencies.
+
+## Which repetition or retry concept?
+
+| Situation | Use |
+|---|---|
+| Complete activity restarts from its boundary | `ActivityAttempt` |
+| Worker resumes durable work after lease loss | New `WorkerLease` |
+| One provider call retries, polls, or reconciles | New `Invocation` for the same `Effect` |
+| Prompt, context, arguments, or objective changes | New `Effect` |
+| Intentional sequential cycle | `Iteration` |
+| Independent parallel candidate | `ExecutionBranch` |
+| Independent experimental replicate | `ExperimentTrial` |
+| User-visible phase | Qualified `UIProgressStep` |
+| Discussion cycle | Qualified `DeliberationRound` mapped to `Iteration` |
+
+## State, artifact, or memory?
+
+| Data | Store |
+|---|---|
+| Small control value | Workflow state |
+| Small typed result | Activity result |
+| Large or reusable content | Artifact |
+| Reusable governed knowledge | Memory record |
+| Business truth | Domain aggregate or reference |
+| Resume optimization | Checkpoint |
+
+## Library, service, durable backend, or actor?
+
+- Kernel library: pure state evolution and local tests.
+- Runtime Service: tenant-aware distributed coordination.
+- Durable backend: timers, signals, suspension, and recovery behind `DurableExecutionPort`.
+- Lease or actor: temporary serialization and ownership.
+- Production default: combine them without making one abstraction own every concern.
+
+## Shared or dedicated tenancy?
+
+Start shared with strict tenant keys, quotas, and gateways. Move through schemas and tenant databases to dedicated cells when risk, residency, noisy-neighbor exposure, performance, or contract justifies the cost.
+
+## Bundle, service, application, or platform?
+
+- A bundle groups related versioned assets.
+- A service exposes a callable operational contract.
+- An application adds domain outcomes and UX.
+- A platform supports many services, applications, teams, and tenants.

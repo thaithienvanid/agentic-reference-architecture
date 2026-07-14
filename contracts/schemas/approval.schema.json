@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ara.dev/contracts/1.0/schemas/approval.schema.json",
+  "title": "ARA Approval",
+  "type": "object",
+  "required": [
+    "contractVersion",
+    "approvalId",
+    "runId",
+    "activityRunId",
+    "effectId",
+    "actionDigest",
+    "policyVersionRef",
+    "capabilityGrantRef",
+    "expectedStateVersion",
+    "requiredRoles",
+    "status",
+    "expiresAt"
+  ],
+  "properties": {
+    "contractVersion": { "const": "1.0.0" },
+    "approvalId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "runId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "activityRunId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "effectId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "actionDigest": { "$ref": "common.schema.json#/$defs/ContentDigest" },
+    "policyVersionRef": { "type": "string", "minLength": 1 },
+    "capabilityGrantRef": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "expectedStateVersion": { "type": "integer", "minimum": 0 },
+    "requiredRoles": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["decisionId", "actor", "decision", "decidedAt", "actionDigest"],
+        "properties": {
+          "decisionId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+          "actor": { "$ref": "common.schema.json#/$defs/ActorIdentity" },
+          "decision": { "type": "string", "enum": ["approve", "deny"] },
+          "decidedAt": { "$ref": "common.schema.json#/$defs/Instant" },
+          "actionDigest": { "$ref": "common.schema.json#/$defs/ContentDigest" },
+          "commentRef": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "created",
+        "delivered",
+        "delivery_failed",
+        "pending",
+        "approved",
+        "denied",
+        "expired",
+        "revoked",
+        "cancelled",
+        "consumed",
+        "invalidated"
+      ]
+    },
+    "expiresAt": { "$ref": "common.schema.json#/$defs/Instant" },
+    "consumedAt": { "$ref": "common.schema.json#/$defs/Instant" },
+    "extensions": { "$ref": "common.schema.json#/$defs/Extensions" }
+  },
+  "additionalProperties": false
+}

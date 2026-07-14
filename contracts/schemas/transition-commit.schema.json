@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ara.dev/contracts/1.0/schemas/transition-commit.schema.json",
+  "title": "ARA atomic transition commit",
+  "type": "object",
+  "$defs": {
+    "LedgerMutation": {
+      "type": "object",
+      "required": ["entityId", "operation"],
+      "properties": {
+        "entityId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+        "operation": {
+          "type": "string",
+          "enum": ["insert", "transition", "append_evidence", "reconcile", "reserve", "release"]
+        },
+        "expectedStatus": { "type": "string", "minLength": 1 },
+        "nextStatus": { "type": "string", "minLength": 1 },
+        "payloadDigest": { "$ref": "common.schema.json#/$defs/ContentDigest" },
+        "payloadRef": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "OutboxEvent": {
+      "type": "object",
+      "required": ["eventId", "eventType", "schemaVersion", "payloadDigest"],
+      "properties": {
+        "eventId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+        "eventType": { "type": "string", "pattern": "^[a-z][a-z0-9_.-]*$" },
+        "schemaVersion": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+        "payloadDigest": { "$ref": "common.schema.json#/$defs/ContentDigest" },
+        "payloadRef": { "type": "string", "minLength": 1 },
+        "destination": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "contractVersion",
+    "runId",
+    "expectedStateVersion",
+    "expectedRunSequence",
+    "events",
+    "nextState",
+    "effectMutations",
+    "invocationMutations",
+    "approvalMutations",
+    "budgetMutations",
+    "outboxEvents"
+  ],
+  "properties": {
+    "contractVersion": { "const": "1.0.0" },
+    "runId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "expectedStateVersion": { "type": "integer", "minimum": 0 },
+    "expectedRunSequence": { "type": "integer", "minimum": 0 },
+    "workerLeaseId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "fencingToken": { "type": "integer", "minimum": 0 },
+    "events": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["eventType", "schemaVersion", "payloadDigest"],
+        "properties": {
+          "eventType": { "type": "string", "pattern": "^[a-z][a-z0-9_.-]*$" },
+          "schemaVersion": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+          "payloadDigest": { "$ref": "common.schema.json#/$defs/ContentDigest" },
+          "payloadRef": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      }
+    },
+    "nextState": { "$ref": "run-state.schema.json" },
+    "effectMutations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/LedgerMutation" }
+    },
+    "invocationMutations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/LedgerMutation" }
+    },
+    "approvalMutations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/LedgerMutation" }
+    },
+    "budgetMutations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/LedgerMutation" }
+    },
+    "outboxEvents": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/OutboxEvent" }
+    },
+    "extensions": { "$ref": "common.schema.json#/$defs/Extensions" }
+  },
+  "dependentRequired": {
+    "workerLeaseId": ["fencingToken"],
+    "fencingToken": ["workerLeaseId"]
+  },
+  "additionalProperties": false
+}

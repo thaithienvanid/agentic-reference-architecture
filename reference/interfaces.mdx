@@ -1,0 +1,377 @@
+---
+title: Reference interfaces
+description: Canonical framework-neutral application, execution, capability, governance, evidence, and integration ports with fenced atomic commit semantics.
+---
+
+# Reference interfaces
+
+> **Status: Normative reference.** TypeScript-like pseudocode expresses semantics, not a required implementation language. Machine-readable representations live under `/contracts`.
+
+## Shared types
+
+```typescript
+type Result<T, E = PortError> =
+  | { ok: true; value: T }
+  | { ok: false; error: E };
+
+interface EffectImpact {
+  determinism: "nondeterministic" | "externally_determined";
+  dataAccess: "none" | "read" | "write";
+  mutation: "none" | "idempotent" | "reversible" | "irreversible";
+  externality: "internal_service" | "external_service" | "human";
+  compensability:
+    | "not_applicable"
+    | "compensatable"
+    | "mitigatable"
+    | "not_compensatable";
+}
+
+interface ExecutionContext {
+  tenant: TenantScope;
+  actor: ActorIdentity;
+  rootRunId?: RunId;
+  parentRunId?: RunId;
+  runId?: RunId;
+  activityRunId?: ActivityRunId;
+  activityAttemptId?: ActivityAttemptId;
+  branchId?: ExecutionBranchId;
+  iterationId?: IterationId;
+  executionScopePath?: string;
+  deploymentSnapshotRef: DeploymentSnapshotRef;
+  policyBundleRef: PolicyBundleVersionRef;
+  correlationId: string;
+  causationId?: EventId;
+  deadline: Instant;
+  dataClassification: DataClassification;
+  residencyRegion: Region;
+  capabilityGrant: CapabilityGrant;
+}
+
+interface InvocationContext extends ExecutionContext {
+  effectId: EffectId;
+  semanticEffectKey: string;
+  invocationId: InvocationId;
+  workerLeaseId?: WorkerLeaseId;
+  fencingToken?: bigint;
+}
+
+interface ExecutionCommitContext extends ExecutionContext {
+  runId: RunId;
+  expectedStateVersion: number;
+  expectedRunSequence: number;
+  workerLeaseId?: WorkerLeaseId;
+  fencingToken?: bigint;
+}
+
+interface PortError {
+  category: ErrorCategory;
+  code: string;
+  message: string;
+  retryable: boolean;
+  safeToRetry: boolean;
+  effectMayHaveOccurred: boolean;
+  retryAfter?: Duration;
+  externalReference?: string;
+  detailsRef?: ProtectedPayloadRef;
+}
+```
+
+`ErrorCategory`, effect kind, event type, and hard-gate IDs come from versioned registries under `/contracts/registries`.
+
+## Inbound application use cases
+
+```typescript
+interface AgentManagementUseCases {
+  createAgent(ctx: ApplicationContext, command: CreateAgent): Promise<Result<AgentRef>>;
+  publishVersion(ctx: ApplicationContext, command: PublishAgentVersion): Promise<Result<AgentVersionRef>>;
+  deprecateVersion(ctx: ApplicationContext, command: DeprecateAgentVersion): Promise<Result<void>>;
+}
+
+interface WorkflowManagementUseCases {
+  createWorkflow(ctx: ApplicationContext, command: CreateWorkflow): Promise<Result<WorkflowRef>>;
+  validateVersion(ctx: ApplicationContext, command: ValidateWorkflowVersion): Promise<Result<ValidationResult>>;
+  publishVersion(ctx: ApplicationContext, command: PublishWorkflowVersion): Promise<Result<WorkflowVersionRef>>;
+}
+
+interface DeploymentUseCases {
+  compileSnapshot(ctx: ApplicationContext, command: CompileDeployment): Promise<Result<DeploymentSnapshotRef>>;
+  promote(ctx: ApplicationContext, command: PromoteDeployment): Promise<Result<EnvironmentDeploymentRef>>;
+  rollback(ctx: ApplicationContext, command: RollbackDeployment): Promise<Result<EnvironmentDeploymentRef>>;
+}
+
+interface RunCommandUseCases {
+  start(ctx: ApplicationContext, command: StartRun): Promise<Result<RunRef>>;
+  pause(ctx: ApplicationContext, command: PauseRun): Promise<Result<void>>;
+  resume(ctx: ApplicationContext, command: ResumeRun): Promise<Result<void>>;
+  cancel(ctx: ApplicationContext, command: CancelRun): Promise<Result<void>>;
+  signal(ctx: ApplicationContext, command: SignalRun): Promise<Result<void>>;
+  rerun(ctx: ApplicationContext, command: CounterfactualRerun): Promise<Result<RunRef>>;
+}
+
+interface ApprovalUseCases {
+  decide(ctx: ApplicationContext, command: DecideApproval): Promise<Result<ApprovalRef>>;
+  revoke(ctx: ApplicationContext, command: RevokeApproval): Promise<Result<void>>;
+}
+
+interface EvaluationUseCases {
+  start(ctx: ApplicationContext, command: StartEvaluation): Promise<Result<EvaluationRunRef>>;
+  assessConformance(ctx: ApplicationContext, command: AssessConformance): Promise<Result<ConformanceAssessmentRef>>;
+}
+
+interface MarketplaceUseCases {
+  publish(ctx: ApplicationContext, command: PublishPackageRelease): Promise<Result<PackageReleaseRef>>;
+  install(ctx: ApplicationContext, command: InstallPackage): Promise<Result<PackageInstallationRevisionRef>>;
+  upgrade(ctx: ApplicationContext, command: UpgradePackage): Promise<Result<PackageInstallationRevisionRef>>;
+  rollback(ctx: ApplicationContext, command: RollbackPackage): Promise<Result<PackageInstallationRevisionRef>>;
+  quarantine(ctx: ApplicationContext, command: QuarantinePackage): Promise<Result<void>>;
+  revoke(ctx: ApplicationContext, command: RevokePackage): Promise<Result<void>>;
+}
+```
+
+Commands are tenant-scoped and idempotent where duplicate delivery is possible. Queries use separate read interfaces and **MUST NOT** mutate authoritative state.
+
+## Execution Kernel
+
+```typescript
+interface ExecutionKernel {
+  evolve(state: RunState, event: RunEvent): RunState;
+  decide(
+    state: RunState,
+    workflow: WorkflowVersion,
+    deployment: DeploymentSnapshot
+  ): readonly ExecutionIntent[];
+}
+
+type ExecutionIntent =
+  | { type: "start_activity"; activityId: ActivityId; input: ActivityInputSnapshotRef }
+  | { type: "restart_activity"; activityRunId: ActivityRunId; at: Instant }
+  | { type: "request_effect"; effect: EffectDraft }
+  | { type: "complete"; result: ExecutionResultDraft }
+  | { type: "fail"; failure: RunFailure };
+```
+
+`ExecutionIntent` is a pure decision. Runtime-control writes and provider calls occur outside the kernel.
+
+All semantically material waits and delegated starts use `request_effect`:
+
+```text
+human approval request       -> human.approval Effect
+durable timer                -> timer.schedule Effect
+external-event subscription  -> event.wait Effect
+child WorkflowRun/AgentRun    -> child_run.start Effect
+external-agent collaboration -> external_agent.task Effect
+```
+
+After the effect is durably planned, the kernel evolves the run into the corresponding waiting projection. Journal writes, lease changes, checkpoints, deterministic policy evaluation, and best-effort telemetry remain `RuntimeControlOperation`s and do not create recursive effects.
+
+## Atomic execution commit
+
+```typescript
+interface LedgerMutation {
+  entityId: string;
+  operation:
+    | "insert"
+    | "transition"
+    | "append_evidence"
+    | "reconcile"
+    | "reserve"
+    | "release";
+  expectedStatus?: string;
+  nextStatus?: string;
+  payloadDigest?: ContentDigest;
+  payloadRef?: ProtectedPayloadRef;
+}
+
+interface TransitionCommit {
+  events: readonly NewRunEvent[];
+  nextState: RunState;
+  effectMutations: readonly LedgerMutation[];
+  invocationMutations: readonly LedgerMutation[];
+  approvalMutations: readonly LedgerMutation[];
+  budgetMutations: readonly LedgerMutation[];
+  outboxEvents: readonly IntegrationEvent[];
+}
+
+interface ExecutionCommitPort {
+  commit(
+    ctx: ExecutionCommitContext,
+    transition: TransitionCommit
+  ): Promise<Result<CommitReceipt, CommitError>>;
+}
+```
+
+The implementation **MUST** verify expected state version, run sequence, and current fencing token before committing the complete unit atomically. The serialized owner is `contracts/schemas/transition-commit.schema.json`.
+
+## Capability ports
+
+```typescript
+interface ModelPort {
+  capabilities(ctx: ExecutionContext, model: ModelRef): Promise<Result<ModelCapabilities>>;
+  invoke(ctx: InvocationContext, request: ModelRequest): AsyncIterable<ModelEvent>;
+  cancel(ctx: InvocationContext, invocationId: InvocationId): Promise<Result<void>>;
+}
+
+interface ToolPort {
+  describe(ctx: ExecutionContext, tool: ToolRef): Promise<Result<ToolDescriptor>>;
+  invoke(ctx: InvocationContext, request: ToolRequest): Promise<Result<ToolResponse>>;
+  status(ctx: InvocationContext, operation: ExternalOperationRef): Promise<Result<OperationStatus>>;
+  cancel(ctx: InvocationContext, operation: ExternalOperationRef): Promise<Result<void>>;
+}
+
+interface MemoryPort {
+  search(ctx: InvocationContext, query: MemoryQuery): Promise<Result<readonly MemoryHit[]>>;
+  put(ctx: InvocationContext, record: NewMemoryRecord, idempotencyKey: string): Promise<Result<MemoryRef>>;
+  revoke(ctx: InvocationContext, record: MemoryRef, reason: string): Promise<Result<void>>;
+}
+
+interface ArtifactStorePort {
+  put(ctx: InvocationContext, artifact: ArtifactDraft): Promise<Result<ArtifactRef>>;
+  get(ctx: ExecutionContext, artifact: ArtifactRef): Promise<Result<ArtifactDescriptor>>;
+  open(ctx: ExecutionContext, artifact: ArtifactRef): AsyncIterable<Uint8Array>;
+}
+
+interface SandboxPort {
+  execute(ctx: InvocationContext, request: SandboxExecution): Promise<Result<SandboxResult>>;
+  status(ctx: InvocationContext, execution: SandboxExecutionRef): Promise<Result<SandboxStatus>>;
+  cancel(ctx: InvocationContext, execution: SandboxExecutionRef): Promise<Result<void>>;
+}
+
+interface HumanApprovalPort {
+  deliver(ctx: InvocationContext, request: ApprovalRequest): Promise<Result<ApprovalDeliveryRef>>;
+  status(ctx: InvocationContext, approval: ApprovalRef): Promise<Result<ApprovalStatus>>;
+  revoke(ctx: InvocationContext, approval: ApprovalRef, reason: string): Promise<Result<void>>;
+}
+
+interface ExternalAgentPort {
+  describe(ctx: ExecutionContext, agent: ExternalAgentRef): Promise<Result<ExternalAgentDescriptor>>;
+  invoke(ctx: InvocationContext, request: ExternalAgentTaskRequest): AsyncIterable<ExternalAgentEvent>;
+  status(ctx: InvocationContext, task: RemoteTaskRef): Promise<Result<RemoteTaskStatus>>;
+  cancel(ctx: InvocationContext, task: RemoteTaskRef): Promise<Result<void>>;
+}
+```
+
+An external status, cancellation, or reconciliation call is another `Invocation` of the same logical effect. A local read of an already committed approval projection uses an application/runtime query interface instead of calling `HumanApprovalPort.status`.
+
+## Governance ports
+
+```typescript
+interface PolicyPort {
+  evaluate(ctx: ExecutionContext, request: PolicyRequest): Promise<Result<PolicyDecision>>;
+}
+
+interface IdentityPort {
+  authenticate(credential: PresentedCredential): Promise<Result<ActorIdentity>>;
+}
+
+interface EntitlementPort {
+  authorize(ctx: ExecutionContext, request: EntitlementRequest): Promise<Result<EntitlementDecision>>;
+}
+
+interface CredentialBrokerPort {
+  issue(ctx: InvocationContext, request: CredentialRequest): Promise<Result<OpaqueCredentialHandle>>;
+  revoke(ctx: ExecutionContext, handle: OpaqueCredentialHandleRef): Promise<Result<void>>;
+}
+```
+
+`OpaqueCredentialHandle` is non-serializable, non-loggable, short-lived, audience-bound, and usable only by the dispatch adapter. The Execution Kernel, journal, run state, prompt compiler, and application layer never receive plaintext credentials.
+
+## Execution infrastructure ports
+
+Query-oriented interfaces:
+
+```typescript
+interface StateStorePort {
+  load(ctx: ExecutionContext, runId: RunId): Promise<Result<RunState>>;
+}
+
+interface RunJournalPort {
+  load(ctx: ExecutionContext, runId: RunId, fromSequence?: number): Promise<Result<readonly RunEventEnvelope[]>>;
+}
+
+interface DurableExecutionPort {
+  start(ctx: ExecutionContext, runId: RunId, deployment: DeploymentSnapshotRef): Promise<Result<DurableExecutionRef>>;
+  signal(ctx: ExecutionContext, execution: DurableExecutionRef, signal: RuntimeSignal, idempotencyKey: string): Promise<Result<void>>;
+  cancel(ctx: ExecutionContext, execution: DurableExecutionRef, reason: string): Promise<Result<void>>;
+  query(ctx: ExecutionContext, execution: DurableExecutionRef): Promise<Result<DurableExecutionStatus>>;
+}
+
+interface WorkerLeasePort {
+  acquire(ctx: ExecutionContext, request: LeaseRequest): Promise<Result<WorkerLease>>;
+  renew(ctx: ExecutionContext, lease: WorkerLeaseRef, expectedFencingToken: bigint, expiresAt: Instant): Promise<Result<WorkerLease>>;
+  release(ctx: ExecutionContext, lease: WorkerLeaseRef, expectedFencingToken: bigint): Promise<Result<void>>;
+}
+
+interface CheckpointStorePort {
+  put(ctx: ExecutionContext, checkpoint: CheckpointDraft): Promise<Result<CheckpointRef>>;
+  latest(ctx: ExecutionContext, runId: RunId): Promise<Result<CheckpointRef | null>>;
+}
+
+interface EffectLedgerPort {
+  get(ctx: ExecutionContext, effectId: EffectId): Promise<Result<Effect>>;
+  findBySemanticKey(ctx: ExecutionContext, key: string): Promise<Result<Effect | null>>;
+  listInvocations(ctx: ExecutionContext, effectId: EffectId): Promise<Result<readonly Invocation[]>>;
+}
+```
+
+Authoritative writes to state, journal, effects, invocations, approvals, budgets, and outbox **MUST** use `ExecutionCommitPort` rather than independent write calls.
+
+## Evidence and integration ports
+
+```typescript
+interface EvaluationPort {
+  start(ctx: ExecutionContext, subject: ExecutionSubjectRef, suite: EvaluationSuiteVersionRef): Promise<Result<EvaluationRunRef>>;
+  result(ctx: ExecutionContext, run: EvaluationRunRef): Promise<Result<EvaluationResult | null>>;
+}
+
+interface TelemetryPort {
+  emit(ctx: ExecutionContext, signal: TelemetrySignal): void;
+}
+
+interface AuditPort {
+  append(ctx: ExecutionContext, record: AuditRecord): Promise<Result<void>>;
+}
+
+interface MeteringPort {
+  append(ctx: ExecutionContext, record: UsageRecord): Promise<Result<void>>;
+}
+
+interface EventBusPort {
+  publish(ctx: ExecutionContext, events: readonly IntegrationEvent[]): Promise<Result<void>>;
+}
+```
+
+Best-effort telemetry failure does not change run truth. Mandatory audit or usage failure follows deployment policy and may stop execution.
+
+## Capability attenuation
+
+A child capability grant is calculated as an intersection of parent-delegable authority, task requirements, tenant entitlements, policy, data/region constraints, and budget allocation. An adapter or child **MUST NOT** broaden that result.
+
+## Port registry
+
+| Category | Ports |
+|---|---|
+| Inbound application | Agent/workflow/deployment/run/approval/evaluation/marketplace use cases |
+| Execution | Kernel, atomic commit, state, journal, durable execution, worker lease, checkpoint, effect ledger |
+| Capability | Model, tool, memory, artifact, sandbox, human approval, external agent |
+| Governance | Policy, identity, entitlements, credential broker |
+| Evidence/integration | Evaluation, telemetry, audit, metering, event bus |
+
+## Contract tests
+
+Adapters and infrastructure implementations prove:
+
+```text
+error classification and uncertain outcome
+stream completion and cancellation
+semantic effect identity across retries/attempts
+fencing and stale-write rejection
+atomic transition commit
+idempotency and reconciliation
+tenant/capability/data-region enforcement
+credential non-disclosure
+usage, audit, telemetry, and lineage correlation
+capability negotiation and version drift
+duplicate delivery and recovery
+```
+
+The shared conformance kit validates machine-readable contracts and representative failure cases.

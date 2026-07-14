@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ara.dev/contracts/1.0/schemas/activity-result.schema.json",
+  "title": "ARA ActivityResult",
+  "type": "object",
+  "required": [
+    "contractVersion",
+    "activityResultId",
+    "rootRunId",
+    "runId",
+    "activityId",
+    "activityRunId",
+    "schemaRef",
+    "digest",
+    "completedAt"
+  ],
+  "properties": {
+    "contractVersion": { "const": "1.0.0" },
+    "activityResultId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "rootRunId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "runId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "activityId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "activityRunId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "activityAttemptId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "branchId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "iterationId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "schemaRef": { "type": "string", "minLength": 1, "maxLength": 512 },
+    "inlineValue": {},
+    "artifactRefs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "digest": { "$ref": "common.schema.json#/$defs/ContentDigest" },
+    "completedAt": { "$ref": "common.schema.json#/$defs/Instant" },
+    "extensions": { "$ref": "common.schema.json#/$defs/Extensions" }
+  },
+  "anyOf": [
+    { "required": ["inlineValue"] },
+    { "required": ["artifactRefs"] }
+  ],
+  "additionalProperties": false
+}

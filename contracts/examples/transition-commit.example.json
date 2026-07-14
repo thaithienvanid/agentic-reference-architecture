@@ -1,0 +1,98 @@
+{
+  "contractVersion": "1.0.0",
+  "runId": "run_01K2A",
+  "expectedStateVersion": 27,
+  "expectedRunSequence": 141,
+  "workerLeaseId": "worker_lease_01K2L",
+  "fencingToken": 42,
+  "events": [
+    {
+      "eventType": "effect.reconciled",
+      "schemaVersion": "1.0.0",
+      "payloadDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  ],
+  "nextState": {
+    "contractVersion": "1.0.0",
+    "runId": "run_01K2A",
+    "rootRunId": "run_01K2A",
+    "tenant": {
+      "tenantId": "tenant_acme_eu",
+      "workspaceId": "workspace_procurement",
+      "homeRegion": "eu-west",
+      "telemetryTenantId": "tenant_hash_4F2A"
+    },
+    "deploymentSnapshotRef": "deployment_snapshot_01K2S",
+    "deploymentSnapshotDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+    "status": "running",
+    "stateVersion": 28,
+    "runSequence": 142,
+    "activeActivityRunIds": ["activity_run_create_order_01"],
+    "activityRuns": [
+      {
+        "activityRunId": "activity_run_create_order_01",
+        "activityId": "create-order",
+        "status": "running",
+        "executionScopePath": "run_01K2A/create-order"
+      }
+    ],
+    "activityResults": [
+      {
+        "activityRunId": "activity_run_research_01",
+        "resultRef": "activity_result_01K2R"
+      }
+    ],
+    "pendingEffectIds": [],
+    "pendingApprovalIds": [],
+    "childRunIds": ["run_research", "run_compliance"],
+    "budgets": {
+      "money": {
+        "parentLimit": { "amount": "12.00", "currency": "USD" },
+        "effectiveLimit": { "amount": "8.00", "currency": "USD" },
+        "source": "request_override",
+        "reserved": { "amount": "0.00", "currency": "USD" },
+        "consumed": { "amount": "3.82", "currency": "USD" }
+      }
+    },
+    "variables": {
+      "vendorId": "V-77",
+      "purchaseOrderId": "PO-2026-8841"
+    },
+    "checkpointRef": "artifact://sha256/5555555555555555555555555555555555555555555555555555555555555555"
+  },
+  "effectMutations": [
+    {
+      "entityId": "effect_01K2B",
+      "operation": "reconcile",
+      "expectedStatus": "outcome_unknown",
+      "nextStatus": "succeeded",
+      "payloadDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  ],
+  "invocationMutations": [
+    {
+      "entityId": "invocation_01K2I2",
+      "operation": "transition",
+      "expectedStatus": "started",
+      "nextStatus": "succeeded"
+    }
+  ],
+  "approvalMutations": [],
+  "budgetMutations": [
+    {
+      "entityId": "budget_reservation_01",
+      "operation": "release",
+      "expectedStatus": "reserved",
+      "nextStatus": "reconciled"
+    }
+  ],
+  "outboxEvents": [
+    {
+      "eventId": "integration_evt_01",
+      "eventType": "procurement.order-created",
+      "schemaVersion": "1.0.0",
+      "payloadDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "destination": "procurement-events"
+    }
+  ]
+}

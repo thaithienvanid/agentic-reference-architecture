@@ -1,0 +1,147 @@
+---
+title: Architecture boundaries and application use cases
+description: Normative dependency direction and ownership for the domain core, application layer, execution kernel, runtime service, ports, adapters, and user-facing applications.
+---
+
+# Architecture boundaries and application use cases
+
+> **Status: Normative**
+
+ARA applies Clean Architecture, Hexagonal Architecture, and domain-driven design through explicit dependency and ownership rules. Distribution is optional; dependency direction is not.
+
+## Canonical boundaries
+
+| Boundary | Owns | MUST NOT own |
+|---|---|---|
+| **Domain core** | Business concepts, invariants, policies expressed as domain rules, domain events | Model SDKs, workflow engines, databases, brokers, vector stores, cloud APIs, telemetry vendors |
+| **Shared Kernel** | Small stable cross-context value types such as identifiers, money, time, version references, tenant scope, capability scope, and error categories | Product-specific entities, workflow orchestration, provider DTOs |
+| **Application layer** | Commands, queries, authorization of application use cases, transaction intent, environment promotion, and coordination between bounded contexts | Provider calls, durable-worker ownership, model-driven business invariants |
+| **Execution Kernel** | Pure legal run-state evolution, dependency resolution, completion, and typed execution intents | Workers, queues, clocks, secrets, provider clients, persistence sessions |
+| **Runtime Service** | Admission, durable coordination, scheduling, cancellation, streaming, recovery, and execution evidence | Business-domain truth, catalog authoring, product UX |
+| **Ports** | Stable inward-facing contracts required by application and execution logic | Provider-specific request, response, session, or exception types |
+| **Adapters** | Translation between ports and frameworks, protocols, providers, stores, or clouds | Redefinition of ARA semantics or bypass of policy and tenancy |
+| **Experience layer** | User interfaces, API presentation, approval views, developer tooling | Authoritative business or execution state |
+
+## Dependency rule
+
+Production code dependencies **MUST** point toward stable semantics:
+
+```text
+experience/controllers
+    -> application services
+        -> domain core and ports
+
+runtime processes
+    -> Execution Kernel and ports
+
+adapters
+    -> implement ports
+
+provider/framework/cloud packages
+    -> remain behind adapters
+```
+
+The domain core, application layer, and Execution Kernel **MUST NOT** import provider SDK types, durable-backend history objects, framework graph nodes, OpenTelemetry span objects, MCP/A2A transport sessions, or evaluation-framework test-case objects.
+
+Logical bounded contexts do not imply one microservice per context. A modular monolith may satisfy the same boundary rules.
+
+## Three different kernels
+
+| Term | Meaning |
+|---|---|
+| **Domain core** | Business rules inside one bounded context |
+| **Shared Kernel** | Minimal stable value types shared by explicitly collaborating contexts |
+| **Execution Kernel** | Generic deterministic logic that evolves run state and emits execution intents |
+
+The terms are not interchangeable. The Shared Kernel SHOULD remain small enough that coordinated change is rare.
+
+## Application layer use cases
+
+The application layer owns use-case orchestration outside live execution:
+
+```text
+create and version agents, workflows, prompts, tools, policies, and evaluation suites
+validate and publish immutable versions
+compile and sign DeploymentSnapshots
+start, pause, resume, cancel, signal, and rerun executions
+record human approval decisions
+register and qualify tools, models, adapters, and skills
+start evaluation and conformance assessments
+publish, install, upgrade, roll back, quarantine, and revoke packages
+manage tenants, workspaces, entitlements, environments, quotas, and promotion
+```
+
+Application commands **MUST** be authorized, tenant-scoped, and idempotent where duplicate delivery is possible. The application layer requests runtime operations through inbound runtime contracts; it does not directly manipulate worker leases, checkpoints, provider clients, or durable-backend history.
+
+## Application layer versus Runtime Service
+
+| Application layer | Runtime Service |
+|---|---|
+| Decides which use case is requested and authorized | Advances admitted live execution |
+| Resolves catalog and environment policy | Uses one immutable DeploymentSnapshot |
+| Creates commands and queries | Schedules activities and effects |
+| Records approval decisions and administrative actions | Suspends and resumes around waits |
+| Promotes versions and package revisions | Recovers from worker/provider failure |
+| Starts evaluation or rerun requests | Produces canonical run evidence |
+
+A long-running operation may begin in the application layer and continue in the Runtime Service, but each boundary retains its own authority.
+
+## Agent execution substrate
+
+ARA uses one workflow execution substrate rather than separate agent and workflow engines:
+
+```text
+Agent
+└── AgentVersion
+    └── entryWorkflowVersionRef
+
+AgentRun
+├── agentVersionRef
+├── taskSnapshotRef
+├── rootWorkflowRunId
+├── capability and budget allocation
+└── resultRef
+
+WorkflowRun
+└── performs the executable process
+```
+
+An independent `AgentRun` **MUST** own exactly one root `WorkflowRun`. An inline `AgentActivity` references an `AgentVersion` but creates no independent `AgentRun`. A child agent creates a separate `AgentRun` and root `WorkflowRun` under an explicit delegation contract.
+
+This rule prevents two competing runtime state machines while preserving agent identity, evaluation, budget, and audit scope.
+
+## Commands, queries, and events
+
+- **Command:** requests a state change and carries an idempotency key and expected version where applicable.
+- **Query:** reads a projection and MUST NOT mutate authoritative state.
+- **Domain event:** records a business fact owned by a bounded context.
+- **Execution event:** records a canonical run, activity, effect, invocation, approval, lease, or child-link fact.
+- **Integration event:** crosses bounded contexts through an outbox and at-least-once delivery.
+
+A broker message is not automatically a domain event, and an external protocol message is not automatically part of local `RunState`.
+
+## Failure ownership
+
+| Failure | Primary owner |
+|---|---|
+| Business invariant violation | Domain/application layer |
+| Illegal run transition | Execution Kernel |
+| Worker loss or capacity shortage | Runtime Service/Scheduler |
+| Provider error or ambiguous outcome | Adapter plus Effect Ledger and reconciliation policy |
+| Authorization or capability denial | Governance boundary |
+| Schema/contract mismatch | Port or adapter boundary |
+| Quality regression | Evaluation plane and release gate |
+| User-interface failure | Experience layer; authoritative execution continues independently |
+
+## Testing
+
+- Domain core: unit, property, and invariant tests.
+- Application layer: command/query, authorization, idempotency, and transaction tests.
+- Execution Kernel: state-machine, model-checking, and replay tests.
+- Ports/adapters: reusable contract tests and qualified provider tests.
+- Runtime Service: failure injection, concurrency, load, recovery, and disaster-recovery tests.
+- Experience layer: API/UI contract, accessibility, and projection tests.
+
+## Conformance
+
+An ARA Core implementation **MUST** demonstrate the dependency rule, application/runtime separation, provider-type containment, and one workflow execution substrate for independent `AgentRun`s.

@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ara.dev/contracts/1.0/schemas/evaluation-run.schema.json",
+  "title": "ARA EvaluationRun",
+  "type": "object",
+  "required": [
+    "contractVersion",
+    "evaluationRunId",
+    "subject",
+    "evaluationSuiteVersionRef",
+    "environmentDigest",
+    "status",
+    "stateVersion",
+    "createdAt",
+    "updatedAt"
+  ],
+  "properties": {
+    "contractVersion": { "const": "1.0.0" },
+    "evaluationRunId": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+    "subject": {
+      "type": "object",
+      "required": ["type", "id", "deploymentSnapshotDigest"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["agent_run", "workflow_run", "execution_plan_run", "resource_version", "package_release"]
+        },
+        "id": { "$ref": "common.schema.json#/$defs/OpaqueId" },
+        "deploymentSnapshotDigest": { "$ref": "common.schema.json#/$defs/ContentDigest" }
+      },
+      "additionalProperties": false
+    },
+    "evaluationSuiteVersionRef": { "$ref": "common.schema.json#/$defs/VersionRef" },
+    "environmentDigest": { "$ref": "common.schema.json#/$defs/ContentDigest" },
+    "status": {
+      "type": "string",
+      "enum": ["created", "queued", "running", "completed", "failed", "cancelled", "inconclusive"]
+    },
+    "stateVersion": { "type": "integer", "minimum": 0 },
+    "createdAt": { "$ref": "common.schema.json#/$defs/Instant" },
+    "startedAt": { "$ref": "common.schema.json#/$defs/Instant" },
+    "completedAt": { "$ref": "common.schema.json#/$defs/Instant" },
+    "updatedAt": { "$ref": "common.schema.json#/$defs/Instant" },
+    "resultRef": { "type": "string", "minLength": 1 },
+    "errorRef": { "type": "string", "minLength": 1 },
+    "inconclusiveReason": { "type": "string", "minLength": 1 },
+    "extensions": { "$ref": "common.schema.json#/$defs/Extensions" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": { "enum": ["running", "completed", "failed", "cancelled", "inconclusive"] }
+        },
+        "required": ["status"]
+      },
+      "then": { "required": ["startedAt"] }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": { "enum": ["completed", "failed", "cancelled", "inconclusive"] }
+        },
+        "required": ["status"]
+      },
+      "then": { "required": ["completedAt"] }
+    },
+    {
+      "if": {
+        "properties": { "status": { "const": "completed" } },
+        "required": ["status"]
+      },
+      "then": { "required": ["resultRef"] }
+    },
+    {
+      "if": {
+        "properties": { "status": { "const": "failed" } },
+        "required": ["status"]
+      },
+      "then": { "required": ["errorRef"] }
+    },
+    {
+      "if": {
+        "properties": { "status": { "const": "inconclusive" } },
+        "required": ["status"]
+      },
+      "then": { "required": ["inconclusiveReason"] }
+    }
+  ],
+  "additionalProperties": false
+}

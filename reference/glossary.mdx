@@ -1,0 +1,119 @@
+---
+title: Glossary
+description: Canonical short definitions for ARA product, architecture, resource, execution, runtime, data, experiment, platform, and interoperability concepts.
+---
+
+# Glossary
+
+> **Status: Reference.** Detailed semantics are defined by the [ARA specification](/specification/index).
+
+## Product concepts
+
+| Term | Definition |
+|---|---|
+| **LLM-powered application** | An application in which a model contributes to an output while application code owns control flow. |
+| **Assistant** | A user-facing help relationship; it may be deterministic, generative, tool-using, or agentic. |
+| **Tool-using agent** | Versioned behavior that may select among authorized tools based on observations within explicit limits. |
+| **Deterministic workflow** | A workflow whose legal next actions are determined by code, rules, events, and state rather than model choice. |
+| **Agentic workflow** | A workflow containing bounded model-directed choice among legal actions while deterministic control protects invariants. |
+| **Autonomous agent** | An agent allowed to continue across several decisions without synchronous human direction, within explicit capabilities, budgets, termination, and escalation. |
+| **Multi-agent system** | A system with independent `AgentRun`s that have separate tasks, state, capability grants, budgets, results, and lifecycle. |
+| **Agentic service** | A callable operational capability exposed through APIs or events. |
+| **Agentic application** | A domain product with use cases, state, UX, policy, and workflows. |
+| **Agentic platform** | Shared control, execution, governance, evaluation, tenancy, and operations for multiple applications or services. |
+| **Agent operating environment** | The sandbox, filesystem, network, identity, secrets, tools, and resource boundaries in which an agent executes. |
+| **Marketplace** | Governed publication, installation, permissioning, metering, upgrade, rollback, quarantine, and revocation of packages. |
+
+## Architecture concepts
+
+| Term | Definition |
+|---|---|
+| **Domain core** | Business concepts and invariants inside one bounded context. |
+| **Shared Kernel** | Minimal stable value types shared by explicitly collaborating bounded contexts. |
+| **Application layer** | Commands, queries, authorization of use cases, deployment/promotion, and coordination outside live execution. |
+| **Execution Kernel** | Pure deterministic state evolution, legal transitions, dependency resolution, completion, and execution intents. |
+| **Runtime Service** | Admission, durable coordination, scheduling, persistence, cancellation, streaming, and recovery. |
+| **Port** | Stable inward-facing contract required by application or execution semantics. |
+| **Adapter** | Translation between a port and a provider, framework, protocol, store, durable backend, or cloud. |
+| **Experience layer** | User/API presentation, approval views, developer tools, and read projections. |
+
+## Resource and version concepts
+
+| Term | Definition |
+|---|---|
+| `Agent` | Stable catalog identity for an agent capability. |
+| `AgentVersion` | Immutable executable agent behavior that references one entry `WorkflowVersion`. |
+| `Workflow` | Stable catalog identity for an executable process. |
+| `WorkflowVersion` | Immutable process specification containing activities, control flow, contracts, policies, and completion rules. |
+| `ExecutionPlan` | Stable identity for cross-run orchestration. |
+| `PromptVersion` | Immutable prompt behavior and context/output contract. |
+| `ToolVersion` | Immutable tool capability and effect contract. |
+| `ModelRoutingProfileVersion` | Immutable allowed model routes, requirements, fallbacks, regions, and selection policy. |
+| `HardGateRegistryVersion` | Immutable registry of gate IDs, applicability, evidence, evaluator, threshold, and unknown-result policy. |
+| `PackageRelease` | Immutable distributable package with content, compatibility, constraints, requested permissions, and provenance. |
+| `PackageLock` | Exact transitive resolution of package versions and digests. |
+| `PackageInstallationRevision` | Tenant-scoped package lock, granted permissions, configuration, verification evidence, and lifecycle. |
+| `DeploymentSnapshot` | Signed immutable resolution of all versions, locks, policies, routes, packages, and compatibility needed by a run. |
+
+## Execution concepts
+
+| Term | Definition |
+|---|---|
+| `ExecutionPlanRun` | Durable execution coordinating multiple workflow runs. |
+| `WorkflowRun` | One independently addressable durable execution of a workflow version. |
+| `AgentRun` | Independent agent execution envelope that owns one root `WorkflowRun`. |
+| `Activity` | Semantic unit of work inside a workflow version. |
+| `ActivityRun` | One logical execution instance of an activity. |
+| `ActivityAttempt` | Complete restart of an activity run from its declared retry boundary. |
+| `ExecutionBranch` | Independent parallel path, candidate, or local variant. |
+| `Iteration` | Intentional sequential cycle using updated state, evidence, or objectives. |
+| `ExecutionIntent` | Pure decision emitted by the Execution Kernel about what should happen next. |
+| `RuntimeControlOperation` | Internal coordination such as commit, checkpoint, lease, queue, or telemetry delivery; not semantic work. |
+| `Effect` | One semantically material external or nondeterministic operation requested by execution. |
+| `Invocation` | One concrete adapter or provider call used to execute, retry, poll, cancel, or reconcile an effect. |
+| `WorkerLease` | Temporary, expiring, fenced authorization for a worker to process a run or activity. |
+| `ChildRunLink` | Parent coordination record for a separately durable child run. |
+| `ExperimentTrial` | Independent experiment/evaluation repetition from a frozen baseline, referencing an execution subject. |
+
+`Run` is reserved for independently addressable durable execution. The core does not define unqualified `Step`, `Round`, `AttemptRun`, `TrialRun`, `SubAgent`, or `SubWorkflow` entities.
+
+## Runtime and evidence concepts
+
+| Term | Definition |
+|---|---|
+| `DurableExecutionPort` | Backend-neutral boundary for timers, signals, suspension, cancellation, and durable recovery. |
+| `ExecutionCommitPort` | Fencing-aware atomic boundary for journal, state, ledgers, and outbox changes in one accepted transition. |
+| **Platform Run Journal** | Append-only ordered record of portable canonical execution facts. |
+| **Durable backend history** | Backend-native history used for backend replay and recovery. |
+| **Effect Ledger** | Durable effect identity, invocation history, idempotency, ambiguity, reconciliation, and outcome. |
+| **State projection** | Rebuildable current view derived from authoritative events and ledgers. |
+| **Checkpoint** | Resume optimization; not execution truth. |
+| **Trace** | Operational causality and latency evidence; may be sampled. |
+| **Audit record** | Authoritative evidence of identity, authorization, policy, approval, and material execution. |
+| **Evaluation result** | Versioned judgment of quality, safety, correctness, or efficiency. |
+| **Usage record** | Immutable attributable consumption and cost evidence. |
+
+## Data concepts
+
+| Term | Definition |
+|---|---|
+| **Domain state** | Authoritative business truth. |
+| **Workflow state** | Compact control data that determines legal execution transitions. |
+| **Activity input snapshot** | Immutable exact input supplied to one activity run. |
+| **Activity result** | Typed committed output of one activity run. |
+| **Context snapshot** | Immutable exact content assembled for one model effect. |
+| **Memory record** | Scoped, provenanced, revocable information that may be reused later. |
+| **Artifact** | Immutable content produced or consumed by execution. |
+| **Lineage** | Relationships connecting sources, snapshots, effects, invocations, results, artifacts, evaluations, and downstream runs. |
+
+## Composition concepts
+
+- **Inline execution** shares the parent lifecycle and creates no independent run identity.
+- **Child execution** creates a separate run with its own state, result, budget, deadline, failure, cancellation, and capability grant.
+- `PlanStep`, `UIProgressStep`, and `DeliberationRound` are qualified domain or presentation terms; they do not redefine the runtime core.
+
+## Interoperability concepts
+
+- **MCP adapter:** Maps MCP tools, resources, prompts, sampling, roots, and elicitation to local ARA ports/effects under local policy.
+- **A2A adapter:** Maps remote Agent Cards, tasks, messages, artifacts, streaming, and cancellation to external-agent effects and evidence.
+- **Reference profile:** Optional concrete protocol/representation mapping that becomes binding only when declared by an implementation.
