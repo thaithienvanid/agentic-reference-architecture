@@ -1,0 +1,17 @@
+{
+  "contractVersion": "1.0.0",
+  "activityRunId": "activity_run_create_order_01",
+  "rootRunId": "run_01K2A",
+  "runId": "run_01K2A",
+  "workflowVersionRef": "procurement-order@3.0.0",
+  "activityId": "create-order",
+  "inputSnapshotRef": "artifact://sha256/1111111111111111111111111111111111111111111111111111111111111111",
+  "inputDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "executionScopePath": "run_01K2A/create-order",
+  "status": "waiting",
+  "stateVersion": 5,
+  "attemptIds": ["activity_attempt_create_order_01"],
+  "effectIds": ["effect_01K2B"],
+  "createdAt": "2026-07-12T08:03:50Z",
+  "updatedAt": "2026-07-12T08:04:14Z"
+}
