@@ -1,0 +1,48 @@
+---
+title: Canonical conventions
+description: Required naming, identity, version, money, digest, time, and idempotency conventions.
+---
+
+# Canonical conventions
+
+> **Status: Normative reference**
+
+## Names
+
+```text
+Resource               stable definition identity
+ResourceVersion        immutable definition
+DeploymentSnapshot     exact deployable closure
+Run                    independently addressable execution
+ActivityRun            one logical activity execution
+ActivityAttempt        optional whole-activity restart provenance
+ExecutionBranch        optional identified parallel path
+Iteration              optional identified sequential occurrence
+DurableCommand         durable orchestration operation
+Effect                  logical external/nondeterministic operation
+Invocation              concrete adapter/provider call
+WorkerLease             temporary fenced ownership
+ApprovalCase            action-bound human authorization aggregate
+```
+
+Do not use unqualified `Step`, `Round`, `AttemptRun`, `TrialRun`, `SubAgent`, `SubWorkflow`, or `ExecutionEpisode` as universal runtime concepts.
+
+## Identifiers and versions
+
+Identifiers are opaque and stable. Published versions use semantic versions and content digests. Serialized references include full versions, not major-only shorthand.
+
+## Digests
+
+Use lowercase `sha256:<64 hex>` over a documented canonical representation. A digest proves content identity, not trust; signatures and provenance are separate.
+
+## Money
+
+Use decimal strings plus ISO currency in APIs and fixed-precision decimal columns in databases. Never use binary floating point for authorization or billing decisions.
+
+## Time
+
+Use RFC 3339 UTC timestamps and ISO 8601 durations. Deadlines are explicit. Runtime decisions do not read unrecorded wall-clock time.
+
+## Idempotency
+
+An idempotency key is scoped and bound to a normalized request digest. Reuse with a different digest is a conflict.

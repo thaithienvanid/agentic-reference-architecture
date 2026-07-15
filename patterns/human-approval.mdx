@@ -1,0 +1,23 @@
+---
+title: Action-bound human approval
+description: Use ApprovalCase, exact action digests, material preconditions, quorum, and one-time consumption.
+---
+
+# Action-bound human approval
+
+> **Authority: Informative pattern**
+
+Use when an Effect requires human authority or judgement.
+
+```text
+normalize proposed action
+-> evaluate policy and capability
+-> create ApprovalCase
+-> deliver notification Effect
+-> collect authenticated idempotent decisions
+-> satisfy quorum and separation of duties
+-> revalidate material preconditions
+-> atomically consume authorization token and plan Effect
+```
+
+Avoid approving a vague activity, free-form model explanation, or mutable screen state. The approver sees deterministic action fields and supporting evidence.

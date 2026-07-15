@@ -1,0 +1,48 @@
+asyncapi: 3.0.0
+info:
+  title: ARA Event API Profile
+  version: 1.0.0
+channels:
+  runEvents:
+    address: ara.runs.{runId}.events
+    parameters:
+      runId: { description: Canonical Run ID }
+    messages:
+      runEvent:
+        $ref: '#/components/messages/RunEvent'
+  runSignals:
+    address: ara.runs.{runId}.signals
+    parameters:
+      runId: { description: Canonical Run ID }
+    messages:
+      runSignal:
+        $ref: '#/components/messages/RunSignal'
+operations:
+  receiveRunEvents:
+    action: receive
+    channel: { $ref: '#/channels/runEvents' }
+  sendRunSignal:
+    action: send
+    channel: { $ref: '#/channels/runSignals' }
+components:
+  messages:
+    RunEvent:
+      payload:
+        type: object
+        required: [eventId, runId, runSequence, eventType, schemaVersion, payloadDigest]
+        properties:
+          eventId: { type: string }
+          runId: { type: string }
+          runSequence: { type: integer, minimum: 1 }
+          eventType: { type: string }
+          schemaVersion: { type: string }
+          payloadDigest: { type: string }
+    RunSignal:
+      payload:
+        type: object
+        required: [signalId, idempotencyKey, payloadDigest, payload]
+        properties:
+          signalId: { type: string }
+          idempotencyKey: { type: string }
+          payloadDigest: { type: string }
+          payload: {}

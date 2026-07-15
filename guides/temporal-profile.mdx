@@ -1,0 +1,32 @@
+---
+title: Temporal execution-authority profile
+description: Map ARA semantics to Temporal without creating competing histories.
+---
+
+# Temporal execution-authority profile
+
+> **Authority: Informative profile for `temporal_history_v1`**
+
+Temporal workflow history is the sole decision authority for a Run using this profile.
+
+## Mapping
+
+| ARA | Temporal-oriented mapping |
+|---|---|
+| Run | Workflow Execution |
+| Execution Kernel | deterministic Workflow code or deterministic decision module invoked by it |
+| DurableCommand timer | Workflow timer command/event |
+| signal wait | Signal or Update protocol chosen by interaction semantics |
+| child Run | Child Workflow Execution |
+| Effect | Activity or explicit external-operation abstraction |
+| Invocation | Activity attempt, poll, status, cancellation, or reconciliation evidence as modeled by the adapter |
+| RunHeader | query/read projection |
+| semantic event log | derived projection or semantic payload recorded in history |
+
+## Forbidden design
+
+Do not require an independent SQL `RunLogCommit` to become a peer authority after Temporal accepts a Workflow command. SQL may store Effect identity, approvals, artifacts, audit, usage, and query projections, but recovery decisions come from Temporal history.
+
+## Versioning
+
+Pin worker/execution code identity in the DeploymentSnapshot. Use replay-compatible changes, worker version routing, or a continuation boundary. A Run does not switch to `ara_log_v1` in place.

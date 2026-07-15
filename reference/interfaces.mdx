@@ -1,0 +1,143 @@
+---
+title: Reference interfaces
+description: Compact framework-neutral interfaces for application commands, kernel decisions, commits, authorization, and adapters.
+---
+
+# Reference interfaces
+
+> **Status: Normative reference. TypeScript-like pseudocode expresses semantics.**
+
+## Contexts
+
+```typescript
+interface PrincipalContext {
+  tenantId: TenantId;
+  workspaceId: WorkspaceId;
+  actor: ActorIdentity;
+}
+
+interface RunContext {
+  runId: RunId;
+  deploymentSnapshotRef: DeploymentSnapshotRef;
+  authorityProfile: ExecutionAuthorityProfile;
+  authorityEpoch: bigint;
+}
+
+interface EffectAuthorization {
+  capabilityGrantRef: CapabilityGrantRef;
+  capabilityGrantDigest: ContentDigest;
+  policyDecisionRef: PolicyDecisionRef;
+  policyDecisionDigest: ContentDigest;
+  dataClassification: DataClassification;
+}
+
+interface InvocationContext {
+  principal: PrincipalContext;
+  run: RunContext;
+  activityRunId: ActivityRunId;
+  effectId: EffectId;
+  invocationId: InvocationId;
+  authorization: EffectAuthorization;
+  deadline: Instant;
+  cancellationEpoch: bigint;
+  credentialPurposeRef?: CredentialPurposeRef;
+  correlationId: string;
+}
+
+interface CommitContext {
+  principal: PrincipalContext;
+  run: RunContext;
+  expectedStateVersion: bigint;
+  expectedRunSequence: bigint;
+  activationLeaseId: WorkerLeaseId;
+  fencingToken: bigint;
+  correlationId: string;
+}
+```
+
+## Application use cases
+
+```typescript
+interface RunUseCases {
+  start(ctx: PrincipalContext, command: StartRun): Promise<Result<RunRef>>;
+  signal(ctx: PrincipalContext, command: SignalRun): Promise<Result<void>>;
+  cancel(ctx: PrincipalContext, command: CancelRun): Promise<Result<void>>;
+  resume(ctx: PrincipalContext, command: ResumeRun): Promise<Result<void>>;
+  rerun(ctx: PrincipalContext, command: CounterfactualRerun): Promise<Result<RunRef>>;
+}
+
+interface ApprovalUseCases {
+  decide(ctx: PrincipalContext, command: DecideApproval): Promise<Result<ApprovalCaseRef>>;
+}
+```
+
+## Kernel
+
+```typescript
+interface ExecutionKernel {
+  decide(input: KernelInput): KernelDecision;
+}
+
+type KernelAction =
+  | { type: "start_activity"; activityId: ActivityId; inputRef: ArtifactRef }
+  | { type: "create_command"; command: DurableCommandDraft }
+  | { type: "reserve_effect"; effect: EffectDraft }
+  | { type: "complete"; resultRef: ArtifactRef }
+  | { type: "fail"; failure: RunFailure };
+```
+
+## Database-native commit
+
+```typescript
+interface RunLogCommit {
+  events: readonly NewRunEvent[];
+  headerPatch: RunHeaderPatch;
+  activityMutations: readonly ActivityMutation[];
+  durableCommands: readonly NewDurableCommand[];
+  effectReservations: readonly NewEffect[];
+  approvalMutations: readonly ApprovalMutation[];
+  budgetMutations: readonly BudgetMutation[];
+  auditRecords: readonly NewAuditRecord[];
+  outboxRecords: readonly NewOutboxRecord[];
+  consumedInboxMessageIds: readonly RunInboxMessageId[];
+}
+
+interface RunCommitPort {
+  commit(ctx: CommitContext, commit: RunLogCommit): Promise<Result<CommitReceipt, CommitError>>;
+}
+```
+
+`RunCommitPort` is authoritative only for `ara_log_v1`. Other authority profiles define their own decision commit while preserving ARA semantics.
+
+## Capability adapters
+
+```typescript
+interface ModelPort {
+  capabilities(route: ModelRouteRef): Promise<Result<ModelCapabilities>>;
+  invoke(ctx: InvocationContext, request: ModelRequest): AsyncIterable<ModelEvent>;
+  cancel(ctx: InvocationContext): Promise<Result<void>>;
+}
+
+interface ToolPort {
+  describe(tool: ToolVersionRef): Promise<Result<ToolDescriptor>>;
+  execute(ctx: InvocationContext, request: ToolRequest): Promise<Result<ToolResponse>>;
+  status(ctx: InvocationContext, externalRef: ExternalOperationRef): Promise<Result<ToolOperationStatus>>;
+  cancel(ctx: InvocationContext, externalRef: ExternalOperationRef): Promise<Result<void>>;
+}
+
+interface ArtifactPort {
+  put(ctx: PrincipalContext, artifact: ArtifactDraft): Promise<Result<ArtifactRef>>;
+  get(ctx: ReadAuthorization, artifact: ArtifactRef): Promise<Result<ArtifactDescriptor>>;
+  open(ctx: ReadAuthorization, artifact: ArtifactRef): AsyncIterable<Uint8Array>;
+}
+
+interface PolicyPort {
+  evaluate(ctx: PrincipalContext, request: PolicyRequest): Promise<Result<PolicyDecision>>;
+}
+
+interface CredentialBrokerPort {
+  issue(ctx: InvocationContext, purpose: CredentialPurposeRef): Promise<Result<OpaqueCredentialHandle>>;
+}
+```
+
+Optional extension ports include memory, sandbox, external-agent, event-bus, marketplace, and specialized evaluation adapters.

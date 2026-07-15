@@ -1,0 +1,112 @@
+---
+title: Security, data, and evidence
+description: Trusted authority, capabilities, approvals, credentials, state separation, artifacts, audit, usage, and evaluation.
+---
+
+# Security, data, and evidence
+
+> **Status: Normative**
+
+## Authority rule
+
+Models propose. Deterministic software, policy, resource authorization, and humans authorize. Adapters execute only the exact authorized operation.
+
+## Separate contexts
+
+ARA does not use one universal god context. Implementations **MUST** separate at least:
+
+```text
+PrincipalContext       authenticated actor and tenant/workspace
+RunContext             Run, subject, snapshot, authority epoch
+ReadAuthorization      projection, purpose, and data scope
+EffectAuthorization    capability and policy-decision references/digests
+InvocationContext      Effect/Invocation identity, deadline, cancellation, credential purpose
+CommitContext          expected sequence/version, authority epoch, lease and fence
+TraceContext           correlation and causation
+```
+
+A caller-supplied tenant, role, or capability claim is never trusted without authoritative resolution.
+
+## Capability grant
+
+A capability grant is immutable, scoped, time-bounded, and action-specific. Child authority is the intersection of parent-delegable authority, task requirements, tenant entitlements, policy, data/residency limits, and allocated budget.
+
+An adapter or child **MUST NOT** broaden that result.
+
+## ApprovalCase
+
+Approval is an independently versioned aggregate, not a boolean on Run state.
+
+It binds:
+
+```text
+exact normalized action digest
+material-precondition digest
+policy-decision digest
+capability-grant digest
+quorum and role policy
+separation-of-duties constraints
+actor authority and authentication evidence
+expiry
+one-time authorization token
+```
+
+Before planning the approved Effect, the runtime **MUST** revalidate material preconditions and atomically consume the authorization token.
+
+Notification delivery is a `human.notify` Effect. The approval decision itself arrives as an authenticated, idempotent input.
+
+## Credentials
+
+The Domain, Application, Execution Kernel, Run state, logs, prompts, artifacts, and telemetry **MUST NOT** receive plaintext long-lived provider credentials.
+
+A credential broker resolves a purpose-bound reference into a short-lived credential at the Invocation boundary.
+
+## Untrusted content
+
+Retrieved documents, tool output, user uploads, model output, remote-agent messages, and memory are data, not authority. They cannot expand permissions, change policy, approve actions, or alter schemas merely by containing instructions.
+
+## Multi-tenancy
+
+The Multi-Tenant module requires trusted tenant/workspace scope on every protected record and request, negative isolation tests, quota enforcement, and explicit rules for shared infrastructure. Physical isolation is a deployment choice; logical authorization is mandatory.
+
+## State, data, and evidence
+
+These models are related but not interchangeable:
+
+| Model | Purpose | Authoritative owner |
+|---|---|---|
+| domain state | business truth | domain bounded context |
+| RunHeader and execution history | workflow truth | selected RunAuthority |
+| Activity input/result | immutable execution bindings | runtime |
+| model context snapshot | exact compiled model input | artifact/evidence store |
+| artifact | immutable large or typed content | artifact store |
+| memory | reusable scoped knowledge across Runs | optional memory extension |
+| checkpoint/snapshot | resume or replay optimization | selected authority profile |
+| telemetry | operations | observability system |
+| audit | accountable security/governance evidence | audit store/outbox |
+| usage | measured resource consumption and cost | usage ledger |
+| evaluation result | quality and safety evidence | evaluation system |
+
+## Compact state
+
+`RunHeader` contains only the current execution projection and bounded workflow variables. It does not embed complete activity, Effect, Invocation, approval, child, audit, or usage history.
+
+## Context snapshot
+
+A model Effect records the exact compiled context as an immutable artifact or protected payload, including prompt version, selected sources, tool schemas, redaction and compaction decisions, token estimate, classification, and digest.
+
+## Artifact rule
+
+An Artifact becomes first-class when it needs independent identity, digest, classification, lineage, retention, or access control. `ContextSnapshot` is normally an Artifact kind, not a mandatory universal aggregate.
+
+## Memory rule
+
+Memory is optional. Add it only for reusable information across Runs with explicit scope, provenance, confidence, retention, revocation, and access policy. Workflow state and conversation history are not memory by default.
+
+## Evidence and outbox
+
+Mandatory audit facts and integration events are inserted durably with the authoritative commit. External delivery may be asynchronous. The runtime can fail closed when the durable audit/outbox backlog exceeds declared limits; it cannot roll back an external Effect after dispatch merely because an external audit sink is unavailable.
+
+## Evaluation
+
+Evaluation contracts include deterministic checks, semantic metrics where justified, datasets, environment identity, hard gates, and evidence references. A hard-gate failure cannot be averaged into a passing score.

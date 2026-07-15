@@ -1,0 +1,135 @@
+---
+title: Execution model
+description: Canonical Run, activities, orchestration commands, Effects, Invocations, retries, branches, iterations, and children.
+---
+
+# Execution model
+
+> **Status: Normative**
+
+## One canonical Run
+
+`Run` is one independently addressable logical execution.
+
+```text
+Run
+├── subject.kind: agent | workflow | execution_plan
+├── subject.versionRef
+├── entryWorkflowVersionRef
+├── DeploymentSnapshot
+├── RunAuthority
+└── ActivityRun*
+```
+
+`AgentRun`, `WorkflowRun`, and `ExecutionPlanRun` MAY appear as typed API views. They **MUST NOT** be mandatory one-to-one wrapper aggregates around the same execution.
+
+## ActivityRun
+
+An Activity is one semantic unit of workflow work. An `ActivityRun` is one logical execution of that unit.
+
+Use an activity boundary when independent input/output, policy, budget, retry, evaluation, or observability matters. Internal work with meaningful waits or dependencies SHOULD be a referenced workflow rather than an opaque callback.
+
+### Activity categories
+
+Work activities:
+
+```text
+TaskActivity       deterministic application/domain handler
+ModelActivity      one bounded model Effect
+ToolActivity       one explicit tool Effect
+HumanActivity      ApprovalCase or typed human input
+WorkflowActivity   inline or child referenced workflow
+AgentActivity      bounded durable agent-loop strategy
+```
+
+Control-flow constructs are not work activities:
+
+```text
+Decision           deterministic guard selection
+Parallel           fork plus deterministic join
+Iteration          bounded repeated body
+```
+
+Timers, signal waits, local child starts, continuation, checkpoints, and cancellation are DurableCommands.
+
+## ActivityAttempt
+
+`ActivityAttempt` is optional provenance created only when the whole ActivityRun restarts from its declared retry boundary using the same immutable input snapshot.
+
+Worker loss does not create an ActivityAttempt when durable execution resumes under a new lease.
+
+Completed Effects from an earlier attempt **MUST** be reused. Unknown mutating Effects **MUST** be reconciled before another execute Invocation.
+
+## Execution scope
+
+A branch or iteration becomes a separate stored record only when it needs independent identity, lifecycle, policy, budget, result, or audit. Otherwise the `ActivityRun.executionScopePath` and optional branch/iteration fields are sufficient.
+
+An `ExecutionBranch` is a logical parallel path. An `Iteration` is an intentional sequential cycle over updated state. Logical parallelism does not guarantee simultaneous physical dispatch.
+
+## DurableCommand
+
+A `DurableCommand` is a durable orchestration operation:
+
+```text
+schedule_timer
+await_signal
+spawn_child
+request_cancellation
+continue_as_new
+create_checkpoint
+```
+
+Commands participate in ordered execution but do not use external mutation semantics unless their implementation crosses an external boundary.
+
+## Effect and Invocation
+
+An `Effect` is one logical request to cross the deterministic boundary. An `Invocation` is one concrete adapter or provider call used to execute, poll, cancel, or reconcile it.
+
+```text
+ActivityRun -> 0..N Effects
+Effect      -> 0..N Invocations
+Invocation  -> exactly one Effect
+```
+
+An Effect may have zero Invocations when policy denies it, cancellation occurs before dispatch, recorded evidence supplies the result, or an approved exact cache satisfies it.
+
+## Effect identity
+
+An Effect key **MUST** include the logical occurrence:
+
+```text
+workspaceId
+runId
+activityRunId
+scopePathDigest
+compiler-owned effectSlotId
+deterministic occurrenceKey
+effectSpecDigest
+normalizedInputDigest
+authorityDigest
+```
+
+`effectKey`, provider idempotency key, and business uniqueness key are distinct concepts.
+
+The key **MUST NOT** include a random Invocation ID or ActivityAttempt ordinal.
+
+## Retry and reconciliation
+
+| Failure | Canonical response |
+|---|---|
+| provider call fails safely | new Invocation, same Effect |
+| provider asks for backoff | durable capacity wait, then new Invocation |
+| status, poll, or reconciliation query | new Invocation, same Effect |
+| prompt, arguments, tool, authority, or material objective changes | new Effect |
+| whole activity restarts | new ActivityAttempt; reuse completed Effects |
+| worker dies and durable state is resumable | new WorkerLease, same logical work |
+| external mutation may have occurred | reconcile before another execute Invocation |
+| intentional new cycle | new Iteration occurrence |
+
+`retryable`, `safeToRetry`, and `effectMayHaveOccurred` are independent error properties.
+
+## Child execution
+
+Inline composition creates no independent Run. A child is a separate Run linked by `ChildRunLink` and constrained by task, capability, budget, deadline, cancellation, and result contracts.
+
+A local child start is a `spawn_child` DurableCommand. A remote external-agent task is an Effect.

@@ -1,0 +1,55 @@
+---
+title: Resource and version model
+description: Stable identities, immutable versions, deployment snapshots, and compatibility rules.
+---
+
+# Resource and version model
+
+> **Status: Normative**
+
+## Grammar
+
+```text
+Resource                 stable identity and ownership
+ResourceVersion          immutable behavior or contract
+DeploymentSnapshot       exact deployable closure
+Run                      durable execution pinned to one snapshot
+```
+
+Typical Resources include `Agent`, `Workflow`, `Prompt`, `Tool`, `Policy`, `ModelRoute`, and `EvaluationSuite`. Domain-specific resources remain in their bounded contexts.
+
+## Immutable versions
+
+A published ResourceVersion **MUST** include:
+
+```text
+resource identity
+semantic version
+content digest
+complete specification or immutable specification reference
+status and provenance
+```
+
+Published behavior and its digest **MUST NOT** be edited in place. Deprecation and revocation are lifecycle facts, not mutation of historical content.
+
+## DeploymentSnapshot
+
+A production Run **MUST** pin a snapshot containing exact digests for all behavior that can affect execution, including:
+
+```text
+subject and entry workflow
+prompts and schemas
+tools and adapters
+policies and capability rules
+model routes
+execution code
+runtime contract version
+evaluation suite and hard gates
+package locks when packages are used
+```
+
+A live Run **MUST NOT** resolve mutable `latest` references.
+
+## Upgrade rule
+
+A Run never changes its `executionAuthorityProfile` or snapshot silently. Behavior migration uses an explicit continuation or successor Run linked by `runFamilyId`, with state migration and Effect-reuse policy recorded.

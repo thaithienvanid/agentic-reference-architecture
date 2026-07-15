@@ -1,0 +1,71 @@
+---
+title: Conformance and extensions
+description: Module claims, evidence expectations, extension rules, and implementation-sized profiles.
+---
+
+# Conformance and extensions
+
+> **Status: Normative**
+
+## Claim format
+
+A conformance claim identifies:
+
+```text
+ARA semantic version
+exact publication commit or digest
+claimed modules
+execution-authority profiles implemented
+contract versions
+implementation and test evidence
+known deviations
+```
+
+Conformance is a technical architecture claim, not legal certification or a security attestation.
+
+## Minimum evidence
+
+### Core
+
+- dependency-direction tests
+- immutable version and DeploymentSnapshot tests
+- one canonical Run model
+- Effect/Invocation contract tests
+- provider DTO containment
+- authorization and model-output boundary tests
+- artifact and evaluation evidence
+
+### Durable
+
+- one-authority proof per profile
+- inbox idempotency
+- fenced single-writer tests
+- timer, signal, resume, replay, and continuation tests
+- Effect deduplication and ambiguous-outcome reconciliation
+- cancellation-barrier tests
+- failure injection and recovery evidence
+
+### High-Assurance
+
+- action-bound ApprovalCase tests
+- segregation-of-duties tests
+- fail-closed hard gates
+- tamper-evident audit evidence
+- independent review
+
+## Extension rule
+
+A concept enters the universal core only when it is reusable across materially different domains and needs independent identity, lifecycle, concurrency control, policy, retention, or audit.
+
+Otherwise it belongs as:
+
+```text
+a bounded-context concept
+a field or event
+an Artifact subtype
+a derived projection
+an optional module
+or an adapter capability extension
+```
+
+Marketplace, external-agent federation, sandboxing, durable memory, multi-region cells, and regulated controls are optional modules. An internal application does not need them merely to conform to Core or Durable.
