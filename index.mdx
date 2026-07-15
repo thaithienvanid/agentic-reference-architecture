@@ -1,0 +1,30 @@
+---
+title: Agentic Reference Architecture
+description: A small, rigorous core for production agentic applications and durable workflows.
+---
+
+# Agentic Reference Architecture
+
+ARA separates definitions, durable execution, external work, governance, and evidence without requiring a platform-sized implementation.
+
+```text
+DEFINE
+ResourceVersion + DeploymentSnapshot
+
+EXECUTE
+Run + ActivityRun + one RunAuthority
+
+ORCHESTRATE
+DurableCommand
+
+ACT OUTSIDE DETERMINISM
+Effect -> Invocation
+
+CONTROL
+Policy + capability + budget + ApprovalCase
+
+RECORD
+semantic events + artifacts + audit + usage + evaluation
+```
+
+Begin with the [normative specification](/specification/index). To build one internal company application, use the [minimal implementation profile](/guides/minimal-internal-app).

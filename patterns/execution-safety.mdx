@@ -1,0 +1,36 @@
+---
+title: Parallelism, iteration, reconciliation, and compensation
+description: Safe logical concurrency, repeated cycles, ambiguous outcomes, reconciliation, and compensating Effects.
+---
+
+# Execution safety
+
+> **Authority: Informative pattern**
+
+```text
+Parallel             definition-time fork and join
+ExecutionBranch      one logical runtime path when identity matters
+ConcurrencyPolicy    physical scheduling capacity
+Iteration            one intentional sequential occurrence
+```
+
+Branches consume immutable input snapshots and do not mutate shared state directly. Joins consume exact results with a deterministic policy such as `all`, `first_success`, `quorum`, or `best_before_deadline`.
+
+Include branch and iteration occurrence in Effect identity. Two stochastic branches with identical prompts are distinct Effects when independent samples are intended.
+
+## Reconciliation and compensation
+
+When a mutating Invocation times out after dispatch:
+
+```text
+mark Effect outcome_unknown
+-> stop execute retries
+-> use provider operation reference, idempotency key, or business key
+-> issue status/reconciliation Invocation
+-> confirm succeeded, absent, failed, or still unknown
+-> retry only when confirmed absent and safe
+-> compensate or mitigate with a new Effect when required
+-> transfer unresolved cases to manual resolution
+```
+
+Compensation does not erase the original Effect. It is another authorized Effect with its own identity and evidence.

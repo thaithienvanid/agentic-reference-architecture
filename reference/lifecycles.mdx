@@ -1,0 +1,71 @@
+---
+title: Lifecycle contracts
+description: Canonical states for Run, ActivityRun, DurableCommand, Effect, Invocation, WorkerLease, ApprovalCase, and cancellation.
+---
+
+# Lifecycle contracts
+
+> **Status: Normative reference. Exact enums live in the lifecycle registry.**
+
+## Run
+
+```text
+created -> queued -> running
+running <-> waiting
+running|waiting -> cancelling
+running -> completed | failed
+cancelling -> cancelled | waiting_manual_resolution
+```
+
+`waiting` is a projection over subordinate commands, Effects, approvals, or children. Detailed reasons remain in subordinate records.
+
+## ActivityRun
+
+```text
+planned -> ready -> running
+running -> waiting | completed | failed | cancelled
+waiting -> running | failed | cancelled
+```
+
+## DurableCommand
+
+```text
+pending -> ready -> fired -> completed
+pending|ready -> cancelled | failed
+```
+
+## Effect
+
+```text
+proposed -> authorized -> planned -> dispatching -> in_progress
+in_progress -> succeeded | failed | cancelled | outcome_unknown
+outcome_unknown -> reconciling
+reconciling -> succeeded | failed | planned | manual_resolution
+```
+
+## Invocation
+
+```text
+created -> dispatching -> streaming
+created|dispatching|streaming -> succeeded | failed | timed_out | cancelled | outcome_unknown
+```
+
+## WorkerLease
+
+```text
+active -> released | expired | revoked
+```
+
+## ApprovalCase
+
+```text
+pending -> approved | denied | expired | cancelled | invalidated
+approved -> consumed | invalidated | expired
+```
+
+## CancellationBarrier
+
+```text
+requested -> draining -> reconciling -> resolved
+requested|draining|reconciling -> manual_resolution
+```

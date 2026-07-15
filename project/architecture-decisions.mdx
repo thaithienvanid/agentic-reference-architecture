@@ -1,0 +1,36 @@
+---
+title: Architecture decisions
+description: Consolidated accepted decisions for the cleaned ARA 1.0 runtime model.
+---
+
+# Architecture decisions
+
+> **Status: Accepted project decisions**
+
+## ADR-001 — One canonical Run
+
+Use one subject-typed Run. Agent, workflow, and execution-plan names are typed views, not mandatory wrapper aggregates.
+
+## ADR-002 — One execution authority per Run
+
+Declare `ara_log_v1`, `temporal_history_v1`, or another versioned profile. Other histories are projections, not peers.
+
+## ADR-003 — DurableCommand separate from Effect
+
+Use commands for orchestration mechanics and Effects for external or nondeterministic work.
+
+## ADR-004 — Compact state plus append-only authority
+
+Use `RunHeader`, semantic events, subordinate records, and optional snapshots. Do not rewrite a growing complete state graph per transition.
+
+## ADR-005 — Occurrence-aware Effect identity
+
+Include scope path, compiler-owned slot, deterministic occurrence, Effect specification, input, and authority digests.
+
+## ADR-006 — ApprovalCase is an aggregate
+
+Bind exact action, material preconditions, quorum, actor authority, authentication evidence, expiry, and one-time consumption.
+
+## ADR-007 — Optional means optional
+
+Memory, sandbox, external-agent federation, marketplace, multi-region cells, and regulated controls do not appear in the mandatory implementation core.

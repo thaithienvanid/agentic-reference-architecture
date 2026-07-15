@@ -1,0 +1,55 @@
+---
+title: Contract catalog
+description: Machine-readable schemas, fixtures, registries, protocol profiles, and module ownership.
+---
+
+# Contract catalog
+
+> **Status: Normative reference to machine-readable representations**
+
+`contracts/manifest.json` is the canonical catalog.
+
+## Core schemas
+
+```text
+common
+deployment-snapshot
+run-authority
+run-header
+activity-run
+effect
+invocation
+capability-grant
+```
+
+## Durable schemas
+
+```text
+run-inbox-message
+durable-command
+worker-lease
+run-log-event
+run-log-commit
+cancellation-barrier
+```
+
+## High-Assurance / enterprise schemas
+
+```text
+approval-case
+evaluation-result
+```
+
+## Registries
+
+```text
+execution-authority-profiles
+durable-command-kinds
+effect-kinds
+event-types
+lifecycle-states
+conformance-modules
+hard-gates
+```
+
+Each non-shared schema has one executable fixture. CI validates schema meta-syntax, fixtures, registry references, OpenAPI, AsyncAPI, navigation, and canonical terminology.

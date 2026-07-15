@@ -1,0 +1,69 @@
+---
+title: ARA specification
+description: Normative scope, modules, invariants, and reading order for ARA 1.0.
+---
+
+# ARA specification
+
+> **Status: Normative Release Candidate · Target: ARA 1.0**
+
+ARA specifies the minimum semantic boundaries and contracts required to build production agentic applications and durable workflows without coupling the core to one framework, model provider, durable backend, database, or cloud.
+
+## Requirement language
+
+**MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, and **MAY** are interpreted according to BCP 14 when uppercase.
+
+## Required core
+
+ARA Core consists of:
+
+```text
+clean dependency boundaries
+stable Resource identity and immutable ResourceVersion
+immutable DeploymentSnapshot
+one canonical Run
+one sequenced RunAuthority
+typed ActivityRun
+Effect and Invocation
+capability and policy authorization
+state, artifact, audit, usage, and evaluation separation
+```
+
+ARA Core describes semantics. A short synchronous implementation may use those semantics without claiming durable recovery.
+
+## Composable modules
+
+| Module | Adds | Depends on |
+|---|---|---|
+| **ARA Durable** | durable inbox, commands, waits, retries, reconciliation, fencing, recovery, replay, cancellation barriers | Core |
+| **ARA Multi-Tenant** | tenant/workspace isolation, quotas, placement, isolation evidence | Core; Durable when runs are long-lived |
+| **ARA Enterprise Operations** | shared control plane, SLOs, disaster recovery, provider capacity, audit/usage completeness | Durable |
+| **ARA Marketplace** | signed packages, locks, installation, upgrade, quarantine, revocation | Core plus applicable security modules |
+| **ARA High-Assurance** | fail-closed gates, stronger approvals, tamper evidence, independent review | Core plus applicable runtime modules |
+| **ARA Regulated** | retention, legal hold, data rights, control mapping, intended-purpose evidence | High-Assurance plus deployment-specific modules |
+
+Modules are composable, not one mandatory cumulative ladder.
+
+## Architectural invariants
+
+1. A production Run **MUST** pin one immutable `DeploymentSnapshot`.
+2. A Run **MUST** have exactly one sequenced execution authority.
+3. `AgentRun`, `WorkflowRun`, and `ExecutionPlanRun` **MUST NOT** be mandatory wrapper aggregates around the same execution; they are typed views of `Run` when exposed.
+4. Model output **MUST NOT** directly mutate authoritative business or execution state.
+5. A semantically material external or nondeterministic operation **MUST** be an authorized `Effect` before dispatch.
+6. Every concrete provider or adapter call **MUST** be an `Invocation` of exactly one Effect.
+7. A mutating Effect **MUST** define idempotency, reconciliation, or both.
+8. Timers, signal waits, local child starts, continuation, checkpoints, and cancellation **MUST** use `DurableCommand`, not Effect.
+9. State, context, artifacts, memory, audit, usage, telemetry, and evaluation **MUST** remain distinct models.
+10. Provider and framework DTOs **MUST** stop at adapters.
+11. Human approval **MUST** bind the exact action and material preconditions it authorizes.
+12. Evaluation contracts and hard gates **MUST** be part of deployable behavior.
+
+## Reading order
+
+1. [Boundaries](/specification/boundaries)
+2. [Resource model](/specification/resource-model)
+3. [Execution model](/specification/execution-model)
+4. [Runtime](/specification/runtime)
+5. [Security, data, and evidence](/specification/security-and-evidence)
+6. [Conformance](/specification/conformance)

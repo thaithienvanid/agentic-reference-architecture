@@ -1,0 +1,42 @@
+---
+title: Internal workflow examples
+description: Expense-exception and customer-case examples using the cleaned ARA execution model.
+---
+
+# Internal workflow examples
+
+## Expense exception workflow
+
+> **Authority: Informative worked example**
+
+```text
+validate submission                    TaskActivity
+extract receipt fields                 ModelActivity -> model.invoke Effect
+check policy                           TaskActivity
+wait for manager/finance decision      ApprovalCase
+create or update finance case          ToolActivity -> tool.invoke Effect
+notify employee                        ToolActivity -> human.notify Effect
+complete and evaluate                  TaskActivity
+```
+
+The model extracts and explains. Deterministic code computes money and policy thresholds. The ApprovalCase binds the exact finance action. The finance adapter uses Effect key plus business uniqueness and reconciliation. A lost response never triggers a blind duplicate mutation.
+
+This example conforms to Core + Durable and may add High-Assurance approval controls.
+
+## Customer case resolution
+
+> **Authority: Informative worked example**
+
+```text
+open case and pin source records
+retrieve governed knowledge
+run bounded agent iteration
+propose response and actions
+apply deterministic policy
+request approval for credits or account changes
+send response and execute authorized tools
+await customer event or timer
+close and evaluate
+```
+
+The bounded agent loop stores each intentional cycle as an iteration occurrence. Tool actions are Effects. The customer wait and timer are DurableCommands. Conversation, workflow state, source-system state, context snapshots, and reusable memory remain separate.

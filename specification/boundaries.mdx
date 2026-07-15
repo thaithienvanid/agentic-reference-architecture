@@ -1,0 +1,48 @@
+---
+title: Architecture boundaries
+description: Normative ownership and dependency rules for domain, application, execution, runtime, ports, adapters, and experience layers.
+---
+
+# Architecture boundaries
+
+> **Status: Normative**
+
+Distribution is optional. Dependency direction is not.
+
+| Boundary | Owns | Must not own |
+|---|---|---|
+| **Domain** | business concepts, invariants, domain events | model SDKs, workflow engines, databases, telemetry vendors |
+| **Foundation types** | IDs, money, time, version refs, scope, common errors | product entities, orchestration, provider DTOs |
+| **Application** | authorized use cases, catalog publication, deployment promotion, Run commands and queries | worker leases, provider dispatch, model-driven invariants |
+| **Execution Kernel** | pure legal state evolution and next decisions | I/O, queues, clocks, secrets, SDKs, persistence sessions |
+| **Runtime** | admission, durable coordination, scheduling, cancellation, recovery | business-domain truth, product UX, authoring ownership |
+| **Ports** | stable inward-facing contracts | provider-specific request/response/session types |
+| **Adapters** | protocol, provider, framework, and storage translation | redefinition of ARA semantics or authorization bypass |
+| **Experience** | UI, APIs, approval views, developer tools | authoritative business or execution state |
+
+## Dependency rule
+
+```text
+experience -> application -> domain and ports
+runtime processes -> Execution Kernel and ports
+adapters -> implement ports
+provider/framework packages -> adapters only
+```
+
+The Domain, Application, and Execution Kernel **MUST NOT** import provider SDK types, workflow-engine history objects, graph-node types, telemetry spans, transport sessions, or evaluation-framework cases.
+
+## Application versus runtime
+
+| Application | Runtime |
+|---|---|
+| authorizes a requested use case | advances an admitted live Run |
+| publishes immutable versions | uses one pinned DeploymentSnapshot |
+| starts, cancels, signals, and queries | schedules activities, commands, and Effects |
+| records approval decisions | consumes approved authorization safely |
+| starts evaluations and reruns | recovers from worker and provider failure |
+
+A modular monolith with web and worker processes can satisfy every boundary.
+
+## Foundation types, not a universal Shared Kernel
+
+ARA uses the neutral term **Foundation types**. A DDD Shared Kernel is an optional relationship between bounded contexts and is not a mandatory architecture layer.

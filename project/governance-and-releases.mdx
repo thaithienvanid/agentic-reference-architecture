@@ -1,0 +1,39 @@
+---
+title: Documentation governance and releases
+description: Authority, ownership, publication, compatibility, and errata policy.
+---
+
+# Documentation governance and releases
+
+> **Status: Project governance**
+
+## Authority
+
+```text
+specification semantics
+-> machine contracts
+-> normative reference
+-> accepted architecture decisions
+-> guides and patterns
+-> examples and review history
+```
+
+## Page rule
+
+Each page has one primary reader job and does not duplicate complete definitions from another authority layer.
+
+## Repository rule
+
+The public architecture is intentionally compact. New pages require a distinct reader job. New core concepts require the extension test in the conformance specification.
+
+## Consistency
+
+Semantic changes propagate through specification, contracts, interfaces, lifecycle tables, examples, migration guidance, checks, and redirects. Machine representations control exact serialized shape; specification controls semantic meaning.
+
+## Releases, compatibility, and errata
+
+ARA 1.0 is a Release Candidate until independent implementation and review evidence is recorded.
+
+A release identifies the semantic version and exact publication commit/digest. Stable publication requires machine-contract validation, at least two materially different authority-profile implementations or equivalent independent implementation evidence, interoperability tests, failure/recovery evidence, and independent review.
+
+Breaking semantics or serialized shapes require versioned migration guidance. Editorial corrections may be issued as errata when they do not change conforming behavior.

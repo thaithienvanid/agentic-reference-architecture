@@ -1,0 +1,31 @@
+---
+title: Migrate from the earlier ARA candidate
+description: Replace wrapper Runs, dual authority, overloaded Effects, full-state commits, and god contexts.
+---
+
+# Migrate from the earlier ARA candidate
+
+> **Authority: Informative migration guide**
+
+## Required semantic changes
+
+| Earlier model | ARA 1.0 RC model |
+|---|---|
+| `AgentRun -> root WorkflowRun` | one subject-typed `Run` |
+| platform journal plus backend history as peer records | one `ExecutionAuthorityProfile` per Run |
+| timer, wait, and child start as Effects | `DurableCommand` |
+| complete `nextState` in every transition commit | compact `RunHeader` plus append-only events and subordinate records |
+| semantic Effect key without occurrence scope | occurrence-aware `EffectIdentity` |
+| broad `ExecutionContext` everywhere | separate principal, read, authorization, invocation, and commit contexts |
+| approval status with weak actor evidence | versioned action-bound `ApprovalCase` |
+| immediate terminal cancellation | `CancellationBarrier` |
+
+## Data migration
+
+1. Choose the authoritative history for every existing Run.
+2. Map wrapper IDs to one canonical Run ID and retain aliases in a compatibility table.
+3. Convert timer, event-wait, and local child-start records to DurableCommands.
+4. Backfill Effect occurrence and scope identity; flag collisions for manual review.
+5. Split large Run state into header, subordinate records, and snapshots.
+6. Convert approvals to cases or invalidate them before any new dispatch.
+7. Do not silently continue a Run when authority cannot be proven; close and create a successor Run.

@@ -1,0 +1,25 @@
+---
+title: Review history
+description: Consolidated record of major architecture corrections made before ARA 1.0.
+---
+
+# Review history
+
+> **Authority: Historical project record**
+
+The ARA 1.0 cleanup corrected several design problems in the earlier candidate:
+
+```text
+removed mandatory AgentRun -> root WorkflowRun wrappers
+replaced dual peer histories with one authority profile per Run
+separated DurableCommand from Effect
+replaced complete-state transition commits with compact RunLogCommit
+made Effect identity occurrence-aware
+replaced broad ExecutionContext with purpose-specific contexts
+made ApprovalCase action-bound and independently versioned
+added truthful CancellationBarrier semantics
+moved optional platform capabilities out of the mandatory core
+reduced the public documentation and contract surface
+```
+
+Historical documents and URLs redirect to current owners and are not current authority.

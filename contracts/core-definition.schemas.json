@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ara.example/spec/contracts/core-definition.schemas.json",
+  "title": "ARA core definition schemas",
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$"
+    },
+    "instant": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "money": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["amount","currency"],
+      "properties": {
+        "amount": {"type":"string","pattern":"^-?[0-9]+(?:\.[0-9]{1,6})?$"},
+        "currency": {"type":"string","pattern":"^[A-Z]{3}$"}
+      }
+    },
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind","versionRef"],
+      "properties": {
+        "kind": {"enum":["agent","workflow","execution_plan"]},
+        "versionRef": {"$ref":"#/$defs/id"}
+      }
+    },
+    "deployment-snapshot": {
+      "type":"object",
+      "additionalProperties":false,
+      "required":["schemaVersion","deploymentSnapshotId","workspaceId","environment","subject","entryWorkflowVersionRef","resourcePins","executionAuthorityProfile","executionCodeDigest","contentDigest","createdAt"],
+      "properties": {
+        "schemaVersion":{"const":"1.0.0"},
+        "deploymentSnapshotId":{"$ref":"#/$defs/id"},
+        "workspaceId":{"$ref":"#/$defs/id"},
+        "environment":{"enum":["development","staging","production"]},
+        "subject":{"$ref":"#/$defs/subject"},
+        "entryWorkflowVersionRef":{"$ref":"#/$defs/id"},
+        "resourcePins":{"type":"array","minItems":1,"items":{"type":"object","additionalProperties":false,"required":["kind","versionRef","digest"],"properties":{"kind":{"$ref":"#/$defs/id"},"versionRef":{"$ref":"#/$defs/id"},"digest":{"$ref":"#/$defs/digest"}}}},
+        "executionAuthorityProfile":{"enum":["ara_log_v1","temporal_history_v1","checkpoint_graph_v1"]},
+        "executionCodeDigest":{"$ref":"#/$defs/digest"},
+        "contentDigest":{"$ref":"#/$defs/digest"},
+        "createdAt":{"$ref":"#/$defs/instant"}
+      }
+    },
+    "run-authority": {
+      "type":"object",
+      "additionalProperties":false,
+      "required":["schemaVersion","runId","profile","authorityEpoch","executionCodeDigest"],
+      "properties": {
+        "schemaVersion":{"const":"1.0.0"},
+        "runId":{"$ref":"#/$defs/id"},
+        "profile":{"enum":["ara_log_v1","temporal_history_v1","checkpoint_graph_v1"]},
+        "authorityEpoch":{"type":"integer","minimum":1},
+        "executionCodeDigest":{"$ref":"#/$defs/digest"},
+        "backendExecutionRef":{"$ref":"#/$defs/id"},
+        "backendBuildRef":{"$ref":"#/$defs/id"}
+      }
+    },
+    "run-header": {
+      "type":"object",
+      "additionalProperties":false,
+      "required":["schemaVersion","runId","workspaceId","subject","deploymentSnapshotRef","authorityProfile","authorityEpoch","status","stateVersion","runSequence","frontier","variableState","cancellationEpoch","createdAt","updatedAt"],
+      "properties": {
+        "schemaVersion":{"const":"1.0.0"},
+        "runId":{"$ref":"#/$defs/id"},
+        "workspaceId":{"$ref":"#/$defs/id"},
+        "runFamilyId":{"$ref":"#/$defs/id"},
+        "subject":{"$ref":"#/$defs/subject"},
+        "deploymentSnapshotRef":{"$ref":"#/$defs/id"},
+        "authorityProfile":{"enum":["ara_log_v1","temporal_history_v1","checkpoint_graph_v1"]},
+        "authorityEpoch":{"type":"integer","minimum":1},
+        "status":{"enum":["created","queued","running","waiting","cancelling","waiting_manual_resolution","completed","failed","cancelled"]},
+        "stateVersion":{"type":"integer","minimum":0},
+        "runSequence":{"type":"integer","minimum":0},
+        "frontier":{"type":"object"},
+        "variableState":{"type":"object"},
+        "pendingActivityCount":{"type":"integer","minimum":0},
+        "pendingCommandCount":{"type":"integer","minimum":0},
+        "pendingEffectCount":{"type":"integer","minimum":0},
+        "pendingApprovalCount":{"type":"integer","minimum":0},
+        "cancellationEpoch":{"type":"integer","minimum":0},
+        "nextWakeupAt":{"$ref":"#/$defs/instant"},
+        "terminalResultRef":{"$ref":"#/$defs/id"},
+        "createdAt":{"$ref":"#/$defs/instant"},
+        "updatedAt":{"$ref":"#/$defs/instant"}
+      }
+    }
+  }
+}

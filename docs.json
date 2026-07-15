@@ -1,0 +1,128 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Agentic Reference Architecture",
+  "colors": {
+    "primary": "#2563EB",
+    "light": "#3B82F6",
+    "dark": "#1D4ED8"
+  },
+  "navigation": {
+    "global": {
+      "anchors": [
+        {
+          "anchor": "GitHub",
+          "href": "https://github.com/thaithienvanid/agentic-reference-architecture"
+        }
+      ]
+    },
+    "tabs": [
+      {
+        "tab": "Specification",
+        "groups": [
+          {
+            "group": "Specification",
+            "pages": [
+              "index",
+              "specification/index",
+              "specification/boundaries",
+              "specification/resource-model",
+              "specification/execution-model",
+              "specification/runtime",
+              "specification/security-and-evidence",
+              "specification/conformance"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Build",
+        "groups": [
+          {
+            "group": "Build",
+            "pages": [
+              "guides/minimal-internal-app",
+              "guides/temporal-profile",
+              "guides/migration-from-ara-rc0",
+              "patterns/human-approval",
+              "patterns/execution-safety",
+              "examples/internal-workflows"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Reference",
+        "groups": [
+          {
+            "group": "Reference",
+            "pages": [
+              "reference/conventions",
+              "reference/interfaces",
+              "reference/lifecycles",
+              "reference/contract-catalog"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Project",
+        "groups": [
+          {
+            "group": "Project",
+            "pages": [
+              "project/architecture-decisions",
+              "project/governance-and-releases",
+              "project/review-history"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "redirects": [
+    {"source":"/rfc","destination":"/specification/index"},
+    {"source":"/rfc/index","destination":"/specification/index"},
+    {"source":"/rfc/execution-model","destination":"/specification/execution-model"},
+    {"source":"/rfc/runtime","destination":"/specification/runtime"},
+    {"source":"/rfc/resource-model","destination":"/specification/resource-model"},
+    {"source":"/rfc/data-and-evidence","destination":"/specification/security-and-evidence"},
+    {"source":"/rfc/security-and-governance","destination":"/specification/security-and-evidence"},
+    {"source":"/rfc/platform","destination":"/specification/conformance"},
+    {"source":"/rfc/evaluation-and-conformance","destination":"/specification/conformance"},
+    {"source":"/specification/boundaries-and-use-cases","destination":"/specification/boundaries"},
+    {"source":"/specification/security-and-governance","destination":"/specification/security-and-evidence"},
+    {"source":"/specification/platform","destination":"/specification/conformance"},
+    {"source":"/specification/evaluation-and-conformance","destination":"/specification/conformance"},
+    {"source":"/handbook/index","destination":"/guides/minimal-internal-app"},
+    {"source":"/handbook/runtime","destination":"/guides/minimal-internal-app"},
+    {"source":"/guides/database-runtime","destination":"/guides/minimal-internal-app"},
+    {"source":"/handbook/workflows","destination":"/specification/execution-model"},
+    {"source":"/handbook/agents","destination":"/specification/execution-model"},
+    {"source":"/handbook/state-context-memory","destination":"/specification/security-and-evidence"},
+    {"source":"/handbook/security","destination":"/specification/security-and-evidence"},
+    {"source":"/reference/durable-backend-profile","destination":"/guides/temporal-profile"},
+    {"source":"/reference/api","destination":"/reference/contract-catalog"},
+    {"source":"/reference/events-and-state","destination":"/reference/contract-catalog"},
+    {"source":"/reference/manifests","destination":"/reference/contract-catalog"},
+    {"source":"/reference/conformance-checklist","destination":"/specification/conformance"},
+    {"source":"/examples/procure-to-pay","destination":"/examples/internal-workflows"},
+    {"source":"/examples/customer-service","destination":"/examples/internal-workflows"},
+    {"source":"/patterns/ensemble-and-deliberation","destination":"/patterns/execution-safety"},
+    {"source":"/patterns/saga-and-compensation","destination":"/patterns/execution-safety"},
+    {"source":"/project/index","destination":"/project/governance-and-releases"},
+    {"source":"/decisions/adrs","destination":"/project/architecture-decisions"},
+    {"source":"/audits/documentation-architecture-2026-07-13","destination":"/project/review-history"},
+    {"source":"/specification/security","destination":"/specification/security-and-evidence"},
+    {"source":"/specification/data-and-evidence","destination":"/specification/security-and-evidence"},
+    {"source":"/reference/glossary","destination":"/reference/conventions"},
+    {"source":"/reference/openapi","destination":"/reference/contract-catalog"},
+    {"source":"/reference/asyncapi","destination":"/reference/contract-catalog"},
+    {"source":"/patterns/parallel-and-iteration","destination":"/patterns/execution-safety"},
+    {"source":"/patterns/reconciliation","destination":"/patterns/execution-safety"},
+    {"source":"/examples/expense-exception","destination":"/examples/internal-workflows"},
+    {"source":"/examples/customer-case","destination":"/examples/internal-workflows"},
+    {"source":"/project/documentation-architecture","destination":"/project/governance-and-releases"},
+    {"source":"/project/releases-and-errata","destination":"/project/governance-and-releases"}
+  ]
+}

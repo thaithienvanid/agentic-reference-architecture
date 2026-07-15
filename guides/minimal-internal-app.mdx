@@ -1,0 +1,1076 @@
+---
+title: Minimal internal company application
+description: Implementation-ready ARA profile for one internal application built with TypeScript, Bun, Next.js, React, PostgreSQL, object storage, OIDC, and OpenTelemetry.
+---
+
+# Minimal internal company application
+
+> **Authority: Informative implementation profile for ARA Core + Durable**
+
+This profile is the default starting point for one product team building one internal company application with several deterministic and agentic workflows.
+
+It is intentionally smaller than an agent platform while preserving the production properties that are expensive to retrofit later: immutable behavior, one execution authority, durable waits, Effect idempotency, human approval, recovery, audit, and evaluation.
+
+## Decision
+
+Build a **modular monolith with two long-running processes and one migration job**:
+
+```text
+web process
+    Next.js UI, internal API, authentication, authorization,
+    workflow administration, Run commands, queries, and approvals
+
+worker process
+    Run activation, Execution Kernel, DurableCommands,
+    Effect/Invocation dispatch, reconciliation, outbox, and evaluation
+
+migration job
+    ordered PostgreSQL schema migrations before rollout
+```
+
+Use:
+
+```text
+TypeScript + Bun
+React + Next.js App Router
+PostgreSQL
+S3-compatible object storage
+company OIDC provider
+OpenTelemetry
+```
+
+Select:
+
+```text
+ExecutionAuthorityProfile = ara_log_v1
+```
+
+PostgreSQL `RunLog` and the per-Run activation sequencer are the execution authority. Do not create a peer workflow history.
+
+## Intended scope
+
+This profile supports:
+
+- One internal application owned by one product team.
+- Several immutable workflow and agent versions.
+- Deterministic activities and bounded model reasoning.
+- Internal API and SaaS tool calls.
+- Human approval and typed human input.
+- Runs lasting seconds to several weeks.
+- Background execution with horizontal worker replicas.
+- Uploaded documents and generated artifacts.
+- At-least-once delivery with semantic idempotency.
+- Safe resume after web, worker, or database failover.
+- Audit, usage, observability, and evaluation.
+- One company with optional department or workspace boundaries.
+
+Assumptions:
+
+- One primary execution region.
+- Company-managed identity and employee lifecycle.
+- Highly available PostgreSQL with point-in-time recovery.
+- Managed or durable S3-compatible object storage.
+- Most Runs contain fewer than hundreds of activities and thousands of Effects.
+- External operations can time out after taking effect.
+- Model and retrieved content are untrusted data, not authority.
+
+## Explicit non-goals
+
+Do not add these initially:
+
+```text
+one service per bounded context
+Kafka, NATS, or another general broker
+Redis as a durable queue
+a vector database without measured need
+a public plugin or agent marketplace
+multi-agent federation
+global active-active execution
+a generic low-code workflow builder
+arbitrary third-party code execution
+Temporal as a second execution authority
+```
+
+A modular monolith is not a shortcut. Domain, application, runtime, kernel, ports, and adapters remain separate modules with enforced dependency direction.
+
+## Physical topology
+
+```text
+Employees / approvers
+        |
+        v
+Company ingress
+        |
+        v
+Next.js web replicas  <---->  Company OIDC
+        |
+        +------ PostgreSQL
+        |          ^
+        |          |
+        +------ Bun worker replicas
+        |          |
+        +------ Object storage
+                   |
+                   +------ model providers
+                   +------ company APIs and SaaS
+                   +------ OpenTelemetry collector
+```
+
+Deploy:
+
+| Unit | Minimum production count | State |
+|---|---:|---|
+| web | 2 replicas | stateless |
+| worker | 2 replicas | leases and durable state in PostgreSQL |
+| migrator | one job per release | exits after migration |
+| PostgreSQL | managed primary/standby | authoritative for `ara_log_v1` |
+| object storage | managed | immutable large payloads and artifacts |
+| OpenTelemetry collector | 2 or managed | non-authoritative telemetry pipeline |
+
+## Technology policy
+
+Use exact dependency versions in `bun.lock` and immutable container images.
+
+Recommended package roles:
+
+```text
+Bun                 runtime, package manager, test runner, build tooling
+Next.js             internal web UI and Route Handlers
+React               interactive approval and Run views
+Bun.SQL             explicit PostgreSQL access and transactions
+Zod                 transport and application validation
+JSON Schema + Ajv   published workflow/tool/runtime contracts
+jose/openid-client  OIDC and token verification
+decimal.js          application-side decimal arithmetic
+AWS S3 client       object-storage adapter
+OpenTelemetry       traces, metrics, and context propagation
+Playwright          browser and end-to-end tests
+```
+
+Do not introduce an ORM on the fenced Run commit path. An ORM may serve low-risk catalog CRUD if it does not obscure sequence checks, uniqueness, budget reservation, approval consumption, or outbox insertion.
+
+Do not use the Next.js Edge runtime for PostgreSQL, runtime, or provider adapters.
+
+## Repository layout
+
+```text
+apps/
+├── web/
+│   ├── app/
+│   │   ├── runs/
+│   │   ├── approvals/
+│   │   ├── workflows/
+│   │   └── api/v1/
+│   └── instrumentation.ts
+└── worker/
+    └── src/
+        ├── activation-loop.ts
+        ├── command-loop.ts
+        ├── effect-loop.ts
+        ├── outbox-loop.ts
+        └── main.ts
+
+packages/
+├── foundation/       IDs, money, time, digests, Result, error categories
+├── domain/           company business concepts and invariants
+├── application/      commands, queries, authorization, transaction intent
+├── workflow/         immutable definitions, compiler, bindings, schemas
+├── runtime/          kernel, state, commands, Effects, approvals, cancellation
+├── ports/            stable inward-facing contracts
+├── adapters/         models, tools, OIDC, object storage, telemetry, notifications
+├── database/         migrations, repositories, fenced commit implementation
+├── contracts/        API, event, workflow, and tool contracts
+├── evaluation/       datasets, deterministic checks, semantic evaluators, gates
+└── testing/          fixtures, provider simulators, contract-test suites
+
+deploy/
+├── containers/
+├── compose/
+└── kubernetes-or-platform/
+```
+
+Dependency direction:
+
+```text
+domain       -> foundation
+application  -> domain + ports + foundation
+workflow     -> foundation
+runtime      -> workflow + ports + foundation
+adapters     -> ports + external SDKs
+database     -> application/runtime persistence contracts
+web          -> application + read models
+worker       -> runtime + adapters + database
+```
+
+Forbidden imports:
+
+```text
+domain or kernel -> Next.js
+domain or kernel -> provider SDKs
+domain or kernel -> Bun.SQL
+application      -> provider SDK DTOs
+web              -> model or tool provider clients
+```
+
+## Minimal runtime model
+
+Always persist:
+
+```text
+ResourceVersion
+DeploymentSnapshot
+RunAuthority
+RunHeader
+RunInboxMessage
+RunLogEvent
+ActivityRun
+DurableCommand
+Effect
+Invocation
+WorkerLease
+Artifact
+AuditRecord
+UsageRecord
+EvaluationResult
+OutboxRecord
+```
+
+Persist when used:
+
+```text
+ActivityAttempt
+ApprovalCase
+CancellationBarrier
+ChildRunLink
+ContinuationRecord
+identified ExecutionBranch
+identified Iteration
+MemoryRecord
+```
+
+Do not create a table merely because a concept appears in a diagram. A concept needs a first-class record when it requires independent identity, lifecycle, concurrency control, policy, retention, or audit.
+
+## Example workflow
+
+An expense exception workflow demonstrates the complete profile:
+
+```text
+validate submission                  TaskActivity
+extract receipt fields               ModelActivity -> model.invoke Effect
+check expense policy                 TaskActivity
+request approval when required       ApprovalCase
+create/update finance case           ToolActivity -> tool.invoke Effect
+notify employee                      ToolActivity -> human.notify Effect
+complete and evaluate                TaskActivity
+```
+
+Authority remains deterministic:
+
+```text
+model extracts and proposes
+domain code computes money and policy thresholds
+policy and capability checks authorize the action
+human approval authorizes exceptions when required
+finance adapter executes the exact approved operation
+```
+
+## Workflow-definition defaults
+
+A published `WorkflowVersion` includes:
+
+```text
+input, output, and state schema references
+typed activities
+deterministic edges and joins
+input bindings
+completion policy
+retry and reconciliation policy references
+budget policy
+approval policy references
+evaluation suite reference
+```
+
+Recommended activity categories:
+
+```text
+task
+model
+tool
+human
+workflow
+agent
+```
+
+Recommended control-flow constructs:
+
+```text
+decision
+parallel
+iteration
+```
+
+Timers, event waits, local child starts, continuation, checkpoints, and cancellation are `DurableCommand`s, not activity kinds or Effects.
+
+Every activity input is an immutable snapshot. Every result is validated before it can update compact workflow state.
+
+## Command and execution flow
+
+### Start
+
+```text
+1. Web authenticates the employee through OIDC.
+2. Application resolves trusted workspace, roles, and entitlements.
+3. Application validates the task and idempotency key.
+4. Application resolves one immutable DeploymentSnapshot.
+5. One transaction creates RunHeader, RunAuthority,
+   the initial RunLog event, and the first RunInboxMessage.
+6. API returns 202 Accepted only after commit.
+```
+
+### Activate
+
+```text
+1. Worker claims ready inbox work with FOR UPDATE SKIP LOCKED.
+2. Worker acquires a short run_activation WorkerLease.
+3. Worker loads RunHeader, ordered messages, WorkflowVersion,
+   DeploymentSnapshot, and required subordinate records.
+4. Pure Execution Kernel returns a KernelDecision.
+5. RunCommitPort commits the decision atomically.
+6. Worker releases the lease or lets the short lease expire.
+```
+
+### Execute outside the kernel
+
+```text
+DurableCommand worker
+    fires timers, records signals, starts local child Runs,
+    creates checkpoints, or advances cancellation
+
+Effect worker
+    authorizes and dispatches model/tool/notification operations,
+    records Invocations, usage, and uncertain outcomes
+
+all outcomes
+    return as idempotent RunInboxMessages
+```
+
+Effect workers never update `RunHeader` directly.
+
+## Execution Kernel
+
+The kernel is synchronous and pure:
+
+```typescript
+interface ExecutionKernel {
+  decide(input: KernelInput): KernelDecision;
+}
+```
+
+For the same state, workflow, snapshot, and ordered messages, it produces the same decision.
+
+It must not import or read:
+
+```text
+Bun.SQL
+fetch
+Next.js
+provider SDKs
+process.env
+Date.now()
+unrecorded randomness
+OpenTelemetry SDK objects
+```
+
+Time, randomness, provider results, human decisions, and callbacks enter as recorded inputs.
+
+## PostgreSQL responsibilities
+
+PostgreSQL owns:
+
+```text
+immutable catalog metadata
+DeploymentSnapshots
+RunAuthority and RunHeader
+RunInbox and RunLog
+activities, commands, Effects, Invocations
+leases, approvals, cancellation barriers
+local budget reservations
+audit and integration outbox
+read projections when convenient
+```
+
+Object storage owns:
+
+```text
+uploaded documents
+large tool and model payloads
+compiled context snapshots
+generated reports
+evaluation evidence
+protected error details
+```
+
+Do not store raw large prompts, documents, or provider responses in `RunHeader`.
+
+## Required tables and constraints
+
+| Table | Essential constraints |
+|---|---|
+| `resource_versions` | unique workspace/kind/name/version; immutable published digest |
+| `deployment_snapshots` | unique content digest; exact resource pins |
+| `runs` | compact header; authority profile and epoch; state version and sequence |
+| `run_inbox_messages` | unique `(run_id, idempotency_key)` bound to payload digest |
+| `run_log_events` | unique `(run_id, run_sequence)` |
+| `activity_runs` | unique execution scope within a Run |
+| `durable_commands` | unique logical command occurrence |
+| `effects` | unique `(run_id, effect_key)` |
+| `invocations` | unique `(effect_id, ordinal)` |
+| `worker_leases` | at most one active Run-activation lease per Run |
+| `approval_cases` | case version, exact action and precondition digests |
+| `approval_decisions` | unique case/idempotency key and case/actor where required |
+| `artifacts` | content digest, classification, retention, storage key |
+| `audit_records` | append-only integrity chain or equivalent tamper evidence |
+| `usage_records` | exact Run/Effect/Invocation attribution |
+| `outbox_records` | unique destination/idempotency key |
+
+Use typed columns for authorization, lifecycle, ordering, uniqueness, scheduling, and budgets. Use `jsonb` for versioned specifications, bounded workflow variables, event payloads, and provider-specific evidence.
+
+## Fenced Run commit
+
+For `ara_log_v1`, one transaction must:
+
+```text
+lock RunHeader
+verify expected stateVersion
+verify expected runSequence
+verify expected authorityEpoch
+verify active run_activation lease and fencingToken
+append ordered RunLog events
+patch compact RunHeader
+insert/update ActivityRuns
+insert DurableCommands
+reserve Effects with unique effectKey
+apply ApprovalCase and budget mutations
+insert mandatory AuditRecords and OutboxRecords
+mark consumed inbox messages
+commit everything or reject everything
+```
+
+The commit must not make provider calls.
+
+Read models, search indexes, billing aggregates, and external audit delivery are projections.
+
+## Queue and scheduling defaults
+
+Use durable PostgreSQL rows with `FOR UPDATE SKIP LOCKED`.
+
+`LISTEN/NOTIFY` may wake idle workers, but polling remains required because notifications are not durable work.
+
+Starting defaults:
+
+```text
+idle poll interval          1 second with jitter
+Run activation lease       30 seconds
+lease renewal              every 10 seconds
+activation message batch   up to 25
+Effect claim batch         up to 10
+SSE heartbeat              every 15 seconds
+```
+
+These are tuning defaults, not semantic requirements.
+
+One Run advances serially. Many Runs advance in parallel. Activity and Effect execution can fan out concurrently, but results re-enter through the ordered inbox.
+
+Partition extreme fan-out into child Runs rather than creating one parent with unbounded hot-state contention.
+
+## Idempotency
+
+Every duplicate-prone command carries:
+
+```text
+workspace scope
+operation scope
+idempotency key
+normalized request digest
+retention/expiry policy
+```
+
+Rules:
+
+- Same key and same digest returns the original result.
+- Same key and different digest is a conflict.
+- The API idempotency key is not the Effect key.
+- Provider idempotency and business uniqueness are independent controls.
+
+An Effect key includes:
+
+```text
+workspaceId
+runId
+activityRunId
+scopePathDigest
+compiler-owned effectSlotId
+deterministic occurrenceKey
+effectSpecDigest
+normalizedInputDigest
+authorityDigest
+```
+
+## Retry and ambiguous outcomes
+
+| Failure | Action |
+|---|---|
+| provider rejects before accepting work | new Invocation when policy allows |
+| rate limit or capacity shortage | durable backoff, then new Invocation |
+| read-only timeout | retry only when adapter marks it safe |
+| mutation times out after dispatch | mark `outcome_unknown`; reconcile |
+| worker dies before dispatch | new lease; same Effect |
+| worker dies after dispatch | reconcile before any execute retry |
+| prompt, arguments, tool, objective, or authority changes | new Effect |
+| whole activity restarts | new ActivityAttempt; reuse completed Effects |
+
+Mutating tools must provide at least one of:
+
+```text
+provider idempotency
+authoritative status/reconciliation
+deterministic business uniqueness
+safe compensation or mitigation
+manual-resolution procedure
+```
+
+Reject an irreversible tool that provides none.
+
+## Human approval
+
+Use `ApprovalCase` when a human must authorize an Effect.
+
+```text
+normalize exact proposed action
+evaluate policy and capability
+compute action and material-precondition digests
+create ApprovalCase
+send notification as an Effect
+collect authenticated idempotent decisions
+satisfy quorum and separation of duties
+revalidate material preconditions
+atomically consume one-time authorization and reserve Effect
+```
+
+The approval screen renders deterministic fields, not only a model explanation.
+
+Invalidation conditions include:
+
+```text
+action changed
+material precondition changed
+role or entitlement revoked
+case expired
+Run cancelled
+required fresh authentication absent
+```
+
+## Cancellation
+
+Cancellation is a barrier:
+
+```text
+increment cancellationEpoch
+stop scheduling new normal-path work
+block dispatch from older epochs
+request supported provider cancellations
+record all late outcomes
+reconcile unknown mutations
+resolve, mitigate, or transfer outstanding work
+then mark Run cancelled
+```
+
+A cancellation request is not proof that a payment, ticket update, email, or model operation stopped.
+
+## API surface
+
+Minimum endpoints:
+
+```text
+POST /api/v1/runs
+GET  /api/v1/runs/{runId}
+POST /api/v1/runs/{runId}:signal
+POST /api/v1/runs/{runId}:cancel
+POST /api/v1/runs/{runId}:resume
+GET  /api/v1/runs/{runId}/events
+POST /api/v1/approval-cases/{caseId}:decide
+POST /api/v1/artifacts:initiate
+POST /api/v1/artifacts/{artifactId}:complete
+```
+
+Command routes require:
+
+```text
+authenticated PrincipalContext
+trusted workspace resolution
+Idempotency-Key
+request validation
+correlation ID
+expected state or case version when applicable
+```
+
+Use `202 Accepted` only after the command is durably recorded.
+
+SSE events use `runSequence` as `Last-Event-ID`. The connection is a view of durable history, never execution truth.
+
+## Authentication and authorization
+
+Use the company OIDC provider.
+
+Required controls:
+
+```text
+issuer and audience validation
+PKCE, state, and nonce
+secure HTTP-only session cookie
+session rotation
+trusted group/role mapping
+fresh MFA evidence for sensitive approvals
+workspace and resource authorization
+negative cross-workspace tests
+```
+
+Never trust workspace, actor, role, or capability fields from the request body.
+
+Recommended roles:
+
+```text
+user
+operator
+approver
+workflow_admin
+platform_admin
+```
+
+Roles never replace resource-level checks.
+
+## Secrets and credentials
+
+Workflow and tool versions contain credential-purpose references, not secrets.
+
+Immediately before Invocation:
+
+```text
+adapter requests purpose-bound credential
+credential broker issues a short-lived audience-bound handle
+adapter uses it
+plaintext never enters kernel, Run state, prompts, artifacts,
+logs, traces, or evaluation data
+```
+
+Use separate credentials per external system and environment. Allowlist network destinations per adapter.
+
+## Model adapter
+
+The model adapter must record:
+
+```text
+route and adapter version
+provider and provider model/deployment ID
+request and response digests
+compiled context artifact/digest
+usage and cost
+finish reason
+schema-validation outcome
+provider operation ID when available
+every visible retry
+```
+
+Use explicit input/output limits and reserve a conservative maximum before dispatch.
+
+Model output is validated and treated as a proposal. Tool selection and arguments must pass schema, policy, capability, budget, and approval gates.
+
+## Tool adapter
+
+A tool descriptor includes:
+
+```text
+exact ToolVersion
+input and output schema
+read/write and mutation impact
+idempotency and reconciliation capability
+cancellation/status capability
+data classification and egress limits
+required credential purpose
+rate and capacity policy
+```
+
+Provider-specific DTOs and exceptions remain inside the adapter.
+
+## Artifacts and context
+
+Every model Effect records an immutable context artifact containing:
+
+```text
+prompt version
+selected task and business-record references
+selected source/artifact versions
+tool schemas
+redaction and compaction decisions
+token estimate
+classification
+content digest
+```
+
+Artifacts are immutable and include content digest, classification, retention, and lineage.
+
+Long-term Memory is optional. Do not use conversation history, workflow variables, or a vector index as an undeclared authority source.
+
+## Budgets
+
+Represent money as decimal strings in APIs and fixed-precision decimals in PostgreSQL.
+
+Model budget flow:
+
+```text
+estimate conservative maximum
+reserve atomically
+acquire route capacity
+dispatch with provider limits
+observe streaming usage
+cancel at hard threshold when supported
+reconcile provider usage
+release unused reservation
+```
+
+A provider route that cannot expose or constrain relevant usage cannot claim strict hard-budget enforcement.
+
+## Observability
+
+Trace shape:
+
+```text
+run.activation
+├── kernel.decide
+├── run.commit
+├── activity.run
+├── durable_command
+├── effect
+│   └── invocation
+├── policy.evaluate
+├── approval.wait
+└── artifact.write
+```
+
+Structured logs include:
+
+```text
+service
+environment
+workspace identifier or privacy-safe hash
+runId
+activityRunId
+effectId
+invocationId
+correlationId
+event
+error category
+safeToRetry
+effectMayHaveOccurred
+duration
+```
+
+Do not use high-cardinality Run/Effect IDs as metric labels.
+
+Minimum alerts:
+
+```text
+oldest ready inbox age
+activation failures and stale fences
+Effect dispatch backlog
+outcome_unknown count and age
+approval expiry backlog
+timer lateness
+outbox lag
+budget reservation failures
+audit delivery backlog
+database connection saturation
+```
+
+## Initial SLOs
+
+Starting engineering targets:
+
+| Measure | Target |
+|---|---:|
+| accepted command durability | 99.99% |
+| internal API availability | 99.9% |
+| ready-to-activation p95 | under 2 seconds |
+| durable event freshness p95 | under 2 seconds |
+| worker-loss recovery p95 | under 60 seconds |
+| duplicate irreversible mutation | 0 |
+| mandatory audit record completeness | 100% |
+| approval/action digest mismatch | 0 |
+
+Adjust to business criticality and measured capacity.
+
+## Testing and evaluation
+
+Required test layers:
+
+```text
+domain unit and property tests
+Execution Kernel transition/replay tests
+PostgreSQL repository and migration tests
+Run commit concurrency and stale-fence tests
+model/tool adapter contract tests
+workflow simulation
+Next.js API integration tests
+Playwright approval and Run UI tests
+failure injection
+golden evaluation datasets
+load and soak tests
+backup/restore game day
+```
+
+Required failure cases:
+
+```text
+duplicate start and signal
+worker death before and after dispatch
+provider 429 and transient outage
+invalid model structured output
+lost mutation response
+duplicate callback
+approval expiry and role revocation
+stale worker fence
+object-storage outage
+database failover
+cancellation with an unknown external mutation
+```
+
+Minimum hard gates:
+
+```text
+single_execution_authority
+run_commit_fenced
+effect_identity_unique
+no_cross_tenant_access
+no_unauthorized_tool_execution
+no_approval_bypass
+no_duplicate_irreversible_effect
+no_forbidden_data_egress
+hard_budget_enforced
+mandatory_audit_complete
+```
+
+## Production deployment
+
+Release order:
+
+```text
+build immutable web and worker images
+generate dependency lock, SBOM, and provenance
+run migration job under an advisory lock
+deploy staging
+run contract, workflow, hard-gate, and recovery suites
+canary web and worker replicas
+monitor technical and business gates
+promote or roll back
+```
+
+Use expand-migrate-contract database changes. A new application release must work with the expanded schema while old replicas drain.
+
+Worker shutdown:
+
+```text
+stop claiming work
+finish safe local work
+record uncertain dispatched mutations as outcome_unknown
+release leases where possible
+exit before termination deadline
+```
+
+Health endpoints distinguish process liveness from dependency readiness. Readiness probes must not call model providers.
+
+## Backup and recovery
+
+Required:
+
+```text
+PostgreSQL point-in-time recovery
+object-storage retention and recovery policy
+regular restore test
+projection rebuild from RunLog
+post-restore Effect reconciliation
+authorityEpoch bump before resumed dispatch
+runbook for unresolved external mutations
+```
+
+A restored database must not permit two worker sets to act under the same authority epoch.
+
+Initial objectives may start at:
+
+```text
+RPO 5 minutes
+RTO 60 minutes
+```
+
+Use stricter values when the business process requires them.
+
+## Delivery milestones
+
+### 1. Foundation
+
+Deliver:
+
+```text
+monorepo and module boundaries
+OIDC-authenticated Next.js shell
+PostgreSQL migrations
+immutable ResourceVersion and DeploymentSnapshot
+idempotent Run start/query
+structured logging and tracing
+one deterministic workflow
+```
+
+Exit: published versions are immutable and a Run timeline survives restart.
+
+### 2. Durable runtime
+
+Deliver:
+
+```text
+RunInbox
+RunHeader and RunLog
+run_activation leases and fencing
+pure Execution Kernel
+RunCommitPort
+timer and signal DurableCommands
+SSE event stream
+```
+
+Exit: two workers cannot double-advance a Run; stale commits fail.
+
+### 3. Effects and adapters
+
+Deliver:
+
+```text
+ModelPort and ToolPort
+Effect and Invocation records
+idempotency, retry, reconciliation
+context artifacts
+budget reservation and usage
+```
+
+Exit: every external call is attributable and unknown mutations are reconciled.
+
+### 4. Approval and cancellation
+
+Deliver:
+
+```text
+ApprovalCase and decision UI
+quorum, MFA, expiry, invalidation, consumption
+notification adapter
+CancellationBarrier
+manual-resolution queue
+```
+
+Exit: changed actions cannot reuse approval and cancellation never hides unknown outcomes.
+
+### 5. Production hardening
+
+Deliver:
+
+```text
+golden evaluations and hard gates
+failure injection
+load/soak tests
+dashboards and alerts
+backup/restore exercise
+canary rollout
+```
+
+Exit: all acceptance criteria below pass in staging.
+
+## Acceptance criteria
+
+The first production release is ready only when:
+
+### Architecture
+
+- One canonical Run and one `ara_log_v1` authority are implemented.
+- Provider/framework DTOs do not cross ports.
+- Every production Run pins one immutable DeploymentSnapshot.
+- Web code cannot invoke providers directly.
+
+### Durability
+
+- Accepted commands are committed before acknowledgement.
+- One fenced activation writer advances a Run.
+- Timers, signals, approvals, and retries survive restart.
+- Projections can be rebuilt from RunLog.
+- Worker loss does not repeat completed Effects.
+
+### External work
+
+- Every model/tool call is an Invocation of one Effect.
+- Every mutating Effect has idempotency, reconciliation, or both.
+- Ambiguous outcomes are explicit.
+- Effect identity includes execution scope and occurrence.
+- Cancellation handles late outcomes truthfully.
+
+### Security
+
+- OIDC and resource authorization are enforced.
+- Negative workspace-isolation tests pass.
+- Credentials are absent from prompts, state, logs, traces, and artifacts.
+- Approval binds the exact action and material preconditions.
+- Untrusted content cannot grant authority.
+
+### Operations
+
+- Required dashboards and alerts exist.
+- Database restore and Effect reconciliation are exercised.
+- Migrations have forward and rollback procedures.
+- The evaluated DeploymentSnapshot equals the deployed snapshot.
+
+## Growth triggers
+
+Add Temporal for new workflow versions only when several are true:
+
+```text
+very large numbers of simultaneously waiting Runs
+complex child-workflow trees
+heavy multi-day timer/signal usage
+database scheduler operations dominate team effort
+Temporal-native worker versioning and replay are required
+multiple teams need a shared durable orchestration service
+```
+
+Under `temporal_history_v1`, Temporal history becomes the sole decision authority. Existing `ara_log_v1` Runs complete under their original authority.
+
+Add a broker when many independent consumers require durable integration-event replay.
+
+Add Redis only for measured non-authoritative caching, ephemeral presence, or rate counters.
+
+Add vector search only when retrieval evaluation proves material benefit; the index remains derived.
+
+Split a module into a service only for independent scaling, security zone, regional placement, availability, team ownership, or release lifecycle.
+
+## Final shape
+
+```text
+Next.js web/API
+    -> application commands and queries
+    -> PostgreSQL RunInbox
+    -> Bun worker
+    -> pure Execution Kernel
+    -> fenced Run commit
+    -> DurableCommands and Effects
+    -> Invocations through adapters
+
+PostgreSQL       execution authority and bounded operational records
+Object storage   immutable large content and evidence
+OIDC             trusted identity
+OpenTelemetry    operational visibility
+```
+
+This profile is small enough for one team to implement and operate, but it preserves the semantic boundaries required to grow into a shared internal platform without replacing the core execution model.

@@ -1,0 +1,113 @@
+---
+title: Runtime and execution authority
+description: One-authority profiles, inbox sequencing, compact state, commits, workers, recovery, replay, and cancellation.
+---
+
+# Runtime and execution authority
+
+> **Status: Normative for ARA Durable and higher modules**
+
+## One authority per Run
+
+Every Run **MUST** select one `ExecutionAuthorityProfile`.
+
+| Profile | Decision authority | ARA semantic event log |
+|---|---|---|
+| `ara_log_v1` | transactional ARA RunLog and activation sequencer | authoritative |
+| `temporal_history_v1` | Temporal workflow history | derived projection or semantic payload recorded in history |
+| `checkpoint_graph_v1` | declared graph checkpoint/history | derived; stronger ARA guarantees require explicit Effect and approval records |
+
+Two histories **MUST NOT** be peer decision authorities for one Run. A Run cannot switch profiles in place.
+
+## Database-native profile
+
+`ara_log_v1` uses:
+
+```text
+RunInbox       durable commands, signals, callbacks, and worker outcomes
+RunHeader      compact current projection
+RunLog         ordered semantic authority
+RunSnapshot    optional replay acceleration
+subordinate tables for activities, commands, Effects, Invocations, approvals, and children
+```
+
+The runtime **MUST NOT** rewrite an ever-growing complete state object after every transition.
+
+## Activation sequencing
+
+```text
+producer
+  -> append idempotent RunInbox message
+  -> activation worker acquires short run_activation lease
+  -> load ordered message batch and compact state
+  -> pure Execution Kernel decides
+  -> one fenced authoritative commit
+  -> workers execute commands and Effects
+  -> outcomes return through RunInbox
+```
+
+Effect workers do not own the Run writer lease and do not mutate `RunHeader` directly.
+
+## Execution Kernel
+
+For fixed state, workflow, deployment, and ordered messages, the kernel **MUST** produce the same decision.
+
+```typescript
+interface ExecutionKernel {
+  decide(input: KernelInput): KernelDecision;
+}
+```
+
+It **MUST NOT** read clocks, random generators, network, environment variables, secrets, SDKs, or persistence sessions. Time and randomness enter as recorded input.
+
+## RunLogCommit
+
+For `ara_log_v1`, one commit verifies:
+
+```text
+expected Run sequence
+expected state version
+expected authority epoch
+current run_activation lease and fencing token
+```
+
+It atomically:
+
+```text
+appends semantic events
+patches the compact RunHeader
+creates DurableCommands and Effect reservations
+applies activity and approval mutations
+reserves local budget
+inserts mandatory audit and integration outbox records
+marks consumed inbox messages
+```
+
+Read models, search indexes, billing aggregates, external audit delivery, and most timelines are projections.
+
+## WorkerLease
+
+Lease kinds are distinct:
+
+```text
+run_activation   authority to advance one Run briefly
+activity         authority to execute bounded local activity work
+invocation       authority to dispatch or reconcile one Invocation
+```
+
+A stale lease holder **MUST NOT** commit after a newer fencing token exists.
+
+## Resume, replay, rerun, and continuation
+
+| Mode | Meaning | Identity |
+|---|---|---|
+| operational resume | continue unfinished work without repeating completed Effects | same Run |
+| evidence replay | reconstruct with recorded Effect outcomes; no external dispatch | same historical evidence view |
+| counterfactual rerun | new execution with selected historical inputs and versions | new Run |
+| continuation | migrate state at a declared boundary to a successor snapshot | new Run in same runFamilyId |
+
+## Cancellation barrier
+
+Cancellation is a barrier, not instant proof that external work stopped.
+
+The runtime increments `cancellationEpoch`, prevents old-epoch dispatch, requests supported cancellations, records late outcomes, reconciles unknown mutations, and reaches terminal `cancelled` only when required outstanding work is resolved, mitigated, or transferred to manual resolution.
